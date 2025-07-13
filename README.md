@@ -1,22 +1,46 @@
-# LOVE VSCode Game Template
-A fully configured VSCode template for LOVE
+# Feudalism - A Love2D Game
+
+A feudal-themed strategy game inspired by the classic Flash games "Feudalism" and "Feudalism 2", built using Lua and the Love2D framework.
 
 ## Features
-- 📄 Rich Lua language features with [Lua Language Server](https://github.com/LuaLS/lua-language-server)
-- 🔧 Debugging with [Local Lua Debugger](https://github.com/tomblind/local-lua-debugger-vscode)
-- 🏢 Automatic builds with [Makelove](https://github.com/pfirsich/makelove)
-- 👨‍💻 Consistent coding styles with [Editorconfig](https://github.com/editorconfig/editorconfig-vscode)
-- 🏃‍♂️ Running scripts with [NPM Scripts](https://docs.npmjs.com/cli/v9/using-npm/scripts)
-- 🗂️ Organized with [Workspaces](https://code.visualstudio.com/docs/editor/workspaces)
-- 🔗 Extensible and configurable for your needs
 
-## Prerequisites
-- [Visual Studio Code](https://code.visualstudio.com/download)
-- [LÖVE 11.4](https://love2d.org/)
-- [Makelove](https://github.com/pfirsich/makelove)
-- [NPM](https://nodejs.org/en/download) (Optional)
+### Core Gameplay
+- **Overworld Map**: Explore a 2D world with various towns, terrain features, and roads
+- **Town Interaction**: Visit different types of settlements (villages, cities, ports, fortresses)
+- **Army Management**: Recruit and manage different unit types with unique stats
+- **Player Stats**: Develop your character with Strength, Agility, Vitality, and Leadership
+- **Resource Management**: Earn and spend gold on units, upgrades, and items
 
-**LÖVE and Makelove should be in your PATH environment variable.**
+### Unit Types
+- **Peasant**: Basic unit with low stats but cheap cost
+- **Militia**: Lightly armed civilian soldiers
+- **Soldier**: Professional military units
+- **Knight**: Elite heavy cavalry
+- **Archer**: Ranged combat specialists
+- **Crossbowman**: Elite ranged units with high damage
+
+### Town Types
+- **Village**: Basic settlements offering peasants and militia
+- **City**: Larger settlements with professional soldiers and archers
+- **Port**: Coastal trading posts with advanced units
+- **Fortress**: Military strongholds with elite units
+
+## Controls
+
+### Overworld
+- **WASD** or **Arrow Keys**: Move your character
+- **Enter**: Interact with towns when nearby
+- **ESC**: Quit the game
+
+### Town Menus
+- **Up/Down Arrows**: Navigate menu options
+- **Enter**: Select option
+- **ESC**: Go back or leave town
+
+## Requirements
+
+- [Love2D](https://love2d.org/) framework (version 11.4 or higher)
+- The game is designed to run on Windows, macOS, and Linux
 
 ## Setup
 1 - [Use this template](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template) to create a new repository for your game, then clone that repository locally.\
