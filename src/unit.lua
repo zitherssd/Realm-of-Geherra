@@ -1,19 +1,16 @@
--- Unit module
--- Defines the Unit class used for both allies and enemies in battles
+-- BattleUnit module
+-- Defines the BattleUnit class used for both allies and enemies in battles
 
-local Unit = {}
+local BattleUnit = {}
 
-function Unit:new(team, unitType, x, y)
+function BattleUnit:new(team, unitType, x, y, armyUnit)
     local instance = {
         -- Position
         x = x or 0,
         y = y or 0,
         
         -- Stats
-        hp = 100,
-        max_hp = 100,
         speed = 50,
-        attack_damage = 20,
         attack_range = 30,
         attack_cooldown = 1.0,
         attack_timer = 0,
@@ -45,7 +42,8 @@ function Unit:new(team, unitType, x, y)
         -- Animation properties
         animation_timer = 0,
         direction = 1, -- 1 for right, -1 for left
-        attack_animation_duration = 0.3
+        attack_animation_duration = 0.3,
+        army_unit = armyUnit -- Reference to the persistent ArmyUnit
     }
     
     -- Set team-specific colors
@@ -58,27 +56,18 @@ function Unit:new(team, unitType, x, y)
     -- Set unit type-specific properties
     if unitType == "archer" then
         instance.attack_range = 80
-        instance.attack_damage = 15
         instance.speed = 40
         instance.width = 18
         instance.height = 28
         instance.collision_radius_x = 12
         instance.collision_radius_y = 6
     elseif unitType == "knight" then
-        instance.hp = 150
-        instance.max_hp = 150
-        instance.attack_damage = 30
-        instance.attack_range = 25
         instance.speed = 35
         instance.width = 22
         instance.height = 32
         instance.collision_radius_x = 18
         instance.collision_radius_y = 10
     elseif unitType == "peasant" then
-        instance.hp = 60
-        instance.max_hp = 60
-        instance.attack_damage = 10
-        instance.attack_range = 25
         instance.speed = 45
         instance.width = 16
         instance.height = 26
@@ -90,7 +79,7 @@ function Unit:new(team, unitType, x, y)
     return instance
 end
 
-function Unit:update(dt, units)
+function BattleUnit:update(dt, units)
     if self.state == "dead" then
         return
     end
@@ -122,7 +111,7 @@ function Unit:update(dt, units)
     end
 end
 
-function Unit:pushAwayFromUnits(units)
+function BattleUnit:pushAwayFromUnits(units)
     local pushForce = 0.5 -- How much to push units apart
     
     for _, unit in ipairs(units) do
@@ -146,7 +135,7 @@ function Unit:pushAwayFromUnits(units)
     end
 end
 
-function Unit:findAlternativePath(dt, units)
+function BattleUnit:findAlternativePath(dt, units)
     -- Try different directions to go around obstacles
     local directions = {
         {dx = 1, dy = 0},   -- Right
@@ -197,7 +186,7 @@ function Unit:findAlternativePath(dt, units)
     self:findDistantPath(dt, units)
 end
 
-function Unit:findDistantPath(dt, units)
+function BattleUnit:findDistantPath(dt, units)
     -- Try to move away from current position to find a clear path
     local directions = {
         {dx = 1, dy = 0},   -- Right
@@ -226,7 +215,7 @@ function Unit:findDistantPath(dt, units)
     end
 end
 
-function Unit:canMoveTo(newX, newY, units)
+function BattleUnit:canMoveTo(newX, newY, units)
     -- Check collision with other units using elliptical collision
     for _, unit in ipairs(units) do
         if unit ~= self and unit.state ~= "dead" then
@@ -239,7 +228,7 @@ function Unit:canMoveTo(newX, newY, units)
     return true
 end
 
-function Unit:checkEllipticalCollision(x1, y1, unit2)
+function BattleUnit:checkEllipticalCollision(x1, y1, unit2)
     -- Get collision centers
     local cx1, cy1 = self:getCollisionCenter()
     local cx2, cy2 = unit2:getCollisionCenter()
@@ -260,12 +249,12 @@ function Unit:checkEllipticalCollision(x1, y1, unit2)
     return distance <= 1
 end
 
-function Unit:getCollisionCenter()
+function BattleUnit:getCollisionCenter()
     -- Return the center of the collision ellipse (at the feet)
     return self.x, self.y + self.collision_offset_y
 end
 
-function Unit:updateAttacking(dt, units)
+function BattleUnit:updateAttacking(dt, units)
     self.animation_timer = self.animation_timer - dt
     
     if self.animation_timer <= 0 then
@@ -273,10 +262,10 @@ function Unit:updateAttacking(dt, units)
         if self.target and self.target.state ~= "dead" then
             local distance = math.sqrt((self.x - self.target.x)^2 + (self.y - self.target.y)^2)
             
-            if distance <= self.attack_range and self.attack_timer <= 0 then
+            if distance <= self.army_unit.attack_range and self.attack_timer <= 0 then
                 -- Perform attack
-                self.target:takeDamage(self.attack_damage)
-                self.attack_timer = self.attack_cooldown
+                self.target:takeDamage(self.army_unit.attack_damage)
+                self.attack_timer = self.army_unit.attack_cooldown
             end
         end
         
@@ -285,15 +274,15 @@ function Unit:updateAttacking(dt, units)
     end
 end
 
-function Unit:takeDamage(damage)
-    self.hp = math.max(0, self.hp - damage)
+function BattleUnit:takeDamage(damage)
+    self.army_unit.currentHealth = math.max(0, self.army_unit.currentHealth - damage)
     
-    if self.hp <= 0 then
+    if self.army_unit.currentHealth <= 0 then
         self.state = "dead"
     end
 end
 
-function Unit:draw()
+function BattleUnit:draw()
     if self.state == "dead" then
         return
     end
@@ -318,7 +307,7 @@ function Unit:draw()
     love.graphics.rectangle('fill', bar_x, bar_y, bar_width, bar_height)
     
     -- Health
-    local health_ratio = self.hp / self.max_hp
+    local health_ratio = self.army_unit.currentHealth / self.army_unit.maxHealth
     love.graphics.setColor(0.2, 0.8, 0.2, 1.0)
     love.graphics.rectangle('fill', bar_x, bar_y, bar_width * health_ratio, bar_height)
     
@@ -339,15 +328,15 @@ function Unit:draw()
     love.graphics.circle('fill', collision_x, collision_y, 2)
 end
 
-function Unit:isAlive()
-    return self.state ~= "dead"
+function BattleUnit:isAlive()
+    return self.army_unit.currentHealth > 0
 end
 
-function Unit:getTeam()
+function BattleUnit:getTeam()
     return self.team
 end
 
-function Unit:findTarget(units)
+function BattleUnit:findTarget(units)
     local best_score = -1
     local closest_unit = nil
     
@@ -372,7 +361,7 @@ function Unit:findTarget(units)
     self.target = closest_unit
 end
 
-function Unit:calculateTargetAccessibility(target, units)
+function BattleUnit:calculateTargetAccessibility(target, units)
     local accessibility = 1.0
     
     -- Check if there are units blocking the direct path
@@ -406,11 +395,11 @@ function Unit:calculateTargetAccessibility(target, units)
     return accessibility
 end
 
-function Unit:updateIdle(dt, units)
+function BattleUnit:updateIdle(dt, units)
     if self.target then
         local distance = math.sqrt((self.x - self.target.x)^2 + (self.y - self.target.y)^2)
         
-        if distance <= self.attack_range then
+        if distance <= self.army_unit.attack_range then
             -- In attack range, start attacking
             self.state = "attacking"
             self.animation_timer = self.attack_animation_duration
@@ -421,7 +410,7 @@ function Unit:updateIdle(dt, units)
     end
 end
 
-function Unit:updateMoving(dt, units)
+function BattleUnit:updateMoving(dt, units)
     if not self.target or self.target.state == "dead" then
         self.state = "idle"
         return
@@ -429,7 +418,7 @@ function Unit:updateMoving(dt, units)
     
     local distance = math.sqrt((self.x - self.target.x)^2 + (self.y - self.target.y)^2)
     
-    if distance <= self.attack_range then
+    if distance <= self.army_unit.attack_range then
         -- In attack range, stop and attack
         self.state = "attacking"
         self.animation_timer = self.attack_animation_duration
@@ -471,4 +460,4 @@ function Unit:updateMoving(dt, units)
     end
 end
 
-return Unit 
+return BattleUnit 

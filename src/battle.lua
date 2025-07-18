@@ -1,7 +1,7 @@
 -- Battle module
 -- Handles battle scene logic, drawing, and state management
 
-local Unit = require('src.unit')
+local BattleUnit = require('src.unit')
 
 local Battle = {}
 
@@ -110,14 +110,10 @@ function Battle.spawnUnits(battleInstance, playerArmy, enemyArmy)
         elseif armyUnit.type then
             unitType = armyUnit.type:lower()
         end
-        
-        local unit = Unit:new(1, unitType, battleInstance.ally_spawn_x, ally_y)
+        local unit = BattleUnit:new(1, unitType, battleInstance.ally_spawn_x, ally_y, armyUnit)
         table.insert(battleInstance.units, unit)
-        
-        -- Store reference to the original army unit for tracking losses
         unit.original_army_unit = armyUnit
         table.insert(battleInstance.player_army_units, unit)
-        
         ally_y = ally_y + ally_spacing
     end
     
@@ -127,7 +123,9 @@ function Battle.spawnUnits(battleInstance, playerArmy, enemyArmy)
     
     for i, enemyUnit in ipairs(enemyArmy) do
         local unitType = enemyUnit.type or "soldier"
-        local unit = Unit:new(2, unitType, battleInstance.enemy_spawn_x, enemy_y)
+        -- Create a minimal ArmyUnit-like table for enemy units
+        local tempArmyUnit = enemyUnit.army_unit or enemyUnit
+        local unit = BattleUnit:new(2, unitType, battleInstance.enemy_spawn_x, enemy_y, tempArmyUnit)
         table.insert(battleInstance.units, unit)
         enemy_y = enemy_y + enemy_spacing
     end
