@@ -13,6 +13,13 @@ local biomeTypes = {
         color = {1.0, 1.0, 0.0},
         description = "Sandy beach, heals faster."
     },
+    ["#8B4513"] = { -- Road (saddle brown)
+        name = "road",
+        movement_speed_rate = 1.5,
+        healing_rate = 1.0,
+        color = {0.545, 0.27, 0.075},
+        description = "Road, greatly increases movement speed."
+    },
     -- Add more biomes as needed
 }
 
