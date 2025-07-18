@@ -91,10 +91,6 @@ function Player:draw()
     -- Draw player as a rectangle
     love.graphics.setColor(self.color)
     love.graphics.rectangle('fill', self.x - self.size/2, self.y - self.size/2, self.size, self.size)
-    
-    -- Draw a simple direction indicator
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.circle('fill', self.x, self.y - self.size/4, 2)
 end
 
 function Player:getStats()
