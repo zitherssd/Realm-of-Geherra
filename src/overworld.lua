@@ -2,6 +2,7 @@
 -- Handles the overworld map with towns and terrain
 
 local Overworld = {}
+local AIParty = require('src.ai_party')
 
 function Overworld:new()
     local instance = {
@@ -90,18 +91,37 @@ function Overworld:new()
             {from = {400, 800}, to = {1500, 1000}}
         },
         
-        interactionDistance = 50 -- Distance to interact with towns
+        interactionDistance = 50, -- Distance to interact with towns
+        parties = {}, -- AI-controlled parties
     }
     
     setmetatable(instance, {__index = self})
+    instance:spawnParties()
     return instance
+end
+
+function Overworld:spawnParties()
+    -- Example: spawn a few bandit and lord parties
+    table.insert(self.parties, AIParty:new{
+        x = 600, y = 600, type = 'bandit', faction = 'hostile', color = {0.8,0.1,0.1}, name = 'Bandit Gang',
+        patrolPoints = {{x=600,y=600},{x=800,y=800},{x=600,y=900}},
+    })
+    table.insert(self.parties, AIParty:new{
+        x = 1000, y = 400, type = 'lord', faction = 'neutral', color = {0.2,0.2,1.0}, name = 'Lord Beran',
+        patrolPoints = {{x=1000,y=400},{x=1200,y=600},{x=900,y=700}},
+    })
+    -- Add more as needed
 end
 
 function Overworld:loadImages()
     self.worldMap = love.graphics.newImage('assets/world_map.png')
 end
 
-function Overworld:update(dt)
+function Overworld:update(dt, player)
+    -- Update all AI parties
+    for _, party in ipairs(self.parties) do
+        party:update(dt, player)
+    end
     -- Future: Add overworld events, weather, etc.
 end
 
@@ -114,10 +134,11 @@ function Overworld:draw()
         love.graphics.setColor(0.4, 0.6, 0.3) -- Grass green fallback
         love.graphics.rectangle('fill', 0, 0, self.width, self.height)
     end
-    
     -- Optionally: draw biome debug overlay here
-    -- (future: use Biome module to color overlay)
-    
+    -- Draw AI parties
+    for _, party in ipairs(self.parties) do
+        party:draw()
+    end
     -- Draw roads
     love.graphics.setColor(0.6, 0.4, 0.2) -- Brown
     love.graphics.setLineWidth(4)
@@ -227,6 +248,17 @@ function Overworld:getNearbyTowns(x, y, radius)
     table.sort(nearby, function(a, b) return a.distance < b.distance end)
     
     return nearby
+end
+
+function Overworld:getNearbyParty(x, y, radius)
+    for _, party in ipairs(self.parties) do
+        local dx, dy = x - party.x, y - party.y
+        local dist = math.sqrt(dx*dx + dy*dy)
+        if dist <= (radius or 40) then
+            return party
+        end
+    end
+    return nil
 end
 
 return Overworld

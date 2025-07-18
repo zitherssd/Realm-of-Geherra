@@ -41,7 +41,7 @@ end
 function Game:update(dt)
     if self.state == "overworld" then
         self.party:update(dt)
-        self.overworld:update(dt)
+        self.overworld:update(dt, self.party)
         
         -- Update camera to follow party
         self.camera.x = self.party.x - self.screenWidth / 2
@@ -51,6 +51,14 @@ function Game:update(dt)
         local nearbyTown = self.overworld:checkTownInteraction(self.party.x, self.party.y)
         if nearbyTown and love.keyboard.isDown('return') then
             self:enterTown(nearbyTown)
+        end
+        
+        -- Check for AI party interaction
+        local nearbyAIParty = self.overworld:getNearbyParty(self.party.x, self.party.y, 32)
+        if nearbyAIParty then
+            -- For now, print a message (future: dialog/encounter screen)
+            print("Encountered " .. (nearbyAIParty.name or 'AI Party') .. " [" .. (nearbyAIParty.type or '?') .. ", " .. (nearbyAIParty.faction or '?') .. "]!")
+            -- (Future: set state to 'encounter', show dialog, etc.)
         end
         
     elseif self.state == "town" then
