@@ -1,21 +1,19 @@
 local biomeTypes = {
-    forest = {
-        color = {0.2, 0.5, 0.2},
+    ["#228B22"] = { -- Forest green
+        name = "forest",
+        movement_speed_rate = 0.75,
+        healing_rate = 1.0,
+        color = {0.2, 0.55, 0.13},
         description = "Dense forest, slows movement."
     },
-    mountain = {
-        color = {0.4, 0.4, 0.4},
-        description = "Impassable mountains."
+    ["#FFFF00"] = { -- Beach yellow
+        name = "beach",
+        movement_speed_rate = 1.0,
+        healing_rate = 2.0,
+        color = {1.0, 1.0, 0.0},
+        description = "Sandy beach, heals faster."
     },
-    lake = {
-        color = {0.2, 0.4, 0.8},
-        description = "Water body, blocks movement."
-    },
-    river = {
-        color = {0.3, 0.5, 0.9},
-        description = "River, may block or slow movement."
-    },
-    -- Add more biome types as needed
+    -- Add more biomes as needed
 }
 
 return biomeTypes

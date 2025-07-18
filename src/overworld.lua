@@ -72,8 +72,18 @@ function Overworld:new()
             {from = {400, 800}, to = {1500, 1000}}
         },
         
-        interactionDistance = 50 -- Distance to interact with towns
+        interactionDistance = 50,
+        visualMap = nil, -- love.graphics.newImage('assets/maps/visual_map.png')
+        biomeMap = nil,  -- love.image.newImageData('assets/maps/biome_map.png')
     }
+    
+    -- Try to load images if they exist
+    if love.filesystem.getInfo('assets/maps/visual_map.png') then
+        instance.visualMap = love.graphics.newImage('assets/maps/visual_map.png')
+    end
+    if love.filesystem.getInfo('assets/maps/biome_map.png') then
+        instance.biomeMap = love.image.newImageData('assets/maps/biome_map.png')
+    end
     
     setmetatable(instance, {__index = self})
     return instance
@@ -318,6 +328,13 @@ function Overworld:getNearbyTowns(x, y, radius)
     table.sort(nearby, function(a, b) return a.distance < b.distance end)
     
     return nearby
+end
+
+function Overworld:getBiomeAt(x, y)
+    if not self.biomeMap then return nil end
+    local r, g, b = self.biomeMap:getPixel(math.floor(x), math.floor(y))
+    local hex = string.format("#%02x%02x%02x", r*255, g*255, b*255)
+    return biomeTypes[hex]
 end
 
 return Overworld
