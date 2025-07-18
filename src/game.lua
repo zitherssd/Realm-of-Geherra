@@ -4,6 +4,7 @@
 local Player = require('src.player')
 local Overworld = require('src.overworld')
 local Town = require('src.town')
+<<<<<<< HEAD
 local Battle = require('src.battle')
 local Utils = require('src.utils')
 
@@ -50,6 +51,19 @@ local Game = {
         bandit_roam_radius = 150, -- How far bandits roam from settlements
         bandit_movement_speed = 20 -- Pixels per second
     }
+=======
+local Utils = require('src.utils')
+
+local Game = {
+    state = "overworld", -- Current game state: "overworld", "town", "menu"
+    player = nil,
+    overworld = nil,
+    town = nil,
+    currentTown = nil,
+    camera = {x = 0, y = 0},
+    screenWidth = 1024,
+    screenHeight = 768
+>>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
 }
 
 function Game:init()
@@ -58,12 +72,15 @@ function Game:init()
     self.overworld = Overworld:new()
     self.town = Town:new()
     
+<<<<<<< HEAD
     -- Connect player to overworld for collision detection
     self.player:setOverworld(self.overworld)
     
     -- Initialize bandit parties around settlements
     self:initializeBanditParties()
     
+=======
+>>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
     -- Center camera on player
     self.camera.x = self.player.x - self.screenWidth / 2
     self.camera.y = self.player.y - self.screenHeight / 2
@@ -71,6 +88,7 @@ function Game:init()
     print("Game initialized. Use WASD or arrow keys to move, Enter to interact with towns, ESC to quit.")
 end
 
+<<<<<<< HEAD
 function Game:initializeBanditParties()
     local towns = self.overworld:getAllTowns()
     
@@ -177,14 +195,19 @@ function Game:updateBanditParty(banditParty, dt)
     end
 end
 
+=======
+>>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
 function Game:update(dt)
     if self.state == "overworld" then
         self.player:update(dt)
         self.overworld:update(dt)
         
+<<<<<<< HEAD
         -- Update bandit parties
         self:updateBanditParties(dt)
         
+=======
+>>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
         -- Update camera to follow player
         self.camera.x = self.player.x - self.screenWidth / 2
         self.camera.y = self.player.y - self.screenHeight / 2
@@ -195,6 +218,7 @@ function Game:update(dt)
             self:enterTown(nearbyTown)
         end
         
+<<<<<<< HEAD
         -- Check for battle triggers
         self:checkBattleTriggers(dt)
         
@@ -314,6 +338,13 @@ function Game:exitBattle()
     self.battle = nil
 end
 
+=======
+    elseif self.state == "town" then
+        self.town:update(dt)
+    end
+end
+
+>>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
 function Game:draw()
     if self.state == "overworld" then
         love.graphics.push()
@@ -322,6 +353,7 @@ function Game:draw()
         -- Draw overworld
         self.overworld:draw()
         
+<<<<<<< HEAD
         -- Draw enemy parties
         self.overworld:drawEnemyParties(self.battle_triggers.enemy_parties)
         
@@ -331,6 +363,8 @@ function Game:draw()
         -- Draw interaction indicators
         self.overworld:drawInteractionIndicators(self.player.x, self.player.y)
         
+=======
+>>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
         -- Draw player
         self.player:draw()
         
@@ -341,12 +375,15 @@ function Game:draw()
         
     elseif self.state == "town" then
         self.town:draw()
+<<<<<<< HEAD
         
     elseif self.state == "battle" then
         self.battle:draw()
         
     elseif self.state == "army" then
         self:drawArmyScreen()
+=======
+>>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
     end
 end
 
@@ -366,6 +403,7 @@ function Game:drawUI()
     -- Draw army size
     love.graphics.print(string.format("Army Size: %d", #self.player.army), 180, 20)
     
+<<<<<<< HEAD
     -- Draw minimap
     self:drawMinimap()
     
@@ -581,6 +619,10 @@ function Game:drawUnitCard(unit, x, y, width, height)
     love.graphics.print("ATK: " .. info.attack, x + 5, y + 20)
     love.graphics.print("DEF: " .. info.defense, x + 5, y + 35)
     love.graphics.print("HP: " .. info.health, x + 5, y + 50)
+=======
+    -- Draw instructions
+    love.graphics.print("WASD/Arrows: Move | Enter: Interact | ESC: Quit", 10, self.screenHeight - 25)
+>>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
 end
 
 function Game:enterTown(town)
@@ -598,6 +640,7 @@ function Game:keypressed(key)
     if key == 'escape' then
         if self.state == "town" then
             self:exitTown()
+<<<<<<< HEAD
         elseif self.state == "battle" then
             -- Allow escaping from battle (with penalty)
             self.player:addGold(-10)
@@ -683,6 +726,13 @@ function Game:armyKeypressed(key)
         else
             print("Not enough gold to add unit.")
         end
+=======
+        else
+            love.event.quit()
+        end
+    elseif self.state == "town" then
+        self.town:keypressed(key)
+>>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
     end
 end
 

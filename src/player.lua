@@ -32,6 +32,7 @@ function Player:new()
         
         -- Movement
         speed = 100,
+<<<<<<< HEAD
         rotation = 0, -- Direction the player is facing (in radians)
         
         -- Visual
@@ -40,6 +41,12 @@ function Player:new()
         
         -- Reference to overworld for collision detection
         overworld = nil
+=======
+        
+        -- Visual
+        color = {0.2, 0.6, 1.0}, -- Blue color
+        size = 16
+>>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
     }
     
     -- Add a starting unit to the army
@@ -49,6 +56,7 @@ function Player:new()
     return instance
 end
 
+<<<<<<< HEAD
 function Player:setOverworld(overworld)
     self.overworld = overworld
 end
@@ -58,6 +66,12 @@ function Player:update(dt)
     local moveX, moveY = 0, 0
     
     -- Keyboard input
+=======
+function Player:update(dt)
+    -- Handle movement input
+    local moveX, moveY = 0, 0
+    
+>>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
     if love.keyboard.isDown('w') or love.keyboard.isDown('up') then
         moveY = moveY - 1
     end
@@ -71,6 +85,7 @@ function Player:update(dt)
         moveX = moveX + 1
     end
     
+<<<<<<< HEAD
     -- Gamepad input
     if love.joystick then
         local joysticks = love.joystick.getJoysticks()
@@ -105,12 +120,15 @@ function Player:update(dt)
         end
     end
     
+=======
+>>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
     -- Normalize diagonal movement
     if moveX ~= 0 and moveY ~= 0 then
         moveX = moveX * 0.707
         moveY = moveY * 0.707
     end
     
+<<<<<<< HEAD
     -- Update rotation based on movement direction
     if moveX ~= 0 or moveY ~= 0 then
         self.rotation = math.atan2(moveY, moveX)
@@ -140,6 +158,15 @@ function Player:update(dt)
     -- Keep player within world bounds
     self.x = math.max(self.size/2, math.min(self.x, 2048 - self.size/2))
     self.y = math.max(self.size/2, math.min(self.y, 2048 - self.size/2))
+=======
+    -- Apply movement
+    self.x = self.x + moveX * self.speed * dt
+    self.y = self.y + moveY * self.speed * dt
+    
+    -- Keep player within reasonable bounds
+    self.x = math.max(0, math.min(self.x, 2048))
+    self.y = math.max(0, math.min(self.y, 2048))
+>>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
 end
 
 function Player:draw()
@@ -162,10 +189,13 @@ function Player:getStats()
     }
 end
 
+<<<<<<< HEAD
 function Player:getGold()
     return self.gold
 end
 
+=======
+>>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
 function Player:addGold(amount)
     self.gold = self.gold + amount
 end
@@ -189,6 +219,7 @@ function Player:removeUnit(index)
     end
 end
 
+<<<<<<< HEAD
 function Player:removeUnitFromArmy(unitToRemove)
     -- Find and remove the specific unit from the army
     for i, unit in ipairs(self.army) do
@@ -200,6 +231,8 @@ function Player:removeUnitFromArmy(unitToRemove)
     return false
 end
 
+=======
+>>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
 function Player:getArmySize()
     return #self.army
 end

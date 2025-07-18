@@ -63,7 +63,10 @@ function ArmyUnit:new(unitType)
     
     local instance = {
         type = unitType,
+<<<<<<< HEAD
         battle_type = unitType:lower(), -- For battle system compatibility
+=======
+>>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
         attack = template.attack,
         defense = template.defense,
         maxHealth = template.health,
