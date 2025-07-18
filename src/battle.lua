@@ -1,7 +1,7 @@
 -- Battle module
 -- Handles battle scene logic, drawing, and state management
 
-local BattleUnit = require('src.unit')
+local BattleUnit = require('src.battle_unit')
 
 local Battle = {}
 
