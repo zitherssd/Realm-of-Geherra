@@ -26,6 +26,8 @@ function Game:init()
     self.party = Party:new()
     self.overworld = Overworld:new()
     self.town = Town:new()
+    self.encounteredParty = nil
+    self.encounterMenuIndex = 1
     
     -- Load images
     Biome:load('assets/biome_map.png')
@@ -56,9 +58,9 @@ function Game:update(dt)
         -- Check for AI party interaction
         local nearbyAIParty = self.overworld:getNearbyParty(self.party.x, self.party.y, 32)
         if nearbyAIParty then
-            -- For now, print a message (future: dialog/encounter screen)
-            print("Encountered " .. (nearbyAIParty.name or 'AI Party') .. " [" .. (nearbyAIParty.type or '?') .. ", " .. (nearbyAIParty.faction or '?') .. "]!")
-            -- (Future: set state to 'encounter', show dialog, etc.)
+            self.state = "encounter"
+            self.encounteredParty = nearbyAIParty
+            self.encounterMenuIndex = 1
         end
         
     elseif self.state == "town" then
@@ -84,7 +86,36 @@ function Game:draw()
         
     elseif self.state == "town" then
         self.town:draw()
+    elseif self.state == "encounter" then
+        self:drawEncounter()
     end
+end
+
+function Game:drawEncounter()
+    local party = self.encounteredParty
+    love.graphics.setColor(0, 0, 0, 0.85)
+    love.graphics.rectangle('fill', 0, 0, self.screenWidth, self.screenHeight)
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.setFont(love.graphics.newFont(28))
+    love.graphics.printf("Encounter!", 0, 60, self.screenWidth, 'center')
+    love.graphics.setFont(love.graphics.newFont(18))
+    love.graphics.printf((party.name or "AI Party") .. " [" .. (party.type or '?') .. ", " .. (party.faction or '?') .. "]", 0, 120, self.screenWidth, 'center')
+    love.graphics.printf("Morale: " .. (party.morale or '?'), 0, 150, self.screenWidth, 'center')
+    love.graphics.printf("State: " .. (party.state or '?'), 0, 170, self.screenWidth, 'center')
+    love.graphics.setFont(love.graphics.newFont(20))
+    local encounterOptions = {"Talk", "Pay", "Fight", "Leave"}
+    for i, option in ipairs(encounterOptions) do
+        local y = 240 + i * 40
+        if i == self.encounterMenuIndex then
+            love.graphics.setColor(1, 1, 0)
+        else
+            love.graphics.setColor(1, 1, 1)
+        end
+        love.graphics.printf((i == self.encounterMenuIndex and "> " or "  ") .. option, 0, y, self.screenWidth, 'center')
+    end
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.setFont(love.graphics.newFont(14))
+    love.graphics.printf("Up/Down: Navigate  Enter: Select  Esc: Leave", 0, self.screenHeight - 40, self.screenWidth, 'center')
 end
 
 function Game:drawUI()
@@ -118,11 +149,35 @@ function Game:keypressed(key)
     if key == 'escape' then
         if self.state == "town" then
             self:exitTown()
+        elseif self.state == "encounter" then
+            self.state = "overworld"
+            self.encounteredParty = nil
         else
             love.event.quit()
         end
     elseif self.state == "town" then
         self.town:keypressed(key)
+    elseif self.state == "encounter" then
+        if key == 'up' then
+            self.encounterMenuIndex = math.max(1, self.encounterMenuIndex - 1)
+        elseif key == 'down' then
+            self.encounterMenuIndex = math.min(#encounterOptions, self.encounterMenuIndex + 1)
+        elseif key == 'return' then
+            local selected = encounterOptions[self.encounterMenuIndex]
+            if selected == "Leave" then
+                self.state = "overworld"
+                self.encounteredParty = nil
+            elseif selected == "Talk" then
+                -- Future: dialog logic
+                print("You try to talk to " .. (self.encounteredParty.name or 'the party') .. ".")
+            elseif selected == "Pay" then
+                -- Future: pay logic
+                print("You offer to pay the party.")
+            elseif selected == "Fight" then
+                -- Future: battle logic
+                print("You prepare to fight!")
+            end
+        end
     end
 end
 
