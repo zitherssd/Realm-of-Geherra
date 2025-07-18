@@ -1,5 +1,8 @@
--- Player module
--- Handles player stats, inventory, army, and movement
+-- Player module (DEPRECATED)
+-- This module is now replaced by src/party.lua for party stats, movement, and biome effects.
+-- Kept for reference or future use for individual hero stats.
+
+-- (No further changes needed; use src/party.lua for party logic)
 
 local ArmyUnit = require('src.army_unit')
 
