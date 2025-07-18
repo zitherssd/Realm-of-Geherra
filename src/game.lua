@@ -5,10 +5,13 @@ local Player = require('src.player')
 local Overworld = require('src.overworld')
 local Town = require('src.town')
 local Utils = require('src.utils')
+local Biome = require('src.biome')
+local Party = require('src.party')
 
 local Game = {
     state = "overworld", -- Current game state: "overworld", "town", "menu"
-    player = nil,
+    -- player = nil, -- Remove old player
+    party = nil, -- New party object
     overworld = nil,
     town = nil,
     currentTown = nil,
@@ -19,28 +22,33 @@ local Game = {
 
 function Game:init()
     -- Initialize the game systems
-    self.player = Player:new()
+    -- self.player = Player:new() -- Remove old player
+    self.party = Party:new()
     self.overworld = Overworld:new()
     self.town = Town:new()
     
-    -- Center camera on player
-    self.camera.x = self.player.x - self.screenWidth / 2
-    self.camera.y = self.player.y - self.screenHeight / 2
+    -- Load images
+    Biome:load('assets/biome_map.png')
+    self.overworld:loadImages()
+    
+    -- Center camera on party
+    self.camera.x = self.party.x - self.screenWidth / 2
+    self.camera.y = self.party.y - self.screenHeight / 2
     
     print("Game initialized. Use WASD or arrow keys to move, Enter to interact with towns, ESC to quit.")
 end
 
 function Game:update(dt)
     if self.state == "overworld" then
-        self.player:update(dt)
+        self.party:update(dt)
         self.overworld:update(dt)
         
-        -- Update camera to follow player
-        self.camera.x = self.player.x - self.screenWidth / 2
-        self.camera.y = self.player.y - self.screenHeight / 2
+        -- Update camera to follow party
+        self.camera.x = self.party.x - self.screenWidth / 2
+        self.camera.y = self.party.y - self.screenHeight / 2
         
         -- Check for town interactions
-        local nearbyTown = self.overworld:checkTownInteraction(self.player.x, self.player.y)
+        local nearbyTown = self.overworld:checkTownInteraction(self.party.x, self.party.y)
         if nearbyTown and love.keyboard.isDown('return') then
             self:enterTown(nearbyTown)
         end
@@ -58,8 +66,8 @@ function Game:draw()
         -- Draw overworld
         self.overworld:draw()
         
-        -- Draw player
-        self.player:draw()
+        -- Draw party
+        self.party:draw()
         
         love.graphics.pop()
         
@@ -72,20 +80,16 @@ function Game:draw()
 end
 
 function Game:drawUI()
-    -- Draw player stats in top-left corner
+    -- Draw party stats in top-left corner
     love.graphics.setColor(0, 0, 0, 0.7)
-    love.graphics.rectangle('fill', 10, 10, 300, 120)
+    love.graphics.rectangle('fill', 10, 10, 320, 140)
     love.graphics.setColor(1, 1, 1, 1)
     
-    local stats = self.player:getStats()
-    love.graphics.print(string.format("Gold: %d", stats.gold), 20, 20)
-    love.graphics.print(string.format("Strength: %d", stats.strength), 20, 40)
-    love.graphics.print(string.format("Agility: %d", stats.agility), 20, 60)
-    love.graphics.print(string.format("Vitality: %d", stats.vitality), 20, 80)
-    love.graphics.print(string.format("Leadership: %d", stats.leadership), 20, 100)
-    
-    -- Draw army size
-    love.graphics.print(string.format("Army Size: %d", #self.player.army), 180, 20)
+    love.graphics.print(string.format("Morale: %d", self.party.morale), 20, 20)
+    love.graphics.print(string.format("Movement Speed: %.1f", self.party.movement_speed), 20, 40)
+    love.graphics.print(string.format("Healing Rate: %.2f", self.party.healing_rate), 20, 60)
+    love.graphics.print(string.format("Biome: %s", self.party.current_biome), 20, 80)
+    love.graphics.print(string.format("Impassable: %s", tostring(self.party.impassable)), 20, 100)
     
     -- Draw instructions
     love.graphics.print("WASD/Arrows: Move | Enter: Interact | ESC: Quit", 10, self.screenHeight - 25)
@@ -94,7 +98,7 @@ end
 function Game:enterTown(town)
     self.state = "town"
     self.currentTown = town
-    self.town:enter(town, self.player)
+    self.town:enter(town, self.party)
 end
 
 function Game:exitTown()

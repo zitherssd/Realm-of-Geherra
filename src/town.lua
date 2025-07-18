@@ -8,7 +8,7 @@ local Town = {}
 function Town:new()
     local instance = {
         currentTown = nil,
-        player = nil,
+        party = nil,
         menuState = "main", -- "main", "recruit", "shop", "tavern", "info"
         selectedIndex = 1,
         recruitableUnits = {},
@@ -34,9 +34,9 @@ function Town:new()
     return instance
 end
 
-function Town:enter(town, player)
+function Town:enter(town, party)
     self.currentTown = town
-    self.player = player
+    self.party = party
     self.menuState = "main"
     self.selectedIndex = 1
     
@@ -122,7 +122,7 @@ function Town:drawRecruitMenu()
     love.graphics.setColor(1, 1, 1)
     love.graphics.print("Recruit Units:", 50, 160)
     
-    local playerGold = self.player:getStats().gold
+    local playerGold = self.party:getStats().gold
     love.graphics.print("Your Gold: " .. playerGold, 50, 180)
     
     for i, unit in ipairs(self.recruitableUnits) do
@@ -148,7 +148,7 @@ function Town:drawShopMenu()
     love.graphics.setColor(1, 1, 1)
     love.graphics.print("Shop:", 50, 160)
     
-    local playerGold = self.player:getStats().gold
+    local playerGold = self.party:getStats().gold
     love.graphics.print("Your Gold: " .. playerGold, 50, 180)
     
     for i, item in ipairs(self.shopItems) do
@@ -199,26 +199,23 @@ function Town:drawInfoMenu()
 end
 
 function Town:drawPlayerStats()
-    -- Draw player info on the right side
+    -- Draw party info on the right side
     love.graphics.setColor(0, 0, 0, 0.7)
     love.graphics.rectangle('fill', love.graphics.getWidth() - 250, 50, 200, 200)
     
     love.graphics.setColor(1, 1, 1)
-    love.graphics.print("Player Stats:", love.graphics.getWidth() - 240, 60)
+    love.graphics.print("Party Stats:", love.graphics.getWidth() - 240, 60)
     
-    local stats = self.player:getStats()
-    local statTexts = {
-        "Gold: " .. stats.gold,
-        "Strength: " .. stats.strength,
-        "Agility: " .. stats.agility,
-        "Vitality: " .. stats.vitality,
-        "Leadership: " .. stats.leadership,
+    local stats = {
+        "Morale: " .. (self.party.morale or 0),
+        "Movement Speed: " .. (self.party.movement_speed or 0),
+        "Healing Rate: " .. (self.party.healing_rate or 0),
+        "Biome: " .. (self.party.current_biome or 'unknown'),
         "",
-        "Army Size: " .. #self.player.army,
-        "Army Strength: " .. self.player:getArmyStrength()
+        -- Add more party stats as needed
     }
     
-    for i, text in ipairs(statTexts) do
+    for i, text in ipairs(stats) do
         love.graphics.print(text, love.graphics.getWidth() - 240, 80 + i * 15)
     end
 end
@@ -282,15 +279,15 @@ function Town:recruitUnit()
     if self.selectedIndex <= #self.recruitableUnits then
         local unit = self.recruitableUnits[self.selectedIndex]
         
-        -- Check if player has enough gold
-        if self.player:spendGold(unit.cost) then
-            -- Check if player can lead more units
-            if #self.player.army < self.player:canLeadUnits() then
-                self.player:addUnit(unit.type)
+        -- Check if party has enough gold
+        if self.party:spendGold(unit.cost) then
+            -- Check if party can lead more units
+            if #self.party.army < self.party:canLeadUnits() then
+                self.party:addUnit(unit.type)
                 print("Recruited " .. unit.type .. " for " .. unit.cost .. " gold")
             else
                 -- Refund gold if can't lead more units
-                self.player:addGold(unit.cost)
+                self.party:addGold(unit.cost)
                 print("Cannot recruit more units. Leadership limit reached.")
             end
         else
@@ -303,19 +300,19 @@ function Town:buyItem()
     if self.selectedIndex <= #self.shopItems then
         local item = self.shopItems[self.selectedIndex]
         
-        if self.player:spendGold(item.price) then
+        if self.party:spendGold(item.price) then
             -- Basic item effects
             if item.name == "Health Potion" then
                 -- Heal army units
-                for _, unit in ipairs(self.player.army) do
+                for _, unit in ipairs(self.party.army) do
                     unit:heal(10)
                 end
                 print("Used Health Potion - Army healed")
             elseif item.name == "Weapon Upgrade" then
-                self.player:increasestat("strength", 1)
+                self.party:increasestat("strength", 1)
                 print("Weapon upgraded - Strength increased")
             elseif item.name == "Armor Upgrade" then
-                self.player:increasestat("vitality", 1)
+                self.party:increasestat("vitality", 1)
                 print("Armor upgraded - Vitality increased")
             end
         else

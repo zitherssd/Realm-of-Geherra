@@ -8,6 +8,10 @@ function Overworld:new()
         width = 2048,
         height = 2048,
         
+        -- Map images
+        worldMap = nil, -- love.graphics.Image
+        biomeDebug = false, -- Toggle biome overlay
+        
         -- Towns on the map
         towns = {
             {
@@ -93,24 +97,26 @@ function Overworld:new()
     return instance
 end
 
+function Overworld:loadImages()
+    self.worldMap = love.graphics.newImage('assets/world_map.png')
+end
+
 function Overworld:update(dt)
     -- Future: Add overworld events, weather, etc.
 end
 
 function Overworld:draw()
-    -- Draw background
-    love.graphics.setColor(0.4, 0.6, 0.3) -- Grass green
-    love.graphics.rectangle('fill', 0, 0, self.width, self.height)
-    
-    -- Draw terrain features
-    for _, feature in ipairs(self.terrain) do
-        love.graphics.setColor(feature.color)
-        if feature.type == "forest" or feature.type == "mountain" then
-            love.graphics.rectangle('fill', feature.x, feature.y, feature.width, feature.height)
-        elseif feature.type == "lake" then
-            love.graphics.ellipse('fill', feature.x + feature.width/2, feature.y + feature.height/2, feature.width/2, feature.height/2)
-        end
+    -- Draw world map image if loaded
+    if self.worldMap then
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.draw(self.worldMap, 0, 0)
+    else
+        love.graphics.setColor(0.4, 0.6, 0.3) -- Grass green fallback
+        love.graphics.rectangle('fill', 0, 0, self.width, self.height)
     end
+    
+    -- Optionally: draw biome debug overlay here
+    -- (future: use Biome module to color overlay)
     
     -- Draw roads
     love.graphics.setColor(0.6, 0.4, 0.2) -- Brown
