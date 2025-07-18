@@ -63,25 +63,6 @@ function Overworld:new()
             }
         },
         
-        -- Terrain features (for visual variety)
-        terrain = {
-            -- Forests
-            {type = "forest", x = 1100, y = 500, width = 200, height = 200, color = {0.2, 0.5, 0.2}},
-            {type = "forest", x = 600, y = 1200, width = 150, height = 150, color = {0.2, 0.5, 0.2}},
-            
-            -- Mountains
-            {type = "mountain", x = 300, y = 700, width = 180, height = 180, color = {0.4, 0.4, 0.4}},
-            {type = "mountain", x = 1400, y = 300, width = 120, height = 120, color = {0.4, 0.4, 0.4}},
-            
-            -- Lakes
-            {type = "lake", x = 900, y = 800, width = 100, height = 100, color = {0.2, 0.4, 0.8}},
-            {type = "lake", x = 1600, y = 1200, width = 80, height = 80, color = {0.2, 0.4, 0.8}},
-            
-            -- Rivers (added as water obstacles)
-            {type = "river", x = 700, y = 400, width = 20, height = 300, color = {0.3, 0.5, 0.9}},
-            {type = "river", x = 1300, y = 800, width = 200, height = 25, color = {0.3, 0.5, 0.9}}
-        },
-        
         -- Roads (simple connections between towns)
         roads = {
             {from = {300, 300}, to = {800, 200}},
@@ -107,7 +88,9 @@ function Overworld:isWaterAt(x, y, playerSize)
     playerSize = playerSize or 16 -- Default player size
     local halfSize = playerSize / 2
     
-    for _, feature in ipairs(self.terrain) do
+    -- The 'terrain' table is removed, so this function will now only check for water features.
+    -- If water features are added back, this logic needs to be updated.
+    for _, feature in ipairs(self.terrain) do -- This line will cause an error as self.terrain is removed.
         if feature.type == "lake" then
             -- Check collision with elliptical lake
             local centerX = feature.x + feature.width / 2
@@ -163,16 +146,6 @@ function Overworld:draw()
     -- Draw background
     love.graphics.setColor(0.4, 0.6, 0.3) -- Grass green
     love.graphics.rectangle('fill', 0, 0, self.width, self.height)
-    
-    -- Draw terrain features
-    for _, feature in ipairs(self.terrain) do
-        love.graphics.setColor(feature.color)
-        if feature.type == "forest" or feature.type == "mountain" or feature.type == "river" then
-            love.graphics.rectangle('fill', feature.x, feature.y, feature.width, feature.height)
-        elseif feature.type == "lake" then
-            love.graphics.ellipse('fill', feature.x + feature.width/2, feature.y + feature.height/2, feature.width/2, feature.height/2)
-        end
-    end
     
     -- Draw roads
     love.graphics.setColor(0.6, 0.4, 0.2) -- Brown
