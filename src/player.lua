@@ -32,21 +32,10 @@ function Player:new()
         
         -- Movement
         speed = 100,
-<<<<<<< HEAD
-        rotation = 0, -- Direction the player is facing (in radians)
-        
-        -- Visual
-        color = {0.2, 0.6, 1.0}, -- Blue color
-        size = 16,
-        
-        -- Reference to overworld for collision detection
-        overworld = nil
-=======
         
         -- Visual
         color = {0.2, 0.6, 1.0}, -- Blue color
         size = 16
->>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
     }
     
     -- Add a starting unit to the army
@@ -56,22 +45,10 @@ function Player:new()
     return instance
 end
 
-<<<<<<< HEAD
-function Player:setOverworld(overworld)
-    self.overworld = overworld
-end
-
-function Player:update(dt)
-    -- Handle movement input (keyboard and gamepad)
-    local moveX, moveY = 0, 0
-    
-    -- Keyboard input
-=======
 function Player:update(dt)
     -- Handle movement input
     local moveX, moveY = 0, 0
     
->>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
     if love.keyboard.isDown('w') or love.keyboard.isDown('up') then
         moveY = moveY - 1
     end
@@ -85,80 +62,12 @@ function Player:update(dt)
         moveX = moveX + 1
     end
     
-<<<<<<< HEAD
-    -- Gamepad input
-    if love.joystick then
-        local joysticks = love.joystick.getJoysticks()
-        local gamepad = joysticks[1]
-        if gamepad then
-            -- Left stick for movement
-            local stickX = gamepad:getAxis(1)
-            local stickY = gamepad:getAxis(2)
-            
-            -- Apply deadzone to prevent drift
-            local deadzone = 0.2
-            if math.abs(stickX) > deadzone then
-                moveX = moveX + stickX
-            end
-            if math.abs(stickY) > deadzone then
-                moveY = moveY + stickY
-            end
-            
-            -- D-pad as alternative
-            if gamepad:isDown(1) then -- Up
-                moveY = moveY - 1
-            end
-            if gamepad:isDown(2) then -- Down
-                moveY = moveY + 1
-            end
-            if gamepad:isDown(3) then -- Left
-                moveX = moveX - 1
-            end
-            if gamepad:isDown(4) then -- Right
-                moveX = moveX + 1
-            end
-        end
-    end
-    
-=======
->>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
     -- Normalize diagonal movement
     if moveX ~= 0 and moveY ~= 0 then
         moveX = moveX * 0.707
         moveY = moveY * 0.707
     end
     
-<<<<<<< HEAD
-    -- Update rotation based on movement direction
-    if moveX ~= 0 or moveY ~= 0 then
-        self.rotation = math.atan2(moveY, moveX)
-    end
-    
-    -- Calculate new position
-    local newX = self.x + moveX * self.speed * dt
-    local newY = self.y + moveY * self.speed * dt
-    
-    -- Check for collisions if overworld is available
-    if self.overworld then
-        -- Check X movement
-        if self.overworld:canMoveTo(newX, self.y, self.size) then
-            self.x = newX
-        end
-        
-        -- Check Y movement
-        if self.overworld:canMoveTo(self.x, newY, self.size) then
-            self.y = newY
-        end
-    else
-        -- Fallback to old movement if no overworld reference
-        self.x = newX
-        self.y = newY
-    end
-    
-    -- Keep player within world bounds
-    self.x = math.max(self.size/2, math.min(self.x, 2048 - self.size/2))
-    self.y = math.max(self.size/2, math.min(self.y, 2048 - self.size/2))
-=======
     -- Apply movement
     self.x = self.x + moveX * self.speed * dt
     self.y = self.y + moveY * self.speed * dt
@@ -166,7 +75,6 @@ function Player:update(dt)
     -- Keep player within reasonable bounds
     self.x = math.max(0, math.min(self.x, 2048))
     self.y = math.max(0, math.min(self.y, 2048))
->>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
 end
 
 function Player:draw()
@@ -189,13 +97,6 @@ function Player:getStats()
     }
 end
 
-<<<<<<< HEAD
-function Player:getGold()
-    return self.gold
-end
-
-=======
->>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
 function Player:addGold(amount)
     self.gold = self.gold + amount
 end
@@ -219,7 +120,6 @@ function Player:removeUnit(index)
     end
 end
 
-<<<<<<< HEAD
 function Player:removeUnitFromArmy(unitToRemove)
     -- Find and remove the specific unit from the army
     for i, unit in ipairs(self.army) do
@@ -231,8 +131,6 @@ function Player:removeUnitFromArmy(unitToRemove)
     return false
 end
 
-=======
->>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
 function Player:getArmySize()
     return #self.army
 end

@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
 -- Utilities module
 -- Common helper functions used throughout the game
 
