@@ -2,6 +2,7 @@
 -- Handles the overworld map with towns and terrain
 
 local Overworld = {}
+local biomeTypes = require('src.data.biome_types')
 
 function Overworld:new()
     local instance = {
@@ -74,15 +75,11 @@ function Overworld:new()
             
             -- Lakes
             {type = "lake", x = 900, y = 800, width = 100, height = 100, color = {0.2, 0.4, 0.8}},
-<<<<<<< HEAD
             {type = "lake", x = 1600, y = 1200, width = 80, height = 80, color = {0.2, 0.4, 0.8}},
             
             -- Rivers (added as water obstacles)
             {type = "river", x = 700, y = 400, width = 20, height = 300, color = {0.3, 0.5, 0.9}},
             {type = "river", x = 1300, y = 800, width = 200, height = 25, color = {0.3, 0.5, 0.9}}
-=======
-            {type = "lake", x = 1600, y = 1200, width = 80, height = 80, color = {0.2, 0.4, 0.8}}
->>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
         },
         
         -- Roads (simple connections between towns)
@@ -105,7 +102,6 @@ function Overworld:update(dt)
     -- Future: Add overworld events, weather, etc.
 end
 
-<<<<<<< HEAD
 -- Check if a position is blocked by water
 function Overworld:isWaterAt(x, y, playerSize)
     playerSize = playerSize or 16 -- Default player size
@@ -163,8 +159,6 @@ function Overworld:canMoveTo(x, y, playerSize)
     return true
 end
 
-=======
->>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
 function Overworld:draw()
     -- Draw background
     love.graphics.setColor(0.4, 0.6, 0.3) -- Grass green
@@ -173,11 +167,7 @@ function Overworld:draw()
     -- Draw terrain features
     for _, feature in ipairs(self.terrain) do
         love.graphics.setColor(feature.color)
-<<<<<<< HEAD
         if feature.type == "forest" or feature.type == "mountain" or feature.type == "river" then
-=======
-        if feature.type == "forest" or feature.type == "mountain" then
->>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
             love.graphics.rectangle('fill', feature.x, feature.y, feature.width, feature.height)
         elseif feature.type == "lake" then
             love.graphics.ellipse('fill', feature.x + feature.width/2, feature.y + feature.height/2, feature.width/2, feature.height/2)
@@ -214,7 +204,6 @@ function Overworld:draw()
     end
 end
 
-<<<<<<< HEAD
 -- Draw enemy parties on the overworld
 function Overworld:drawEnemyParties(enemyParties)
     for _, party in ipairs(enemyParties) do
@@ -277,8 +266,6 @@ function Overworld:drawInteractionIndicators(playerX, playerY)
     end
 end
 
-=======
->>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
 function Overworld:getTownTypeIndicator(townType)
     local indicators = {
         village = "♦",

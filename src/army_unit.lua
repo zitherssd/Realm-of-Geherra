@@ -4,56 +4,7 @@
 local ArmyUnit = {}
 
 -- Unit type definitions
-local unitTypes = {
-    ["Peasant"] = {
-        attack = 2,
-        defense = 1,
-        health = 10,
-        cost = 5,
-        description = "Basic peasant unit",
-        equipment = {weapon = "Stick", armor = "Rags"}
-    },
-    ["Militia"] = {
-        attack = 4,
-        defense = 3,
-        health = 20,
-        cost = 15,
-        description = "Lightly armed militia",
-        equipment = {weapon = "Spear", armor = "Leather"}
-    },
-    ["Soldier"] = {
-        attack = 6,
-        defense = 5,
-        health = 30,
-        cost = 30,
-        description = "Professional soldier",
-        equipment = {weapon = "Sword", armor = "Chain Mail"}
-    },
-    ["Knight"] = {
-        attack = 10,
-        defense = 8,
-        health = 50,
-        cost = 100,
-        description = "Elite heavy cavalry",
-        equipment = {weapon = "Lance", armor = "Plate Armor"}
-    },
-    ["Archer"] = {
-        attack = 5,
-        defense = 2,
-        health = 15,
-        cost = 25,
-        description = "Ranged archer unit",
-        equipment = {weapon = "Bow", armor = "Leather"}
-    },
-    ["Crossbowman"] = {
-        attack = 7,
-        defense = 3,
-        health = 20,
-        cost = 40,
-        description = "Elite ranged unit",
-        equipment = {weapon = "Crossbow", armor = "Studded Leather"}
-    }
-}
+local unitTypes = require('src.data.unit_types')
 
 function ArmyUnit:new(unitType)
     local template = unitTypes[unitType]

@@ -2,6 +2,7 @@
 -- Handles town interaction menus and services
 
 local ArmyUnit = require('src.army_unit')
+local settlementTypes = require('src.data.settlement_types')
 
 local Town = {}
 
@@ -49,13 +50,8 @@ end
 function Town:generateRecruitableUnits()
     self.recruitableUnits = {}
     
-    -- Different town types offer different units
-    local unitsByTownType = {
-        village = {"Peasant", "Militia"},
-        city = {"Militia", "Soldier", "Archer"},
-        port = {"Soldier", "Archer", "Crossbowman"},
-        fortress = {"Soldier", "Knight", "Crossbowman"}
-    }
+    -- Use settlementTypes for town/settlement type definitions instead of local tables.
+    local unitsByTownType = settlementTypes.unitsByType
     
     local availableUnits = unitsByTownType[self.currentTown.type] or {"Peasant"}
     
