@@ -63,15 +63,6 @@ function Overworld:new()
             }
         },
         
-        -- Roads (simple connections between towns)
-        roads = {
-            {from = {300, 300}, to = {800, 200}},
-            {from = {800, 200}, to = {1200, 600}},
-            {from = {1200, 600}, to = {1500, 1000}},
-            {from = {300, 300}, to = {400, 800}},
-            {from = {400, 800}, to = {1500, 1000}}
-        },
-        
         interactionDistance = 50,
         visualMap = nil, -- love.graphics.newImage('assets/maps/visual_map.png')
         biomeMap = nil,  -- love.image.newImageData('assets/maps/biome_map.png')
@@ -156,13 +147,6 @@ function Overworld:draw()
     -- Draw background
     love.graphics.setColor(0.4, 0.6, 0.3) -- Grass green
     love.graphics.rectangle('fill', 0, 0, self.width, self.height)
-    
-    -- Draw roads
-    love.graphics.setColor(0.6, 0.4, 0.2) -- Brown
-    love.graphics.setLineWidth(4)
-    for _, road in ipairs(self.roads) do
-        love.graphics.line(road.from[1], road.from[2], road.to[1], road.to[2])
-    end
     
     -- Draw towns
     for _, town in ipairs(self.towns) do
