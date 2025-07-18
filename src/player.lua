@@ -69,8 +69,18 @@ function Player:update(dt)
     end
     
     -- Apply movement
-    self.x = self.x + moveX * self.speed * dt
-    self.y = self.y + moveY * self.speed * dt
+    local newX = self.x + moveX * self.speed * dt
+    local newY = self.y + moveY * self.speed * dt
+    local biome = nil
+    if self.overworld and self.overworld.getBiomeAt then
+        biome = self.overworld:getBiomeAt(newX, newY)
+    end
+    if biome and biome.passable == false then
+        -- Block movement into impassable biome (e.g., water)
+        return
+    end
+    self.x = newX
+    self.y = newY
     
     -- Keep player within reasonable bounds
     self.x = math.max(0, math.min(self.x, 2048))
