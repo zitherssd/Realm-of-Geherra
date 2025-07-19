@@ -2,6 +2,7 @@
 -- Handles battle scene logic, drawing, and state management
 
 local BattleUnit = require('src.battle_unit')
+local Game = require('src.game')
 
 local Battle = {}
 
@@ -282,9 +283,13 @@ end
 function Battle:keypressed(key)
     if key == "space" and (self.state == "victory" or self.state == "defeat") then
         self.state = "finished"
-        if self.setState then
-            self.setState("overworld")
+        if self.on_battle_end then
+            self.on_battle_end()
         end
+        if self.on_battle_finished then
+            self.on_battle_finished(self:getResult())
+        end
+        Game.state = "overworld"
     end
 end
 
@@ -313,9 +318,10 @@ function Battle:getLostUnits()
     return self.lost_units
 end
 
-function Battle.start(battleType, player, enemyArmy, backgroundType, setState)
+function Battle.start(battleType, player, enemyArmy, backgroundType)
     local battle = Battle:new(battleType, player, enemyArmy, backgroundType)
-    battle.setState = setState
+    Game.state = "battle"
+    Game.battle = battle
     return battle
 end
 

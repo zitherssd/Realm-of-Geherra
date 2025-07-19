@@ -5,6 +5,8 @@ local Encounter = {
     onEnd = nil
 }
 
+local Battle = require('src.battle')
+
 function Encounter:init(party, onEnd)
     self.party = party
     self.selected = 1
@@ -43,7 +45,7 @@ function Encounter:draw(screenWidth, screenHeight)
     end
 end
 
-function Encounter:keypressed(key, startBattle, removeParty)
+function Encounter:keypressed(key, _, removeParty)
     if not self.party then return end
     if key == "up" or key == "w" then
         self.selected = math.max(1, self.selected - 1)
@@ -53,13 +55,12 @@ function Encounter:keypressed(key, startBattle, removeParty)
         local option = self.options[self.selected]
         if option == "Fight" then
             if self.party.party_type == "enemy" then
-                startBattle("encounter", self.party.types, "forest")
+                Battle.start("encounter", Game.player, self.party.types, "forest")
             elseif self.party.party_type == "bandit" then
-                startBattle("bandit_encounter", self.party.types, "forest")
+                Battle.start("bandit_encounter", Game.player, self.party.types, "forest")
             end
             removeParty(self.party)
             self:clear()
-            if self.onEnd then self.onEnd("battle") end
         else
             self:clear()
             if self.onEnd then self.onEnd("overworld") end

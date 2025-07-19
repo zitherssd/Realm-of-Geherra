@@ -97,14 +97,7 @@ function Game:checkEncounter()
 end
 
 function Game:startBattle(battleType, enemyArmy, backgroundType)
-    self.state = "battle"
-    self.battle = Battle.start(
-        battleType,
-        self.player,
-        enemyArmy,
-        backgroundType,
-        function(newState) self.state = newState end
-    )
+    Battle.start(battleType, self.player, enemyArmy, backgroundType)
 end
 
 function Game:exitBattle()
