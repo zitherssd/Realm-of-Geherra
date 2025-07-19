@@ -57,8 +57,6 @@ function ArmyUnit:getInfo()
         attack = self.attack,
         defense = self.defense,
         health = self.currentHealth .. "/" .. self.maxHealth,
-        weapon = self.weapon,
-        armor = self.armor,
         description = self.description,
         combatRating = self:getCombatRating()
     }

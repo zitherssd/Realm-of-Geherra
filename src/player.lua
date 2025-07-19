@@ -151,11 +151,4 @@ function Player:canLeadUnits()
     return self.leadership * 2 -- 2 units per leadership point
 end
 
-function Player:addItemToInventory(itemType, item)
-    if not self.inventory[itemType] then
-        self.inventory[itemType] = {}
-    end
-    table.insert(self.inventory[itemType], item)
-end
-
 return Player

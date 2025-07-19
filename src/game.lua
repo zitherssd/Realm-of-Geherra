@@ -28,7 +28,7 @@ local Game = {
         borderColor = {0.2, 0.2, 0.2, 0.8},
         backgroundColor = {0.1, 0.1, 0.1, 0.7},
         playerColor = {1, 1, 0, 1}, -- Yellow for player
-        townColor = {0.8, 0.6, 0.2, 1}, -- Gold for towns
+        locationColor = {0.8, 0.6, 0.2, 1}, -- Gold for locations
         waterColor = {0.2, 0.4, 0.8, 0.5} -- Blue for water
     }
 }
@@ -46,7 +46,7 @@ function Game:init()
     self.camera.x = self.player.x - self.screenWidth / 2
     self.camera.y = self.player.y - self.screenHeight / 2
     Party:init()
-    print("Game initialized. Use WASD or arrow keys to move, Enter to interact with towns, ESC to quit.")
+    print("Game initialized. Use WASD or arrow keys to move, Enter to interact with locations, ESC to quit.")
 end
 
 function Game:update(dt)
@@ -61,7 +61,7 @@ function Game:update(dt)
         
         self:checkEncounter()
         
-        -- Check for town interactions
+        -- Check for location interactions
         local nearbyLocation = self.overworld:checkLocationInteraction(self.player.x, self.player.y)
         if nearbyLocation and love.keyboard.isDown('return') then
             self:enterLocation(nearbyLocation)
@@ -181,7 +181,7 @@ function Game:drawMinimap()
     love.graphics.setColor(unpack(minimap.borderColor))
     love.graphics.setLineWidth(2)
     love.graphics.rectangle('line', x, y, size, size)
-    -- Draw towns on minimap with different colors based on type
+    -- Draw locations on minimap with different colors based on type
     for _, location in ipairs(self.overworld.locations) do
         local locationX = (location.x - self.player.x) * scale
         local locationY = (location.y - self.player.y) * scale
@@ -198,7 +198,7 @@ function Game:drawMinimap()
             elseif location.type == "Dungeon" then
                 love.graphics.setColor(0.2, 0.2, 0.2, 1)
             else
-                love.graphics.setColor(unpack(minimap.townColor))
+                love.graphics.setColor(unpack(minimap.locationColor))
             end
             love.graphics.circle('fill', offsetX + locationX, offsetY + locationY, locationSize)
             love.graphics.setColor(0.2, 0.2, 0.2, 1)
@@ -307,7 +307,7 @@ function Game:keypressed(key)
         -- Enter army inspection screen
         self:enterArmyScreen()
     elseif key == 'return' and self.state == "overworld" then
-        -- Check for town interactions
+        -- Check for location interactions
         local nearbyLocation = self.overworld:checkLocationInteraction(self.player.x, self.player.y)
         if nearbyLocation then
             self:enterLocation(nearbyLocation)
@@ -339,7 +339,7 @@ function Game:gamepadpressed(joystick, button)
     elseif button == 'a' or button == 'cross' then
         -- A button (Xbox) / Cross button (PlayStation) for interactions
         if self.state == "overworld" then
-            -- Check for town interactions
+            -- Check for location interactions
             local nearbyLocation = self.overworld:checkLocationInteraction(self.player.x, self.player.y)
             if nearbyLocation then
                 self:enterLocation(nearbyLocation)
