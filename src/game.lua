@@ -118,16 +118,15 @@ function Game:createBanditParty(town)
     }
 end
 
-function Game:updateBanditParties(dt)
-    self.battle_triggers.bandit_update_timer = self.battle_triggers.bandit_update_timer + dt
-    
-    if self.battle_triggers.bandit_update_timer >= self.battle_triggers.bandit_update_interval then
-        self.battle_triggers.bandit_update_timer = 0
-        
-        for _, banditParty in ipairs(self.battle_triggers.parties) do
-            self:updateBanditParty(banditParty, dt)
+-- Refactor updateBanditParties to updateParties and call self:buildPartyGrid() at the end
+function Game:updateParties(dt)
+    for _, party in ipairs(self.battle_triggers.parties) do
+        if party.party_type == "bandit" then
+            self:updateBanditParty(party, dt)
         end
+        -- Add other party types' movement logic here if needed
     end
+    self:buildPartyGrid()
 end
 
 function Game:updateBanditParty(banditParty, dt)
@@ -179,7 +178,7 @@ function Game:update(dt)
         self.overworld:update(dt)
         
         -- Update bandit parties
-        self:updateBanditParties(dt)
+        self:updateParties(dt)
         
         -- Update camera to follow player
         self.camera.x = self.player.x - self.screenWidth / 2
