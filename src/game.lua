@@ -11,11 +11,6 @@ local Encounter = require('src.encounter')
 
 local Game = {
     state = "overworld", -- Current game state: "overworld", "town", "battle", "army", "menu"
-    player = nil,
-    overworld = nil,
-    location = nil,
-    battle = nil,
-    currentLocation = nil,
     camera = {x = 0, y = 0},
     screenWidth = 1024,
     screenHeight = 768,
