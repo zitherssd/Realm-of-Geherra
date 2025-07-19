@@ -187,14 +187,16 @@ function Game:drawMinimap()
         local locationY = (location.y - self.player.y) * scale
         local locationSize = math.max(2, location.size * scale / 4)
         if locationX >= -size/2 and locationX <= size/2 and locationY >= -size/2 and locationY <= size/2 then
-            if location.type == "village" then
+            if location.type == "Village" then
                 love.graphics.setColor(0.8, 0.6, 0.2, 1)
-            elseif location.type == "city" then
-                love.graphics.setColor(0.7, 0.7, 0.7, 1)
-            elseif location.type == "port" then
-                love.graphics.setColor(0.2, 0.4, 0.8, 1)
-            elseif location.type == "fortress" then
+            elseif location.type == "Fort" then
                 love.graphics.setColor(0.5, 0.5, 0.5, 1)
+            elseif location.type == "Tower" then
+                love.graphics.setColor(0.3, 0.7, 0.3, 1)
+            elseif location.type == "Hideout" then
+                love.graphics.setColor(0.6, 0.4, 0.2, 1)
+            elseif location.type == "Dungeon" then
+                love.graphics.setColor(0.2, 0.2, 0.2, 1)
             else
                 love.graphics.setColor(unpack(minimap.townColor))
             end
