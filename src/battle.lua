@@ -71,7 +71,7 @@ function Battle.createBackground(backgroundType)
     return backgrounds[backgroundType] or backgrounds.forest
 end
 
-function Battle.spawnUnits(battle, playerArmy, enemyArmy)
+function Battle.spawnUnits(battle, playerArmy, enemyParty)
     local ally_y = battle.spawn_y_base
     local ally_spacing = 50
     for i, armyUnit in ipairs(playerArmy) do
@@ -89,7 +89,7 @@ function Battle.spawnUnits(battle, playerArmy, enemyArmy)
     end
     local enemy_y = battle.spawn_y_base
     local enemy_spacing = 50
-    for i, enemyUnit in ipairs(enemyArmy) do
+    for i, enemyUnit in ipairs(enemyParty) do
         local unitType = enemyUnit.type or "soldier"
         local tempArmyUnit = enemyUnit.army_unit or enemyUnit
         local unit = require('src.battle_unit'):new(2, unitType, battle.enemy_spawn_x, enemy_y, tempArmyUnit)
@@ -254,7 +254,7 @@ function Battle.getLostUnits()
     return Battle.lost_units
 end
 
-function Battle.start(battleType, enemyArmy)
+function Battle.start(battleType, enemyParty)
     Battle.state = "active"
     Battle.battle_type = battleType or "encounter"
     Battle.units = {}
@@ -262,7 +262,7 @@ function Battle.start(battleType, enemyArmy)
     Battle.lost_units = {}
     Battle.background_type = Battle.getBackgroundTypeForBattle(battleType)
     Battle.background = Battle.createBackground(Battle.background_type)
-    Battle.spawnUnits(Battle, Game.player.army, enemyArmy)
+    Battle.spawnUnits(Battle, Game.player.army, enemyParty)
     Battle.ui.text_timer = 0
     Battle.on_battle_end = nil
     Battle.on_battle_finished = nil
