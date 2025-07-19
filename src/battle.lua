@@ -1,62 +1,32 @@
 -- Battle module
 -- Handles battle scene logic, drawing, and state management
 
-local BattleUnit = require('src.battle_unit')
 local Game = require('src.game')
 
-local Battle = {}
-
-function Battle:new(battleType, enemyArmy)
-    local backgroundType = Battle.getBackgroundTypeForBattle(battleType)
-    local instance = {
-        -- Battle state
-        state = "active", -- active, victory, defeat, finished
-        battle_type = battleType or "encounter", -- encounter, village_attack, hideout_attack
-        
-        -- Units
-        units = {},
-        
-        -- Track unit losses for player army
-        player_army_units = {}, -- Store references to player army units
-        lost_units = {}, -- Track which units were lost
-        
-        -- Background
-        background_type = backgroundType,
-        
-        -- Battle area
-        width = 800,
-        height = 600,
-        
-        -- Spawn positions
-        ally_spawn_x = 100,
-        enemy_spawn_x = 700,
-        spawn_y_base = 300,
-        spawn_spacing = 40,
-        
-        -- UI
-        ui = {
-            victory_text = "Victory!",
-            defeat_text = "Defeat!",
-            continue_text = "Press SPACE to continue",
-            text_timer = 0,
-            text_duration = 3.0
-        },
-        
-        -- Callback for when battle ends
-        on_battle_end = nil,
-        on_battle_finished = nil,
-        setState = nil
-    }
-    
-    -- Create background based on type
-    instance.background = Battle.createBackground(backgroundType)
-    
-    -- Spawn units
-    Battle.spawnUnits(instance, Game.player.army, enemyArmy)
-    
-    setmetatable(instance, {__index = self})
-    return instance
-end
+local Battle = {
+    state = "inactive",
+    battle_type = nil,
+    units = {},
+    player_army_units = {},
+    lost_units = {},
+    background_type = nil,
+    width = 800,
+    height = 600,
+    ally_spawn_x = 100,
+    enemy_spawn_x = 700,
+    spawn_y_base = 300,
+    spawn_spacing = 40,
+    ui = {
+        victory_text = "Victory!",
+        defeat_text = "Defeat!",
+        continue_text = "Press SPACE to continue",
+        text_timer = 0,
+        text_duration = 3.0
+    },
+    on_battle_end = nil,
+    on_battle_finished = nil,
+    background = nil
+}
 
 function Battle.createBackground(backgroundType)
     local backgrounds = {
@@ -101,36 +71,29 @@ function Battle.createBackground(backgroundType)
     return backgrounds[backgroundType] or backgrounds.forest
 end
 
-function Battle.spawnUnits(battleInstance, playerArmy, enemyArmy)
-    -- Spawn allied units (player's army) with better spacing
-    local ally_y = battleInstance.spawn_y_base
-    local ally_spacing = 50 -- Increased spacing to avoid overlap
-    
+function Battle.spawnUnits(battle, playerArmy, enemyArmy)
+    local ally_y = battle.spawn_y_base
+    local ally_spacing = 50
     for i, armyUnit in ipairs(playerArmy) do
-        -- Get the unit type for battle, with fallbacks
-        local unitType = "soldier" -- default fallback
+        local unitType = "soldier"
         if armyUnit.battle_type then
             unitType = armyUnit.battle_type
         elseif armyUnit.type then
             unitType = armyUnit.type:lower()
         end
-        local unit = BattleUnit:new(1, unitType, battleInstance.ally_spawn_x, ally_y, armyUnit)
-        table.insert(battleInstance.units, unit)
+        local unit = require('src.battle_unit'):new(1, unitType, battle.ally_spawn_x, ally_y, armyUnit)
+        table.insert(battle.units, unit)
         unit.original_army_unit = armyUnit
-        table.insert(battleInstance.player_army_units, unit)
+        table.insert(battle.player_army_units, unit)
         ally_y = ally_y + ally_spacing
     end
-    
-    -- Spawn enemy units with better spacing
-    local enemy_y = battleInstance.spawn_y_base
-    local enemy_spacing = 50 -- Increased spacing to avoid overlap
-    
+    local enemy_y = battle.spawn_y_base
+    local enemy_spacing = 50
     for i, enemyUnit in ipairs(enemyArmy) do
         local unitType = enemyUnit.type or "soldier"
-        -- Create a minimal ArmyUnit-like table for enemy units
         local tempArmyUnit = enemyUnit.army_unit or enemyUnit
-        local unit = BattleUnit:new(2, unitType, battleInstance.enemy_spawn_x, enemy_y, tempArmyUnit)
-        table.insert(battleInstance.units, unit)
+        local unit = require('src.battle_unit'):new(2, unitType, battle.enemy_spawn_x, enemy_y, tempArmyUnit)
+        table.insert(battle.units, unit)
         enemy_y = enemy_y + enemy_spacing
     end
 end
@@ -147,37 +110,28 @@ function Battle.getBackgroundTypeForBattle(battleType)
     end
 end
 
-function Battle:update(dt)
-    if self.state ~= "active" then
-        -- Update result screen timer
-        self.ui.text_timer = self.ui.text_timer - dt
-        if self.ui.text_timer <= 0 then
-            self.state = "finished"
+function Battle.update(dt)
+    if Battle.state ~= "active" then
+        Battle.ui.text_timer = Battle.ui.text_timer - dt
+        if Battle.ui.text_timer <= 0 then
+            Battle.state = "finished"
         end
         return
     end
-    
-    -- Update all units and track losses
-    for _, unit in ipairs(self.units) do
+    for _, unit in ipairs(Battle.units) do
         local wasAlive = unit:isAlive()
-        unit:update(dt, self.units)
-        
-        -- Check if unit just died
+        unit:update(dt, Battle.units)
         if wasAlive and not unit:isAlive() and unit.team == 1 then
-            -- Player unit died, track it
-            table.insert(self.lost_units, unit.original_army_unit)
+            table.insert(Battle.lost_units, unit.original_army_unit)
         end
     end
-    
-    -- Check battle end conditions
-    self:checkBattleEnd()
+    Battle.checkBattleEnd()
 end
 
-function Battle:checkBattleEnd()
+function Battle.checkBattleEnd()
     local allies_alive = 0
     local enemies_alive = 0
-    
-    for _, unit in ipairs(self.units) do
+    for _, unit in ipairs(Battle.units) do
         if unit:isAlive() then
             if unit:getTeam() == 1 then
                 allies_alive = allies_alive + 1
@@ -186,23 +140,19 @@ function Battle:checkBattleEnd()
             end
         end
     end
-    
     if enemies_alive == 0 then
-        -- Victory
-        self.state = "victory"
-        self.ui.text_timer = self.ui.text_duration
-        self:handleBattleEnd(true)
+        Battle.state = "victory"
+        Battle.ui.text_timer = Battle.ui.text_duration
+        Battle.handleBattleEnd(true)
     elseif allies_alive == 0 then
-        -- Defeat
-        self.state = "defeat"
-        self.ui.text_timer = self.ui.text_duration
-        self:handleBattleEnd(false)
+        Battle.state = "defeat"
+        Battle.ui.text_timer = Battle.ui.text_duration
+        Battle.handleBattleEnd(false)
     end
 end
 
-function Battle:handleBattleEnd(victory)
-    -- Remove lost units from player's army
-    local lostUnits = self:getLostUnits()
+function Battle.handleBattleEnd(victory)
+    local lostUnits = Battle.getLostUnits()
     for _, lostUnit in ipairs(lostUnits) do
         Game.player:removeUnitFromArmy(lostUnit)
     end
@@ -221,41 +171,28 @@ function Battle:handleBattleEnd(victory)
     end
 end
 
-function Battle:draw()
-    -- Draw background
-    love.graphics.setColor(self.background.color)
-    love.graphics.rectangle('fill', 0, 0, self.width, self.height)
-    
-    -- Draw background features
-    for _, feature in ipairs(self.background.features) do
+function Battle.draw()
+    love.graphics.setColor(Battle.background.color)
+    love.graphics.rectangle('fill', 0, 0, Battle.width, Battle.height)
+    for _, feature in ipairs(Battle.background.features) do
         love.graphics.setColor(feature.color)
         love.graphics.rectangle('fill', feature.x, feature.y, feature.width, feature.height)
     end
-    
-    -- Draw ground line
     love.graphics.setColor(0.3, 0.3, 0.3, 1.0)
     love.graphics.setLineWidth(3)
-    love.graphics.line(0, 500, self.width, 500)
-    
-    -- Draw all units
-    for _, unit in ipairs(self.units) do
+    love.graphics.line(0, 500, Battle.width, 500)
+    for _, unit in ipairs(Battle.units) do
         unit:draw()
     end
-    
-    -- Draw battle UI
-    self:drawUI()
+    Battle.drawUI()
 end
 
-function Battle:drawUI()
-    -- Draw battle type indicator
+function Battle.drawUI()
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.print("Battle: " .. self.battle_type:gsub("_", " "):upper(), 10, 10)
-    
-    -- Draw unit counts
+    love.graphics.print("Battle: " .. Battle.battle_type:gsub("_", " "):upper(), 10, 10)
     local allies_alive = 0
     local enemies_alive = 0
-    
-    for _, unit in ipairs(self.units) do
+    for _, unit in ipairs(Battle.units) do
         if unit:isAlive() then
             if unit:getTeam() == 1 then
                 allies_alive = allies_alive + 1
@@ -264,78 +201,74 @@ function Battle:drawUI()
             end
         end
     end
-    
     love.graphics.print("Allies: " .. allies_alive, 10, 30)
     love.graphics.print("Enemies: " .. enemies_alive, 10, 50)
-    
-    -- Draw result screen
-    if self.state == "victory" then
-        self:drawResultScreen(self.ui.victory_text, {0.2, 0.8, 0.2, 1.0})
-    elseif self.state == "defeat" then
-        self:drawResultScreen(self.ui.defeat_text, {0.8, 0.2, 0.2, 1.0})
+    if Battle.state == "victory" then
+        Battle.drawResultScreen(Battle.ui.victory_text, {0.2, 0.8, 0.2, 1.0})
+    elseif Battle.state == "defeat" then
+        Battle.drawResultScreen(Battle.ui.defeat_text, {0.8, 0.2, 0.2, 1.0})
     end
 end
 
-function Battle:drawResultScreen(text, color)
-    -- Draw semi-transparent overlay
+function Battle.drawResultScreen(text, color)
     love.graphics.setColor(0, 0, 0, 0.7)
-    love.graphics.rectangle('fill', 0, 0, self.width, self.height)
-    
-    -- Draw result text
+    love.graphics.rectangle('fill', 0, 0, Battle.width, Battle.height)
     love.graphics.setColor(color)
     local font = love.graphics.getFont()
     local text_width = font:getWidth(text)
-    love.graphics.print(text, self.width/2 - text_width/2, self.height/2 - 50)
-    
-    -- Draw continue text
+    love.graphics.print(text, Battle.width/2 - text_width/2, Battle.height/2 - 50)
     love.graphics.setColor(1, 1, 1, 1)
-    local continue_width = font:getWidth(self.ui.continue_text)
-    love.graphics.print(self.ui.continue_text, self.width/2 - continue_width/2, self.height/2 + 20)
+    local continue_width = font:getWidth(Battle.ui.continue_text)
+    love.graphics.print(Battle.ui.continue_text, Battle.width/2 - continue_width/2, Battle.height/2 + 20)
 end
 
-function Battle:keypressed(key)
-    if key == "space" and (self.state == "victory" or self.state == "defeat") then
-        self.state = "finished"
-        if self.on_battle_end then
-            self.on_battle_end()
-        end
-        if self.on_battle_finished then
-            self.on_battle_finished(self:getResult())
-        end
+function Battle.keypressed(key)
+    if key == "space" and (Battle.state == "victory" or Battle.state == "defeat") then
+        Battle.state = "finished"
         Game.state = "overworld"
     end
 end
 
-function Battle:isFinished()
-    return self.state == "finished"
+function Battle.isFinished()
+    return Battle.state == "finished"
 end
 
-function Battle:getResult()
-    if self.state == "victory" then
+function Battle.getResult()
+    if Battle.state == "victory" then
         return true
-    elseif self.state == "defeat" then
+    elseif Battle.state == "defeat" then
         return false
     end
     return nil
 end
 
-function Battle:setBattleEndCallback(callback)
-    self.on_battle_end = callback
+function Battle.setBattleEndCallback(callback)
+    Battle.on_battle_end = callback
 end
 
-function Battle:setBattleFinishedCallback(callback)
-    self.on_battle_finished = callback
+function Battle.setBattleFinishedCallback(callback)
+    Battle.on_battle_finished = callback
 end
 
-function Battle:getLostUnits()
-    return self.lost_units
+function Battle.getLostUnits()
+    return Battle.lost_units
 end
 
 function Battle.start(battleType, enemyArmy)
-    local battle = Battle:new(battleType, enemyArmy)
+    Battle.state = "active"
+    Battle.battle_type = battleType or "encounter"
+    Battle.units = {}
+    Battle.player_army_units = {}
+    Battle.lost_units = {}
+    Battle.background_type = Battle.getBackgroundTypeForBattle(battleType)
+    Battle.background = Battle.createBackground(Battle.background_type)
+    Battle.spawnUnits(Battle, Game.player.army, enemyArmy)
+    Battle.ui.text_timer = 0
+    Battle.on_battle_end = nil
+    Battle.on_battle_finished = nil
     Game.state = "battle"
-    Game.battle = battle
-    return battle
+    Game.battle = Battle
+    return Battle
 end
 
 return Battle 
