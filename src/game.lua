@@ -61,7 +61,6 @@ function Game:init()
     self.camera.y = self.player.y - self.screenHeight / 2
     
     Party:init(partiesData)
-    self:buildPartyGrid()
     
     print("Game initialized. Use WASD or arrow keys to move, Enter to interact with towns, ESC to quit.")
 end
@@ -118,60 +117,6 @@ function Game:createBanditParty(town)
     }
 end
 
--- Refactor updateBanditParties to updateParties and call self:buildPartyGrid() at the end
-function Game:updateParties(dt)
-    for _, party in ipairs(self.battle_triggers.parties) do
-        if party.party_type == "bandit" then
-            self:updateBanditParty(party, dt)
-        end
-        -- Add other party types' movement logic here if needed
-    end
-    self:buildPartyGrid()
-end
-
-function Game:updateBanditParty(banditParty, dt)
-    if banditParty.is_moving then
-        -- Move toward target
-        local dx = banditParty.target_x - banditParty.x
-        local dy = banditParty.target_y - banditParty.y
-        local distance = math.sqrt(dx^2 + dy^2)
-        
-        if distance > 0 then
-            local speed = self.battle_triggers.bandit_movement_speed
-            local moveX = (dx / distance) * speed * dt
-            local moveY = (dy / distance) * speed * dt
-            
-            banditParty.x = banditParty.x + moveX
-            banditParty.y = banditParty.y + moveY
-        end
-        
-        banditParty.movement_timer = banditParty.movement_timer + dt
-        
-        if banditParty.movement_timer >= banditParty.movement_duration then
-            -- Reached target, stop moving
-            banditParty.is_moving = false
-            banditParty.x = banditParty.target_x
-            banditParty.y = banditParty.target_y
-        end
-    else
-        -- Choose new target position around home town
-        local angle = math.random() * 2 * math.pi
-        local distance = math.random(30, self.battle_triggers.bandit_roam_radius)
-        local targetX = banditParty.home_town.x + math.cos(angle) * distance
-        local targetY = banditParty.home_town.y + math.sin(angle) * distance
-        
-        -- Keep within world bounds
-        targetX = math.max(50, math.min(targetX, 2048 - 50))
-        targetY = math.max(50, math.min(targetY, 2048 - 50))
-        
-        banditParty.target_x = targetX
-        banditParty.target_y = targetY
-        banditParty.movement_timer = 0
-        banditParty.movement_duration = math.random(3, 8)
-        banditParty.is_moving = true
-    end
-end
-
 function Game:update(dt)
     if self.state == "overworld" then
         self.player:update(dt)
@@ -220,20 +165,6 @@ function Game:checkBattleTriggers(dt)
             break
         end
     end
-end
-
-function Game:startRandomEncounter()
-    local enemyArmy = {
-        {type = "soldier"},
-        {type = "archer"}
-    }
-    
-    -- Add more enemies based on player's army size
-    if #self.player.army > 2 then
-        table.insert(enemyArmy, {type = "soldier"})
-    end
-    
-    self:startBattle("encounter", enemyArmy, "forest")
 end
 
 function Game:startEnemyPartyBattle(party)
