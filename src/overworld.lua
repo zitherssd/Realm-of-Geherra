@@ -1,5 +1,5 @@
 -- Overworld module (singleton)
--- Handles the overworld map with towns and terrain
+-- Handles the overworld map with locations and terrain
 
 local Overworld = {}
 local biomeTypes = require('src.data.biome_types')
@@ -7,58 +7,8 @@ local biomeTypes = require('src.data.biome_types')
 function Overworld:init()
     self.width = 2048
     self.height = 2048
-    self.towns = {
-        {
-            name = "Millhaven",
-            x = 300,
-            y = 300,
-            size = 40,
-            color = {0.8, 0.6, 0.2},
-            type = "village",
-            population = 150,
-            description = "A small farming village"
-        },
-        {
-            name = "Ironforge",
-            x = 800,
-            y = 200,
-            size = 60,
-            color = {0.7, 0.7, 0.7},
-            type = "city",
-            population = 500,
-            description = "A prosperous mining city"
-        },
-        {
-            name = "Greenwood",
-            x = 1200,
-            y = 600,
-            size = 35,
-            color = {0.3, 0.7, 0.3},
-            type = "village",
-            population = 100,
-            description = "A village near the forest"
-        },
-        {
-            name = "Coastal Port",
-            x = 1500,
-            y = 1000,
-            size = 50,
-            color = {0.2, 0.4, 0.8},
-            type = "port",
-            population = 300,
-            description = "A busy trading port"
-        },
-        {
-            name = "Mountain Keep",
-            x = 400,
-            y = 800,
-            size = 45,
-            color = {0.5, 0.5, 0.5},
-            type = "fortress",
-            population = 200,
-            description = "A military fortress"
-        }
-    }
+    -- Locations will be loaded from src/data/locations.lua
+    self.locations = require('src.data.locations')
     self.interactionDistance = 50
     self.visualMap = nil
     self.biomeMap = nil
@@ -83,18 +33,16 @@ function Overworld:draw(player, parties)
         -- Draw biome map as colored rectangles (optional fallback)
         -- ... (existing biome map drawing logic if any) ...
     end
-
-    -- Draw towns
-    for _, town in ipairs(self.towns) do
-        love.graphics.setColor(town.color)
-        love.graphics.circle('fill', town.x, town.y, town.size)
+    -- Draw locations
+    for _, location in ipairs(self.locations) do
+        love.graphics.setColor(location.color)
+        love.graphics.circle('fill', location.x, location.y, location.size)
         love.graphics.setColor(0.2, 0.2, 0.2, 1)
         love.graphics.setLineWidth(2)
-        love.graphics.circle('line', town.x, town.y, town.size)
+        love.graphics.circle('line', location.x, location.y, location.size)
         love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.print(town.name, town.x - town.size/2, town.y - town.size - 10)
+        love.graphics.print(location.name, location.x - location.size/2, location.y - location.size - 10)
     end
-
     -- Draw parties (enemy and bandit)
     for _, party in ipairs(parties) do
         if party.party_type == "enemy" then
@@ -119,104 +67,81 @@ function Overworld:draw(player, parties)
             end
         end
     end
-
-    -- Draw interaction indicators for nearby towns
-    for _, town in ipairs(self.towns) do
-        local distance = math.sqrt((player.x - town.x)^2 + (player.y - town.y)^2)
+    -- Draw interaction indicators for nearby locations
+    for _, location in ipairs(self.locations) do
+        local distance = math.sqrt((player.x - location.x)^2 + (player.y - location.y)^2)
         if distance <= self.interactionDistance then
             love.graphics.setColor(1, 1, 0, 0.8)
             love.graphics.setLineWidth(3)
-            love.graphics.circle('line', town.x, town.y, town.size/2 + 10)
+            love.graphics.circle('line', location.x, location.y, location.size/2 + 10)
             love.graphics.setColor(1, 1, 1, 1)
             local font = love.graphics.getFont()
             local text = "Press Enter"
             local textWidth = font:getWidth(text)
-            love.graphics.print(text, town.x - textWidth/2, town.y + town.size/2 + 25)
+            love.graphics.print(text, location.x - textWidth/2, location.y + location.size/2 + 25)
         end
     end
-
     -- Draw player
     player:draw()
 end
 
-function Overworld:getTownTypeIndicator(townType)
+function Overworld:getLocationTypeIndicator(locationType)
     local indicators = {
         village = "♦",
         city = "■",
         port = "⚓",
         fortress = "⛨"
     }
-    return indicators[townType] or "◊"
+    return indicators[locationType] or "◊"
 end
 
-function Overworld:checkTownInteraction(playerX, playerY)
-    for _, town in ipairs(self.towns) do
-        local distance = math.sqrt((playerX - town.x)^2 + (playerY - town.y)^2)
+function Overworld:checkLocationInteraction(playerX, playerY)
+    for _, location in ipairs(self.locations) do
+        local distance = math.sqrt((playerX - location.x)^2 + (playerY - location.y)^2)
         if distance <= self.interactionDistance then
-            return town
+            return location
         end
     end
     return nil
 end
 
-function Overworld:getTownByName(name)
-    for _, town in ipairs(self.towns) do
-        if town.name == name then
-            return town
+function Overworld:getLocationByName(name)
+    for _, location in ipairs(self.locations) do
+        if location.name == name then
+            return location
         end
     end
     return nil
 end
 
-function Overworld:addTown(name, x, y, size, townType, population, description)
-    local colors = {
-        village = {0.8, 0.6, 0.2},
-        city = {0.7, 0.7, 0.7},
-        port = {0.2, 0.4, 0.8},
-        fortress = {0.5, 0.5, 0.5}
-    }
-    
-    local newTown = {
-        name = name,
-        x = x,
-        y = y,
-        size = size or 40,
-        color = colors[townType] or {0.6, 0.6, 0.6},
-        type = townType or "village",
-        population = population or 100,
-        description = description or "A settlement"
-    }
-    
-    table.insert(self.towns, newTown)
-    return newTown
+function Overworld:addLocation(location)
+    table.insert(self.locations, location)
+    return location
 end
 
-function Overworld:removeTown(name)
-    for i, town in ipairs(self.towns) do
-        if town.name == name then
-            table.remove(self.towns, i)
+function Overworld:removeLocation(name)
+    for i, location in ipairs(self.locations) do
+        if location.name == name then
+            table.remove(self.locations, i)
             return true
         end
     end
     return false
 end
 
-function Overworld:getAllTowns()
-    return self.towns
+function Overworld:getAllLocations()
+    return self.locations
 end
 
-function Overworld:getNearbyTowns(x, y, radius)
+function Overworld:getNearbyLocations(x, y, radius)
     local nearby = {}
-    for _, town in ipairs(self.towns) do
-        local distance = math.sqrt((x - town.x)^2 + (y - town.y)^2)
+    for _, location in ipairs(self.locations) do
+        local distance = math.sqrt((x - location.x)^2 + (y - location.y)^2)
         if distance <= radius then
-            table.insert(nearby, {town = town, distance = distance})
+            table.insert(nearby, {location = location, distance = distance})
         end
     end
-    
-    -- Sort by distance
     table.sort(nearby, function(a, b) return a.distance < b.distance end)
-    
     return nearby
 end
 
