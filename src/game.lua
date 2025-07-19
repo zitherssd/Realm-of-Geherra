@@ -709,4 +709,43 @@ function Game:mousereleased(x, y, button)
     end
 end
 
+local GRID_SIZE = 128
+
+function Game:getCell(x, y)
+    return math.floor(x / GRID_SIZE), math.floor(y / GRID_SIZE)
+end
+
+function Game:buildPartyGrid()
+    local grid = {}
+    for _, party in ipairs(self.battle_triggers.parties) do
+        local cx, cy = self:getCell(party.x, party.y)
+        grid[cx] = grid[cx] or {}
+        grid[cx][cy] = grid[cx][cy] or {}
+        table.insert(grid[cx][cy], party)
+    end
+    self.partyGrid = grid
+end
+
+function Game:getNearbyParties(px, py, radius)
+    local cx, cy = self:getCell(px, py)
+    local parties = {}
+    for dx = -1, 1 do
+        for dy = -1, 1 do
+            local cell = self.partyGrid[cx + dx] and self.partyGrid[cx + dx][cy + dy]
+            if cell then
+                for _, party in ipairs(cell) do
+                    local dist = math.sqrt((px - party.x)^2 + (py - party.y)^2)
+                    if dist < radius then
+                        table.insert(parties, party)
+                    end
+                end
+            end
+        end
+    end
+    return parties
+end
+
+-- Call Game:buildPartyGrid() whenever parties move or are added/removed
+-- Refactor checkBattleTriggers to use getNearbyParties instead of iterating all parties
+
 return Game
