@@ -6,7 +6,7 @@ local Overworld = require('src.overworld')
 local Town = require('src.town')
 local Battle = require('src.battle')
 local Utils = require('src.utils')
-local partiesData = require('src.data.parties')
+local partiesData = require('src.data.party_defs')
 
 local Game = {
     state = "overworld", -- Current game state: "overworld", "town", "battle", "army", "menu"

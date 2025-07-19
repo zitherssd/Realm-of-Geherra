@@ -1,3 +1,4 @@
+-- This file will be renamed to src/data/party_defs.lua
 local parties = {
     {x = 600, y = 400, size = 3, types = {"soldier", "archer", "soldier"}, party_type = "enemy"},
     {x = 1200, y = 800, size = 4, types = {"knight", "soldier", "archer", "soldier"}, party_type = "enemy"},
