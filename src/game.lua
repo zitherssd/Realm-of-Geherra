@@ -32,6 +32,10 @@ local Game = {
     }
 }
 
+Game.encounteredParty = nil
+Game.encounterOptions = nil
+Game.selectedEncounterOption = 1
+
 function Game:init()
     -- Initialize the game systems
     self.player = Player:new()
@@ -60,12 +64,16 @@ function Game:update(dt)
         self.camera.x = self.player.x - self.screenWidth / 2
         self.camera.y = self.player.y - self.screenHeight / 2
         
+        self:checkEncounter()
+        
         -- Check for town interactions
         local nearbyTown = self.overworld:checkTownInteraction(self.player.x, self.player.y)
         if nearbyTown and love.keyboard.isDown('return') then
             self:enterTown(nearbyTown)
         end
         
+    elseif self.state == "encounter_dialogue" then
+        -- No update needed, handled by keypressed
     elseif self.state == "town" then
         self.town:update(dt)
         
@@ -79,6 +87,22 @@ function Game:update(dt)
         
     elseif self.state == "army" then
         -- Army screen - no updates needed
+    end
+end
+
+function Game:checkEncounter()
+    if self.encounteredParty then return end -- Only one encounter at a time
+    local nearbyParties = Party:getNearbyParties(self.player.x, self.player.y, 50)
+    for _, party in ipairs(nearbyParties) do
+        self.encounteredParty = party
+        self.state = "encounter_dialogue"
+        self.selectedEncounterOption = 1
+        if party.party_type == "enemy" or party.party_type == "bandit" then
+            self.encounterOptions = {"Fight", "Flee"}
+        else
+            self.encounterOptions = {"Ignore"}
+        end
+        break
     end
 end
 
@@ -144,6 +168,8 @@ function Game:draw()
         -- Draw UI
         self:drawUI()
         
+    elseif self.state == "encounter_dialogue" then
+        self:drawEncounterDialogue()
     elseif self.state == "town" then
         self.town:draw()
         
@@ -152,6 +178,28 @@ function Game:draw()
         
     elseif self.state == "army" then
         self:drawArmyScreen()
+    end
+end
+
+function Game:drawEncounterDialogue()
+    local w, h = 400, 200
+    local x = (self.screenWidth - w) / 2
+    local y = (self.screenHeight - h) / 2
+    love.graphics.setColor(0, 0, 0, 0.85)
+    love.graphics.rectangle('fill', x, y, w, h)
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle('line', x, y, w, h)
+    local party = self.encounteredParty
+    love.graphics.print("Encountered a " .. (party and party.party_type or "party") .. "!", x + 20, y + 20)
+    love.graphics.print("Units: " .. table.concat(party and party.types or {}, ", "), x + 20, y + 50)
+    for i, option in ipairs(self.encounterOptions or {}) do
+        if i == self.selectedEncounterOption then
+            love.graphics.setColor(1, 1, 0, 1)
+        else
+            love.graphics.setColor(1, 1, 1, 1)
+        end
+        love.graphics.print(option, x + 40, y + 80 + 30 * (i-1))
     end
 end
 
@@ -324,6 +372,32 @@ function Game:exitTown()
 end
 
 function Game:keypressed(key)
+    if self.state == "encounter_dialogue" then
+        if key == "up" or key == "w" then
+            self.selectedEncounterOption = math.max(1, self.selectedEncounterOption - 1)
+        elseif key == "down" or key == "s" then
+            self.selectedEncounterOption = math.min(#self.encounterOptions, self.selectedEncounterOption + 1)
+        elseif key == "return" or key == "space" then
+            local option = self.encounterOptions[self.selectedEncounterOption]
+            if option == "Fight" then
+                if self.encounteredParty.party_type == "enemy" then
+                    self:startBattle("encounter", self.encounteredParty.types, "forest")
+                elseif self.encounteredParty.party_type == "bandit" then
+                    self:startBattle("bandit_encounter", self.encounteredParty.types, "forest")
+                end
+                Party:removeParty(self.encounteredParty)
+                self.encounteredParty = nil
+                self.state = "battle"
+            elseif option == "Flee" or option == "Ignore" then
+                self.encounteredParty = nil
+                self.state = "overworld"
+            end
+        elseif key == "escape" then
+            self.encounteredParty = nil
+            self.state = "overworld"
+        end
+        return
+    end
     if key == 'escape' then
         if self.state == "town" then
             self:exitTown()
