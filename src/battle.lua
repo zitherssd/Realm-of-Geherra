@@ -2,6 +2,7 @@
 -- Handles battle scene logic, drawing, and state management
 
 local Game = require('src.game')
+local Player = require('src.player')
 
 local Battle = {
     state = "inactive",
@@ -155,16 +156,16 @@ end
 function Battle.handleBattleEnd(victory)
     local lostUnits = Battle.getLostUnits()
     for _, lostUnit in ipairs(lostUnits) do
-        Game.player:removeUnitFromArmy(lostUnit)
+        Player:removeUnitFromArmy(lostUnit)
     end
     if victory then
-        Game.player:addGold(50)
+        Player:addGold(50)
         print("Battle won! Gained 50 gold.")
         if #lostUnits > 0 then
             print("Lost " .. #lostUnits .. " units in battle.")
         end
     else
-        Game.player:addGold(-20)
+        Player:addGold(-20)
         print("Battle lost! Lost 20 gold.")
         if #lostUnits > 0 then
             print("Lost " .. #lostUnits .. " units in battle.")
@@ -264,7 +265,7 @@ function Battle.start(battleType, enemyParty)
     Battle.background_type = Battle.getBackgroundTypeForBattle(battleType)
     Battle.background = Battle.createBackground(Battle.background_type)
     Battle.enemy_party = enemyParty
-    Battle.spawnUnits(Battle, Game.player.army, enemyParty.army)
+    Battle.spawnUnits(Battle, Player.army, enemyParty.army)
     Battle.ui.text_timer = 0
     Battle.on_battle_end = nil
     Battle.on_battle_finished = nil
