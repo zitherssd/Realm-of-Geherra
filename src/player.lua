@@ -21,11 +21,7 @@ function Player:new()
         gold = 100,
         
         -- Inventory (future expansion)
-        inventory = {
-            weapons = {},
-            armor = {},
-            items = {}
-        },
+        inventory = {},
         
         -- Army
         army = {},

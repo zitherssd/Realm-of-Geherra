@@ -5,6 +5,7 @@ local ArmyUnit = {}
 
 -- Unit type definitions
 local unitTypes = require('src.data.unit_types')
+local Inventory = require('src.inventory')
 
 function ArmyUnit:new(unitType)
     local template = unitTypes[unitType]
@@ -24,8 +25,13 @@ function ArmyUnit:new(unitType)
         description = template.description,
         
         -- Equipment
-        weapon = template.equipment.weapon,
-        armor = template.equipment.armor,
+        equipment = {
+            main_hand = nil,
+            off_hand = nil,
+            body = nil,
+            head = nil,
+            accessory = nil
+        },
         
         -- Status effects (for future expansion)
         statusEffects = {},
@@ -71,14 +77,12 @@ function ArmyUnit:isAlive()
     return self.currentHealth > 0
 end
 
-function ArmyUnit:equipWeapon(weapon)
-    -- For future expansion - weapon system
-    self.weapon = weapon
+function ArmyUnit:equipItem(player, item)
+    Inventory.equipItem(player, self, item)
 end
 
-function ArmyUnit:equipArmor(armor)
-    -- For future expansion - armor system
-    self.armor = armor
+function ArmyUnit:unequipItem(player, slot)
+    Inventory.unequipItem(player, self, slot)
 end
 
 function ArmyUnit:addExperience(exp)
@@ -128,6 +132,18 @@ function ArmyUnit:upgrade()
     end
     
     return nil
+end
+
+function ArmyUnit:getTotalStats()
+    local total = {attack = self.attack, defense = self.defense, health = self.maxHealth}
+    for _, item in pairs(self.equipment) do
+        if item and item.stats then
+            for k, v in pairs(item.stats) do
+                total[k] = (total[k] or 0) + v
+            end
+        end
+    end
+    return total
 end
 
 -- Static function to get all available unit types
