@@ -35,19 +35,17 @@ local Game = {
 
 function Game:init()
     -- Initialize the game systems
-    self.player = Player:new()
-    self.overworld = Overworld:new()
+    Player:init()
+    Overworld:init()
+    self.player = Player
+    self.overworld = Overworld
     self.town = Town:new()
-    
     -- Connect player to overworld for collision detection
     self.player:setOverworld(self.overworld)
-    
     -- Center camera on player
     self.camera.x = self.player.x - self.screenWidth / 2
     self.camera.y = self.player.y - self.screenHeight / 2
-    
     Party:init()
-    
     print("Game initialized. Use WASD or arrow keys to move, Enter to interact with towns, ESC to quit.")
 end
 

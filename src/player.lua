@@ -1,44 +1,32 @@
--- Player module
+-- Player module (singleton)
 -- Handles player stats, inventory, army, and movement
 
 local ArmyUnit = require('src.army_unit')
 
 local Player = {}
 
-function Player:new()
-    local instance = {
-        -- Position
-        x = 512,
-        y = 384,
-        
-        -- Stats
-        strength = 10,
-        agility = 10,
-        vitality = 10,
-        leadership = 10,
-        
-        -- Resources
-        gold = 100,
-        
-        -- Inventory (future expansion)
-        inventory = {},
-        
-        -- Army
-        army = {},
-        
-        -- Movement
-        speed = 100,
-        
-        -- Visual
-        color = {0.2, 0.6, 1.0}, -- Blue color
-        size = 16
-    }
-    
+function Player:init()
+    -- Position
+    self.x = 512
+    self.y = 384
+    -- Stats
+    self.strength = 10
+    self.agility = 10
+    self.vitality = 10
+    self.leadership = 10
+    -- Resources
+    self.gold = 100
+    -- Inventory
+    self.inventory = {}
+    -- Army
+    self.army = {}
+    -- Movement
+    self.speed = 100
+    -- Visual
+    self.color = {0.2, 0.6, 1.0}
+    self.size = 16
     -- Add a starting unit to the army
-    table.insert(instance.army, ArmyUnit:new("Peasant"))
-    
-    setmetatable(instance, {__index = self})
-    return instance
+    table.insert(self.army, ArmyUnit:new("Peasant"))
 end
 
 function Player:update(dt)

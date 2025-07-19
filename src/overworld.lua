@@ -1,83 +1,73 @@
--- Overworld module
+-- Overworld module (singleton)
 -- Handles the overworld map with towns and terrain
 
 local Overworld = {}
 local biomeTypes = require('src.data.biome_types')
 
-function Overworld:new()
-    local instance = {
-        width = 2048,
-        height = 2048,
-        
-        -- Towns on the map
-        towns = {
-            {
-                name = "Millhaven",
-                x = 300,
-                y = 300,
-                size = 40,
-                color = {0.8, 0.6, 0.2}, -- Gold/brown
-                type = "village",
-                population = 150,
-                description = "A small farming village"
-            },
-            {
-                name = "Ironforge",
-                x = 800,
-                y = 200,
-                size = 60,
-                color = {0.7, 0.7, 0.7}, -- Gray
-                type = "city",
-                population = 500,
-                description = "A prosperous mining city"
-            },
-            {
-                name = "Greenwood",
-                x = 1200,
-                y = 600,
-                size = 35,
-                color = {0.3, 0.7, 0.3}, -- Green
-                type = "village",
-                population = 100,
-                description = "A village near the forest"
-            },
-            {
-                name = "Coastal Port",
-                x = 1500,
-                y = 1000,
-                size = 50,
-                color = {0.2, 0.4, 0.8}, -- Blue
-                type = "port",
-                population = 300,
-                description = "A busy trading port"
-            },
-            {
-                name = "Mountain Keep",
-                x = 400,
-                y = 800,
-                size = 45,
-                color = {0.5, 0.5, 0.5}, -- Dark gray
-                type = "fortress",
-                population = 200,
-                description = "A military fortress"
-            }
+function Overworld:init()
+    self.width = 2048
+    self.height = 2048
+    self.towns = {
+        {
+            name = "Millhaven",
+            x = 300,
+            y = 300,
+            size = 40,
+            color = {0.8, 0.6, 0.2},
+            type = "village",
+            population = 150,
+            description = "A small farming village"
         },
-        
-        interactionDistance = 50,
-        visualMap = nil, -- love.graphics.newImage('assets/maps/visual_map.png')
-        biomeMap = nil,  -- love.image.newImageData('assets/maps/biome_map.png')
+        {
+            name = "Ironforge",
+            x = 800,
+            y = 200,
+            size = 60,
+            color = {0.7, 0.7, 0.7},
+            type = "city",
+            population = 500,
+            description = "A prosperous mining city"
+        },
+        {
+            name = "Greenwood",
+            x = 1200,
+            y = 600,
+            size = 35,
+            color = {0.3, 0.7, 0.3},
+            type = "village",
+            population = 100,
+            description = "A village near the forest"
+        },
+        {
+            name = "Coastal Port",
+            x = 1500,
+            y = 1000,
+            size = 50,
+            color = {0.2, 0.4, 0.8},
+            type = "port",
+            population = 300,
+            description = "A busy trading port"
+        },
+        {
+            name = "Mountain Keep",
+            x = 400,
+            y = 800,
+            size = 45,
+            color = {0.5, 0.5, 0.5},
+            type = "fortress",
+            population = 200,
+            description = "A military fortress"
+        }
     }
-    
-    -- Try to load images if they exist
+    self.interactionDistance = 50
+    self.visualMap = nil
+    self.biomeMap = nil
     if love.filesystem.getInfo('assets/maps/visual_map.png') then
-        instance.visualMap = love.graphics.newImage('assets/maps/visual_map.png')
+        self.visualMap = love.graphics.newImage('assets/maps/visual_map.png')
     end
     if love.filesystem.getInfo('assets/maps/biome_map.png') then
-        instance.biomeMap = love.image.newImageData('assets/maps/biome_map.png')
+        self.biomeMap = love.image.newImageData('assets/maps/biome_map.png')
     end
-    
-    setmetatable(instance, {__index = self})
-    return instance
 end
 
 function Overworld:update(dt)
