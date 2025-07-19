@@ -100,31 +100,10 @@ function Game:startBattle(battleType, enemyArmy, backgroundType)
     self.state = "battle"
     self.battle = Battle.start(
         battleType,
-        self.player.army,
+        self.player,
         enemyArmy,
         backgroundType,
-        function(victory)
-            local lostUnits = self.battle:getLostUnits()
-            for _, lostUnit in ipairs(lostUnits) do
-                self.player:removeUnitFromArmy(lostUnit)
-            end
-            if victory then
-                self.player:addGold(50)
-                print("Battle won! Gained 50 gold.")
-                if #lostUnits > 0 then
-                    print("Lost " .. #lostUnits .. " units in battle.")
-                end
-            else
-                self.player:addGold(-20)
-                print("Battle lost! Lost 20 gold.")
-                if #lostUnits > 0 then
-                    print("Lost " .. #lostUnits .. " units in battle.")
-                end
-            end
-        end,
-        function()
-            self:exitBattle()
-        end
+        function(newState) self.state = newState end
     )
 end
 

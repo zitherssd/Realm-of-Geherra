@@ -5,7 +5,7 @@ local BattleUnit = require('src.battle_unit')
 
 local Battle = {}
 
-function Battle:new(battleType, playerArmy, enemyArmy, backgroundType)
+function Battle:new(battleType, player, enemyArmy, backgroundType)
     local instance = {
         -- Battle state
         state = "active", -- active, victory, defeat, finished
@@ -42,14 +42,15 @@ function Battle:new(battleType, playerArmy, enemyArmy, backgroundType)
         
         -- Callback for when battle ends
         on_battle_end = nil,
-        on_battle_finished = nil
+        on_battle_finished = nil,
+        setState = nil
     }
     
     -- Create background based on type
     instance.background = Battle.createBackground(backgroundType)
     
     -- Spawn units
-    Battle.spawnUnits(instance, playerArmy, enemyArmy)
+    Battle.spawnUnits(instance, player.army, enemyArmy)
     
     setmetatable(instance, {__index = self})
     return instance
@@ -176,15 +177,32 @@ function Battle:checkBattleEnd()
         -- Victory
         self.state = "victory"
         self.ui.text_timer = self.ui.text_duration
-        if self.on_battle_end then
-            self.on_battle_end(true) -- true for victory
-        end
+        self:handleBattleEnd(true)
     elseif allies_alive == 0 then
         -- Defeat
         self.state = "defeat"
         self.ui.text_timer = self.ui.text_duration
-        if self.on_battle_end then
-            self.on_battle_end(false) -- false for defeat
+        self:handleBattleEnd(false)
+    end
+end
+
+function Battle:handleBattleEnd(victory)
+    -- Remove lost units from player's army
+    local lostUnits = self:getLostUnits()
+    for _, lostUnit in ipairs(lostUnits) do
+        self.player:removeUnitFromArmy(lostUnit)
+    end
+    if victory then
+        self.player:addGold(50)
+        print("Battle won! Gained 50 gold.")
+        if #lostUnits > 0 then
+            print("Lost " .. #lostUnits .. " units in battle.")
+        end
+    else
+        self.player:addGold(-20)
+        print("Battle lost! Lost 20 gold.")
+        if #lostUnits > 0 then
+            print("Lost " .. #lostUnits .. " units in battle.")
         end
     end
 end
@@ -264,8 +282,8 @@ end
 function Battle:keypressed(key)
     if key == "space" and (self.state == "victory" or self.state == "defeat") then
         self.state = "finished"
-        if self.on_battle_finished then
-            self.on_battle_finished()
+        if self.setState then
+            self.setState("overworld")
         end
     end
 end
@@ -295,14 +313,9 @@ function Battle:getLostUnits()
     return self.lost_units
 end
 
-function Battle.start(battleType, playerArmy, enemyArmy, backgroundType, onBattleEnd, onBattleFinished)
-    local battle = Battle:new(battleType, playerArmy, enemyArmy, backgroundType)
-    if onBattleEnd then
-        battle:setBattleEndCallback(onBattleEnd)
-    end
-    if onBattleFinished then
-        battle:setBattleFinishedCallback(onBattleFinished)
-    end
+function Battle.start(battleType, player, enemyArmy, backgroundType, setState)
+    local battle = Battle:new(battleType, player, enemyArmy, backgroundType)
+    battle.setState = setState
     return battle
 end
 
