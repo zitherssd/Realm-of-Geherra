@@ -41,28 +41,28 @@ function Game:init()
     self.overworld = Overworld
     self.location = Location:new()
     -- Connect player to overworld for collision detection
-    self.player:setOverworld(self.overworld)
+    Player:setOverworld(self.overworld)
     -- Center camera on player
-    self.camera.x = self.player.x - self.screenWidth / 2
-    self.camera.y = self.player.y - self.screenHeight / 2
+    self.camera.x = Player.x - self.screenWidth / 2
+    self.camera.y = Player.y - self.screenHeight / 2
     Party:init()
     print("Game initialized. Use WASD or arrow keys to move, Enter to interact with locations, ESC to quit.")
 end
 
 function Game:update(dt)
     if self.state == "overworld" then
-        self.player:update(dt)
+        Player:update(dt)
         self.overworld:update(dt)
-        Party:update(dt, self.player)
+        Party:update(dt, Player)
         
         -- Update camera to follow player
-        self.camera.x = self.player.x - self.screenWidth / 2
-        self.camera.y = self.player.y - self.screenHeight / 2
+        self.camera.x = Player.x - self.screenWidth / 2
+        self.camera.y = Player.y - self.screenHeight / 2
         
         self:checkEncounter()
         
         -- Check for location interactions
-        local nearbyLocation = self.overworld:checkLocationInteraction(self.player.x, self.player.y)
+        local nearbyLocation = self.overworld:checkLocationInteraction(Player.x, Player.y)
         if nearbyLocation and love.keyboard.isDown('return') then
             self:enterLocation(nearbyLocation)
         end
@@ -84,7 +84,7 @@ end
 
 function Game:checkEncounter()
     if self.state ~= "overworld" then return end
-    local nearbyParties = Party:getNearbyParties(self.player.x, self.player.y, 50)
+    local nearbyParties = Party:getNearbyParties(Player.x, Player.y, 50)
     for _, party in ipairs(nearbyParties) do
         self.state = "encounter"
         Encounter:init(party, function(nextState)
@@ -98,7 +98,7 @@ function Game:draw()
     if self.state == "overworld" then
         love.graphics.push()
         love.graphics.translate(-self.camera.x, -self.camera.y)
-        self.overworld:draw(self.player, Party.parties)
+        self.overworld:draw(Player, Party.parties)
         love.graphics.pop()
         self:drawUI()
     elseif self.state == "encounter" then
@@ -118,7 +118,7 @@ function Game:drawUI()
     love.graphics.rectangle('fill', 10, 10, 300, 120)
     love.graphics.setColor(1, 1, 1, 1)
     
-    local stats = self.player:getStats()
+    local stats = Player:getStats()
     love.graphics.print(string.format("Gold: %d", stats.gold), 20, 20)
     love.graphics.print(string.format("Strength: %d", stats.strength), 20, 40)
     love.graphics.print(string.format("Agility: %d", stats.agility), 20, 60)
@@ -126,7 +126,7 @@ function Game:drawUI()
     love.graphics.print(string.format("Leadership: %d", stats.leadership), 20, 100)
     
     -- Draw army size
-    love.graphics.print(string.format("Army Size: %d", #self.player.army), 180, 20)
+    love.graphics.print(string.format("Army Size: %d", #Player.army), 180, 20)
     
     -- Draw minimap
     self:drawMinimap()
@@ -159,8 +159,8 @@ function Game:drawMinimap()
         for mx = 0, size-1, block do
             for my = 0, size-1, block do
                 -- World coordinates for this minimap block
-                local wx = self.player.x + (mx - size/2) / scale
-                local wy = self.player.y + (my - size/2) / scale
+                local wx = Player.x + (mx - size/2) / scale
+                local wy = Player.y + (my - size/2) / scale
                 local r, g, b = biomeMap:getPixel(math.floor(wx), math.floor(wy))
                 local hex = string.format("#%02x%02x%02x", r*255, g*255, b*255)
                 local biome = biomeTypes[hex]
@@ -183,8 +183,8 @@ function Game:drawMinimap()
     love.graphics.rectangle('line', x, y, size, size)
     -- Draw locations on minimap with different colors based on type
     for _, location in ipairs(self.overworld.locations) do
-        local locationX = (location.x - self.player.x) * scale
-        local locationY = (location.y - self.player.y) * scale
+        local locationX = (location.x - Player.x) * scale
+        local locationY = (location.y - Player.y) * scale
         local locationSize = math.max(2, location.size * scale / 4)
         if locationX >= -size/2 and locationX <= size/2 and locationY >= -size/2 and locationY <= size/2 then
             if location.type == "Village" then
@@ -224,10 +224,10 @@ function Game:drawArmyScreen()
     love.graphics.print("ARMY INSPECTION", self.screenWidth/2 - 100, 20)
     
     -- Draw army statistics
-    local stats = self.player:getStats()
+    local stats = Player:getStats()
     love.graphics.print("Gold: " .. stats.gold, 20, 60)
-    love.graphics.print("Army Size: " .. #self.player.army, 20, 80)
-    love.graphics.print("Army Strength: " .. self.player:getArmyStrength(), 20, 100)
+    love.graphics.print("Army Size: " .. #Player.army, 20, 80)
+    love.graphics.print("Army Strength: " .. Player:getArmyStrength(), 20, 100)
     
     -- Draw unit list
     local startY = 140
@@ -235,7 +235,7 @@ function Game:drawArmyScreen()
     local unitsPerRow = 3
     local unitWidth = (self.screenWidth - 40) / unitsPerRow
     
-    for i, unit in ipairs(self.player.army) do
+    for i, unit in ipairs(Player.army) do
         local row = math.floor((i - 1) / unitsPerRow)
         local col = (i - 1) % unitsPerRow
         local x = 20 + col * unitWidth
@@ -274,7 +274,7 @@ end
 function Game:enterLocation(location)
     self.state = "location"
     self.currentLocation = location
-    self.location:enter(location, self.player)
+    self.location:enter(location, Player)
 end
 
 function Game:exitLocation()
@@ -296,7 +296,7 @@ function Game:keypressed(key)
             self:exitLocation()
         elseif self.state == "battle" then
             -- Allow escaping from battle (with penalty)
-            self.player:addGold(-10)
+            Player:addGold(-10)
             self:exitBattle()
         elseif self.state == "army" then
             self:exitArmyScreen()
@@ -308,7 +308,7 @@ function Game:keypressed(key)
         self:enterArmyScreen()
     elseif key == 'return' and self.state == "overworld" then
         -- Check for location interactions
-        local nearbyLocation = self.overworld:checkLocationInteraction(self.player.x, self.player.y)
+        local nearbyLocation = self.overworld:checkLocationInteraction(Player.x, Player.y)
         if nearbyLocation then
             self:enterLocation(nearbyLocation)
         end
@@ -329,7 +329,7 @@ function Game:gamepadpressed(joystick, button)
             self:exitLocation()
         elseif self.state == "battle" then
             -- Allow escaping from battle (with penalty)
-            self.player:addGold(-10)
+            Player:addGold(-10)
             self:exitBattle()
         elseif self.state == "army" then
             self:exitArmyScreen()
@@ -340,7 +340,7 @@ function Game:gamepadpressed(joystick, button)
         -- A button (Xbox) / Cross button (PlayStation) for interactions
         if self.state == "overworld" then
             -- Check for location interactions
-            local nearbyLocation = self.overworld:checkLocationInteraction(self.player.x, self.player.y)
+            local nearbyLocation = self.overworld:checkLocationInteraction(Player.x, Player.y)
             if nearbyLocation then
                 self:enterLocation(nearbyLocation)
             end
@@ -372,10 +372,10 @@ end
 
 function Game:armyKeypressed(key)
     if key == 'a' then
-        if self.player:getGold() >= 10 then -- Example cost for adding a unit
-            self.player:addGold(-10)
-            self.player:addUnit("Soldier") -- Add a soldier unit
-            print("Added soldier to army. Gold: " .. self.player:getGold())
+        if Player:getGold() >= 10 then -- Example cost for adding a unit
+            Player:addGold(-10)
+            Player:addUnit("Soldier") -- Add a soldier unit
+            print("Added soldier to army. Gold: " .. Player:getGold())
         else
             print("Not enough gold to add unit.")
         end
