@@ -6,7 +6,8 @@ local Game = require('src.game')
 
 local Battle = {}
 
-function Battle:new(battleType, player, enemyArmy, backgroundType)
+function Battle:new(battleType, enemyArmy)
+    local backgroundType = Battle.getBackgroundTypeForBattle(battleType)
     local instance = {
         -- Battle state
         state = "active", -- active, victory, defeat, finished
@@ -20,7 +21,7 @@ function Battle:new(battleType, player, enemyArmy, backgroundType)
         lost_units = {}, -- Track which units were lost
         
         -- Background
-        background_type = backgroundType or "forest", -- forest, desert, village, mountain
+        background_type = backgroundType,
         
         -- Battle area
         width = 800,
@@ -51,7 +52,7 @@ function Battle:new(battleType, player, enemyArmy, backgroundType)
     instance.background = Battle.createBackground(backgroundType)
     
     -- Spawn units
-    Battle.spawnUnits(instance, player.army, enemyArmy)
+    Battle.spawnUnits(instance, Game.player.army, enemyArmy)
     
     setmetatable(instance, {__index = self})
     return instance
@@ -134,6 +135,18 @@ function Battle.spawnUnits(battleInstance, playerArmy, enemyArmy)
     end
 end
 
+function Battle.getBackgroundTypeForBattle(battleType)
+    if battleType == "encounter" or battleType == "bandit_encounter" then
+        return "forest"
+    elseif battleType == "village_attack" then
+        return "village"
+    elseif battleType == "hideout_attack" then
+        return "mountain"
+    else
+        return "forest"
+    end
+end
+
 function Battle:update(dt)
     if self.state ~= "active" then
         -- Update result screen timer
@@ -191,16 +204,16 @@ function Battle:handleBattleEnd(victory)
     -- Remove lost units from player's army
     local lostUnits = self:getLostUnits()
     for _, lostUnit in ipairs(lostUnits) do
-        self.player:removeUnitFromArmy(lostUnit)
+        Game.player:removeUnitFromArmy(lostUnit)
     end
     if victory then
-        self.player:addGold(50)
+        Game.player:addGold(50)
         print("Battle won! Gained 50 gold.")
         if #lostUnits > 0 then
             print("Lost " .. #lostUnits .. " units in battle.")
         end
     else
-        self.player:addGold(-20)
+        Game.player:addGold(-20)
         print("Battle lost! Lost 20 gold.")
         if #lostUnits > 0 then
             print("Lost " .. #lostUnits .. " units in battle.")
@@ -318,8 +331,8 @@ function Battle:getLostUnits()
     return self.lost_units
 end
 
-function Battle.start(battleType, player, enemyArmy, backgroundType)
-    local battle = Battle:new(battleType, player, enemyArmy, backgroundType)
+function Battle.start(battleType, enemyArmy)
+    local battle = Battle:new(battleType, enemyArmy)
     Game.state = "battle"
     Game.battle = battle
     return battle
