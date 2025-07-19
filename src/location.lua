@@ -330,6 +330,17 @@ function Location:leave()
     print("Leaving " .. self.currentLocation.name)
 end
 
+function Location:exit()
+    self.currentLocation = nil
+    self.player = nil
+    self.menuState = "main"
+    self.selectedIndex = 1
+    self.recruitableUnits = {}
+    self.mainMenu = {}
+    self.shopItems = {}
+    self.tradeItems = {}
+end
+
 function Location:mousepressed(x, y, button)
     -- Future: Add mouse support for menus
 end

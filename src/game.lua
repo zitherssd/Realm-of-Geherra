@@ -68,7 +68,7 @@ function Game:update(dt)
     elseif self.state == "encounter" then
         Encounter:update(dt)
     elseif self.state == "location" then
-        self.location:update(dt)
+        Location:update(dt)
         
     elseif self.state == "battle" then
         self.battle:update(dt)
@@ -102,7 +102,7 @@ function Game:draw()
     elseif self.state == "encounter" then
         Encounter:draw(self.screenWidth, self.screenHeight)
     elseif self.state == "location" then
-        self.location:draw()
+        Location:draw()
     elseif self.state == "battle" then
         self.battle:draw()
     elseif self.state == "army" then
@@ -271,13 +271,12 @@ end
 
 function Game:enterLocation(location)
     self.state = "location"
-    self.currentLocation = location
-    self.location:enter(location, Player)
+    Location:enter(location, Player)
 end
 
 function Game:exitLocation()
     self.state = "overworld"
-    self.currentLocation = nil
+    Location:exit()
 end
 
 function Game:keypressed(key)
@@ -311,7 +310,7 @@ function Game:keypressed(key)
             self:enterLocation(nearbyLocation)
         end
     elseif self.state == "location" then
-        self.location:keypressed(key)
+        Location:keypressed(key)
     elseif self.state == "battle" then
         self.battle:keypressed(key)
     elseif self.state == "army" then
@@ -389,13 +388,13 @@ end
 
 function Game:mousepressed(x, y, button)
     if self.state == "location" then
-        self.location:mousepressed(x, y, button)
+        Location:mousepressed(x, y, button)
     end
 end
 
 function Game:mousereleased(x, y, button)
     if self.state == "location" then
-        self.location:mousereleased(x, y, button)
+        Location:mousereleased(x, y, button)
     end
 end
 
