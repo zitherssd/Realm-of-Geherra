@@ -89,33 +89,15 @@ function Game:checkBattleTriggers(dt)
     local nearbyParties = Party:getNearbyParties(self.player.x, self.player.y, 50)
     for _, party in ipairs(nearbyParties) do
         if party.party_type == "enemy" then
-            self:startEnemyPartyBattle(party)
+            self:startBattle("encounter", party.types, "forest")
             Party:removeParty(party)
             break
         elseif party.party_type == "bandit" then
-            self:startBanditBattle(party)
+            self:startBattle("bandit_encounter", party.types, "forest")
             Party:removeParty(party)
             break
         end
     end
-end
-
-function Game:startEnemyPartyBattle(party)
-    local enemyArmy = {}
-    for _, unitType in ipairs(party.types) do
-        table.insert(enemyArmy, {type = unitType})
-    end
-    
-    self:startBattle("encounter", enemyArmy, "forest")
-end
-
-function Game:startBanditBattle(banditParty)
-    local enemyArmy = {}
-    for _, unitType in ipairs(banditParty.types) do
-        table.insert(enemyArmy, {type = unitType})
-    end
-    
-    self:startBattle("bandit_encounter", enemyArmy, "forest")
 end
 
 function Game:startBattle(battleType, enemyArmy, backgroundType)
