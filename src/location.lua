@@ -10,27 +10,16 @@ function Location:new()
     local instance = {
         currentLocation = nil,
         player = nil,
-        menuState = "main", -- "main", "recruit", "shop", "tavern", "info"
+        menuState = "main",
         selectedIndex = 1,
         recruitableUnits = {},
-        
-        -- Menu options
-        mainMenu = {
-            {text = "Recruit Units", action = "recruit"},
-            {text = "Shop", action = "shop"},
-            {text = "Tavern", action = "tavern"},
-            {text = "Location Info", action = "info"},
-            {text = "Leave Location", action = "leave"}
-        },
-        
-        -- Shop items (basic implementation)
+        mainMenu = {},
         shopItems = {
             {name = "Health Potion", price = 20, description = "Restores health"},
             {name = "Weapon Upgrade", price = 50, description = "Improves weapon"},
             {name = "Armor Upgrade", price = 75, description = "Improves armor"}
         }
     }
-    
     setmetatable(instance, {__index = self})
     return instance
 end
@@ -40,10 +29,13 @@ function Location:enter(location, player)
     self.player = player
     self.menuState = "main"
     self.selectedIndex = 1
-    
-    -- Generate recruitable units based on location type
     self:generateRecruitableUnits()
-    
+    -- Set mainMenu based on location type options
+    local options = locationTypes[location.type] and locationTypes[location.type].options or {}
+    self.mainMenu = {}
+    for _, opt in ipairs(options) do
+        table.insert(self.mainMenu, {text = opt, action = opt:lower():gsub(" ", "_")})
+    end
     print("Entered " .. location.name)
 end
 
