@@ -354,18 +354,6 @@ function Game:drawMinimap()
     -- Draw player as a small circle (at center)
     love.graphics.circle('fill', offsetX + playerX, offsetY + playerY, 3)
     
-    -- Draw player direction indicator (small line)
-    local directionX = math.cos(self.player.rotation) * 6
-    local directionY = math.sin(self.player.rotation) * 6
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.setLineWidth(2)
-    love.graphics.line(
-        offsetX + playerX, 
-        offsetY + playerY, 
-        offsetX + playerX + directionX, 
-        offsetY + playerY + directionY
-    )
-    
     -- Draw minimap title
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.print("Minimap", x + 5, y + 5)
