@@ -36,19 +36,14 @@ local Game = {
         encounter_chance = 0.01,
         encounter_timer = 0,
         
-        -- Enemy parties on the map
-        enemy_parties = {
-            {x = 600, y = 400, size = 3, types = {"soldier", "archer", "soldier"}},
-            {x = 1200, y = 800, size = 4, types = {"knight", "soldier", "archer", "soldier"}},
-            {x = 400, y = 1200, size = 2, types = {"peasant", "soldier"}}
-        },
-        
-        -- Bandit parties around settlements
-        bandit_parties = {},
-        bandit_update_timer = 0,
-        bandit_update_interval = 2.0, -- Update bandit positions every 2 seconds
-        bandit_roam_radius = 150, -- How far bandits roam from settlements
-        bandit_movement_speed = 20 -- Pixels per second
+        -- Parties on the map
+        parties = {
+            {x = 600, y = 400, size = 3, types = {"soldier", "archer", "soldier"}, party_type = "enemy"},
+            {x = 1200, y = 800, size = 4, types = {"knight", "soldier", "archer", "soldier"}, party_type = "enemy"},
+            {x = 400, y = 1200, size = 2, types = {"peasant", "soldier"}, party_type = "enemy"},
+            {x = 1000, y = 1000, size = 3, types = {"peasant", "soldier", "archer"}, party_type = "bandit"},
+            {x = 1500, y = 1500, size = 2, types = {"soldier", "archer"}, party_type = "bandit"}
+        }
     }
 }
 
@@ -80,7 +75,7 @@ function Game:initializeBanditParties()
         
         for i = 1, numParties do
             local banditParty = self:createBanditParty(town)
-            table.insert(self.battle_triggers.bandit_parties, banditParty)
+            table.insert(self.battle_triggers.parties, banditParty)
         end
     end
 end
@@ -118,7 +113,8 @@ function Game:createBanditParty(town)
         target_y = y,
         movement_timer = 0,
         movement_duration = math.random(3, 8), -- How long to move to target
-        is_moving = false
+        is_moving = false,
+        party_type = "bandit"
     }
 end
 
@@ -128,7 +124,7 @@ function Game:updateBanditParties(dt)
     if self.battle_triggers.bandit_update_timer >= self.battle_triggers.bandit_update_interval then
         self.battle_triggers.bandit_update_timer = 0
         
-        for _, banditParty in ipairs(self.battle_triggers.bandit_parties) do
+        for _, banditParty in ipairs(self.battle_triggers.parties) do
             self:updateBanditParty(banditParty, dt)
         end
     end
@@ -225,22 +221,26 @@ function Game:checkBattleTriggers(dt)
     end
     
     -- Check for enemy party encounters
-    for i, party in ipairs(self.battle_triggers.enemy_parties) do
-        local distance = math.sqrt((self.player.x - party.x)^2 + (self.player.y - party.y)^2)
-        if distance < 50 then
-            self:startEnemyPartyBattle(party)
-            table.remove(self.battle_triggers.enemy_parties, i)
-            break
+    for i, party in ipairs(self.battle_triggers.parties) do
+        if party.party_type == "enemy" then
+            local distance = math.sqrt((self.player.x - party.x)^2 + (self.player.y - party.y)^2)
+            if distance < 50 then
+                self:startEnemyPartyBattle(party)
+                table.remove(self.battle_triggers.parties, i)
+                break
+            end
         end
     end
     
     -- Check for bandit party encounters
-    for i, banditParty in ipairs(self.battle_triggers.bandit_parties) do
-        local distance = math.sqrt((self.player.x - banditParty.x)^2 + (self.player.y - banditParty.y)^2)
-        if distance < 50 then
-            self:startBanditBattle(banditParty)
-            table.remove(self.battle_triggers.bandit_parties, i)
-            break
+    for i, banditParty in ipairs(self.battle_triggers.parties) do
+        if banditParty.party_type == "bandit" then
+            local distance = math.sqrt((self.player.x - banditParty.x)^2 + (self.player.y - banditParty.y)^2)
+            if distance < 50 then
+                self:startBanditBattle(banditParty)
+                table.remove(self.battle_triggers.parties, i)
+                break
+            end
         end
     end
 end
@@ -323,10 +323,10 @@ function Game:draw()
         self.overworld:draw()
         
         -- Draw enemy parties
-        self.overworld:drawEnemyParties(self.battle_triggers.enemy_parties)
+        self.overworld:drawEnemyParties(self.battle_triggers.parties)
         
         -- Draw bandit parties
-        self.overworld:drawBanditParties(self.battle_triggers.bandit_parties)
+        self.overworld:drawBanditParties(self.battle_triggers.parties)
         
         -- Draw interaction indicators
         self.overworld:drawInteractionIndicators(self.player.x, self.player.y)
