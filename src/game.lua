@@ -38,10 +38,8 @@ function Game:init()
     Player:init()
     Overworld:init()
     self.player = Player
-    self.overworld = Overworld
-    self.location = Location:new()
     -- Connect player to overworld for collision detection
-    Player:setOverworld(self.overworld)
+    Player:setOverworld(Overworld)
     -- Center camera on player
     self.camera.x = Player.x - self.screenWidth / 2
     self.camera.y = Player.y - self.screenHeight / 2
@@ -52,7 +50,7 @@ end
 function Game:update(dt)
     if self.state == "overworld" then
         Player:update(dt)
-        self.overworld:update(dt)
+        Overworld:update(dt)
         Party:update(dt, Player)
         
         -- Update camera to follow player
@@ -62,7 +60,7 @@ function Game:update(dt)
         self:checkEncounter()
         
         -- Check for location interactions
-        local nearbyLocation = self.overworld:checkLocationInteraction(Player.x, Player.y)
+        local nearbyLocation = Overworld:checkLocationInteraction(Player.x, Player.y)
         if nearbyLocation and love.keyboard.isDown('return') then
             self:enterLocation(nearbyLocation)
         end
@@ -98,7 +96,7 @@ function Game:draw()
     if self.state == "overworld" then
         love.graphics.push()
         love.graphics.translate(-self.camera.x, -self.camera.y)
-        self.overworld:draw(Player, Party.parties)
+        Overworld:draw(Player, Party.parties)
         love.graphics.pop()
         self:drawUI()
     elseif self.state == "encounter" then
@@ -153,7 +151,7 @@ function Game:drawMinimap()
     local scale = minimap.scale
     local offsetX = x + size / 2
     local offsetY = y + size / 2
-    local biomeMap = self.overworld.biomeMap
+    local biomeMap = Overworld.biomeMap
     local biomeTypes = require('src.data.biome_types')
     if biomeMap then
         for mx = 0, size-1, block do
@@ -182,7 +180,7 @@ function Game:drawMinimap()
     love.graphics.setLineWidth(2)
     love.graphics.rectangle('line', x, y, size, size)
     -- Draw locations on minimap with different colors based on type
-    for _, location in ipairs(self.overworld.locations) do
+    for _, location in ipairs(Overworld.locations) do
         local locationX = (location.x - Player.x) * scale
         local locationY = (location.y - Player.y) * scale
         local locationSize = math.max(2, location.size * scale / 4)
@@ -308,7 +306,7 @@ function Game:keypressed(key)
         self:enterArmyScreen()
     elseif key == 'return' and self.state == "overworld" then
         -- Check for location interactions
-        local nearbyLocation = self.overworld:checkLocationInteraction(Player.x, Player.y)
+        local nearbyLocation = Overworld:checkLocationInteraction(Player.x, Player.y)
         if nearbyLocation then
             self:enterLocation(nearbyLocation)
         end
@@ -340,7 +338,7 @@ function Game:gamepadpressed(joystick, button)
         -- A button (Xbox) / Cross button (PlayStation) for interactions
         if self.state == "overworld" then
             -- Check for location interactions
-            local nearbyLocation = self.overworld:checkLocationInteraction(Player.x, Player.y)
+            local nearbyLocation = Overworld:checkLocationInteraction(Player.x, Player.y)
             if nearbyLocation then
                 self:enterLocation(nearbyLocation)
             end
