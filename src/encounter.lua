@@ -55,9 +55,9 @@ function Encounter:keypressed(key, _, removeParty)
         local option = self.options[self.selected]
         if option == "Fight" then
             if self.party.party_type == "enemy" then
-                Battle.start("encounter", self.party.types)
+                Battle.start("encounter", self.party)
             elseif self.party.party_type == "bandit" then
-                Battle.start("bandit_encounter", self.party.types)
+                Battle.start("bandit_encounter", self.party)
             end
             removeParty(self.party)
             self:clear()

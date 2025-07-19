@@ -25,7 +25,8 @@ local Battle = {
     },
     on_battle_end = nil,
     on_battle_finished = nil,
-    background = nil
+    background = nil,
+    enemy_party = nil
 }
 
 function Battle.createBackground(backgroundType)
@@ -71,7 +72,7 @@ function Battle.createBackground(backgroundType)
     return backgrounds[backgroundType] or backgrounds.forest
 end
 
-function Battle.spawnUnits(battle, playerArmy, enemyParty)
+function Battle.spawnUnits(battle, playerArmy, enemyPartyTypes)
     local ally_y = battle.spawn_y_base
     local ally_spacing = 50
     for i, armyUnit in ipairs(playerArmy) do
@@ -89,9 +90,9 @@ function Battle.spawnUnits(battle, playerArmy, enemyParty)
     end
     local enemy_y = battle.spawn_y_base
     local enemy_spacing = 50
-    for i, enemyUnit in ipairs(enemyParty) do
-        local unitType = enemyUnit.type or "soldier"
-        local tempArmyUnit = enemyUnit.army_unit or enemyUnit
+    for i, enemyUnitType in ipairs(enemyPartyTypes) do
+        local unitType = enemyUnitType or "soldier"
+        local tempArmyUnit = battle.enemy_party.units[i] or {type = unitType} -- Assuming enemyParty.units is an array of army units
         local unit = require('src.battle_unit'):new(2, unitType, battle.enemy_spawn_x, enemy_y, tempArmyUnit)
         table.insert(battle.units, unit)
         enemy_y = enemy_y + enemy_spacing
@@ -262,7 +263,8 @@ function Battle.start(battleType, enemyParty)
     Battle.lost_units = {}
     Battle.background_type = Battle.getBackgroundTypeForBattle(battleType)
     Battle.background = Battle.createBackground(Battle.background_type)
-    Battle.spawnUnits(Battle, Game.player.army, enemyParty)
+    Battle.enemy_party = enemyParty
+    Battle.spawnUnits(Battle, Game.player.army, enemyParty.types)
     Battle.ui.text_timer = 0
     Battle.on_battle_end = nil
     Battle.on_battle_finished = nil
