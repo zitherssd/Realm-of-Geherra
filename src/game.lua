@@ -33,10 +33,6 @@ local Game = {
     }
 }
 
-Game.encounteredParty = nil
-Game.encounterOptions = nil
-Game.selectedEncounterOption = 1
-
 function Game:init()
     -- Initialize the game systems
     self.player = Player:new()
