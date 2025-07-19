@@ -73,7 +73,7 @@ function Game:update(dt)
             self:enterTown(nearbyTown)
         end
         
-    elseif Encounter.active then
+    elseif self.state == "encounter" then
         Encounter:update(dt)
     elseif self.state == "town" then
         self.town:update(dt)
@@ -92,9 +92,10 @@ function Game:update(dt)
 end
 
 function Game:checkEncounter()
-    if Encounter.active then return end
+    if self.state ~= "overworld" then return end
     local nearbyParties = Party:getNearbyParties(self.player.x, self.player.y, 50)
     for _, party in ipairs(nearbyParties) do
+        self.state = "encounter"
         Encounter:startEncounter(party, function(option, party)
             if option == "Fight" then
                 if party.party_type == "enemy" then
@@ -103,10 +104,11 @@ function Game:checkEncounter()
                     self:startBattle("bandit_encounter", party.types, "forest")
                 end
                 Party:removeParty(party)
+                self.state = "battle"
+            else
+                self.state = "overworld"
             end
-            self.state = "overworld"
         end)
-        self.state = "encounter_dialogue"
         break
     end
 end
@@ -177,7 +179,7 @@ function Game:draw()
             Encounter:draw(self.screenWidth, self.screenHeight)
         end
         
-    elseif Encounter.active then
+    elseif self.state == "encounter" then
         Encounter:draw(self.screenWidth, self.screenHeight)
     elseif self.state == "town" then
         self.town:draw()
@@ -381,7 +383,7 @@ function Game:exitTown()
 end
 
 function Game:keypressed(key)
-    if Encounter.active then
+    if self.state == "encounter" then
         Encounter:keypressed(key)
         return
     end
