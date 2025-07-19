@@ -295,4 +295,15 @@ function Battle:getLostUnits()
     return self.lost_units
 end
 
+function Battle.start(battleType, playerArmy, enemyArmy, backgroundType, onBattleEnd, onBattleFinished)
+    local battle = Battle:new(battleType, playerArmy, enemyArmy, backgroundType)
+    if onBattleEnd then
+        battle:setBattleEndCallback(onBattleEnd)
+    end
+    if onBattleFinished then
+        battle:setBattleFinishedCallback(onBattleFinished)
+    end
+    return battle
+end
+
 return Battle 
