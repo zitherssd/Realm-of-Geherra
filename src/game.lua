@@ -6,6 +6,7 @@ local Overworld = require('src.overworld')
 local Town = require('src.town')
 local Battle = require('src.battle')
 local Utils = require('src.utils')
+local partiesData = require('src.data.parties')
 
 local Game = {
     state = "overworld", -- Current game state: "overworld", "town", "battle", "army", "menu"
@@ -31,19 +32,14 @@ local Game = {
     },
     
     -- Battle triggers
+    -- Remove encounter_chance, encounter_timer, and parties from battle_triggers
+    -- Remove any logic related to random encounters (e.g., encounter timer, startRandomEncounter)
+    -- Update code to expect parties to be loaded from a data file
     battle_triggers = {
-        -- Random encounter chance per second
-        encounter_chance = 0.01,
-        encounter_timer = 0,
-        
         -- Parties on the map
-        parties = {
-            {x = 600, y = 400, size = 3, types = {"soldier", "archer", "soldier"}, party_type = "enemy"},
-            {x = 1200, y = 800, size = 4, types = {"knight", "soldier", "archer", "soldier"}, party_type = "enemy"},
-            {x = 400, y = 1200, size = 2, types = {"peasant", "soldier"}, party_type = "enemy"},
-            {x = 1000, y = 1000, size = 3, types = {"peasant", "soldier", "archer"}, party_type = "bandit"},
-            {x = 1500, y = 1500, size = 2, types = {"soldier", "archer"}, party_type = "bandit"}
-        }
+        parties = {},
+        bandit_roam_radius = 100, -- Radius for bandit parties to roam
+        bandit_movement_speed = 100 -- Speed for bandit parties
     }
 }
 
@@ -62,6 +58,9 @@ function Game:init()
     -- Center camera on player
     self.camera.x = self.player.x - self.screenWidth / 2
     self.camera.y = self.player.y - self.screenHeight / 2
+    
+    self.battle_triggers.parties = partiesData
+    self:buildPartyGrid()
     
     print("Game initialized. Use WASD or arrow keys to move, Enter to interact with towns, ESC to quit.")
 end
@@ -210,15 +209,6 @@ function Game:update(dt)
 end
 
 function Game:checkBattleTriggers(dt)
-    -- Random encounters
-    self.battle_triggers.encounter_timer = self.battle_triggers.encounter_timer + dt
-    if self.battle_triggers.encounter_timer >= 1.0 then
-        self.battle_triggers.encounter_timer = 0
-        if math.random() < self.battle_triggers.encounter_chance then
-            self:startRandomEncounter()
-        end
-    end
-    
     -- Check for enemy party encounters
     for i, party in ipairs(self.battle_triggers.parties) do
         if party.party_type == "enemy" then
