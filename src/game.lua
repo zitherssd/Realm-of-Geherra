@@ -7,6 +7,7 @@ local Town = require('src.town')
 local Battle = require('src.battle')
 local Utils = require('src.utils')
 local Party = require('src.parties')
+local Encounter = require('src.encounter')
 
 local Game = {
     state = "overworld", -- Current game state: "overworld", "town", "battle", "army", "menu"
@@ -72,8 +73,8 @@ function Game:update(dt)
             self:enterTown(nearbyTown)
         end
         
-    elseif self.state == "encounter_dialogue" then
-        -- No update needed, handled by keypressed
+    elseif Encounter.active then
+        Encounter:update(dt)
     elseif self.state == "town" then
         self.town:update(dt)
         
@@ -91,17 +92,21 @@ function Game:update(dt)
 end
 
 function Game:checkEncounter()
-    if self.encounteredParty then return end -- Only one encounter at a time
+    if Encounter.active then return end
     local nearbyParties = Party:getNearbyParties(self.player.x, self.player.y, 50)
     for _, party in ipairs(nearbyParties) do
-        self.encounteredParty = party
+        Encounter:startEncounter(party, function(option, party)
+            if option == "Fight" then
+                if party.party_type == "enemy" then
+                    self:startBattle("encounter", party.types, "forest")
+                elseif party.party_type == "bandit" then
+                    self:startBattle("bandit_encounter", party.types, "forest")
+                end
+                Party:removeParty(party)
+            end
+            self.state = "overworld"
+        end)
         self.state = "encounter_dialogue"
-        self.selectedEncounterOption = 1
-        if party.party_type == "enemy" or party.party_type == "bandit" then
-            self.encounterOptions = {"Fight", "Flee"}
-        else
-            self.encounterOptions = {"Ignore"}
-        end
         break
     end
 end
@@ -168,8 +173,12 @@ function Game:draw()
         -- Draw UI
         self:drawUI()
         
-    elseif self.state == "encounter_dialogue" then
-        self:drawEncounterDialogue()
+        if Encounter.active then
+            Encounter:draw(self.screenWidth, self.screenHeight)
+        end
+        
+    elseif Encounter.active then
+        Encounter:draw(self.screenWidth, self.screenHeight)
     elseif self.state == "town" then
         self.town:draw()
         
@@ -372,30 +381,8 @@ function Game:exitTown()
 end
 
 function Game:keypressed(key)
-    if self.state == "encounter_dialogue" then
-        if key == "up" or key == "w" then
-            self.selectedEncounterOption = math.max(1, self.selectedEncounterOption - 1)
-        elseif key == "down" or key == "s" then
-            self.selectedEncounterOption = math.min(#self.encounterOptions, self.selectedEncounterOption + 1)
-        elseif key == "return" or key == "space" then
-            local option = self.encounterOptions[self.selectedEncounterOption]
-            if option == "Fight" then
-                if self.encounteredParty.party_type == "enemy" then
-                    self:startBattle("encounter", self.encounteredParty.types, "forest")
-                elseif self.encounteredParty.party_type == "bandit" then
-                    self:startBattle("bandit_encounter", self.encounteredParty.types, "forest")
-                end
-                Party:removeParty(self.encounteredParty)
-                self.encounteredParty = nil
-                self.state = "battle"
-            elseif option == "Flee" or option == "Ignore" then
-                self.encounteredParty = nil
-                self.state = "overworld"
-            end
-        elseif key == "escape" then
-            self.encounteredParty = nil
-            self.state = "overworld"
-        end
+    if Encounter.active then
+        Encounter:keypressed(key)
         return
     end
     if key == 'escape' then
