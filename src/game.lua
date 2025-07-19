@@ -96,15 +96,6 @@ function Game:checkEncounter()
     end
 end
 
-function Game:startBattle(battleType, enemyArmy, backgroundType)
-    Battle.start(battleType, self.player, enemyArmy, backgroundType)
-end
-
-function Game:exitBattle()
-    self.state = "overworld"
-    self.battle = nil
-end
-
 function Game:draw()
     if self.state == "overworld" then
         love.graphics.push()
