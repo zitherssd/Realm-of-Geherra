@@ -77,10 +77,7 @@ function Game:update(dt)
     elseif self.state == "battle" then
         self.battle:update(dt)
         
-        -- Check if battle is finished
-        if self.battle:isFinished() then
-            self:exitBattle()
-        end
+        -- Removed polling for isFinished
         
     elseif self.state == "army" then
         -- Army screen - no updates needed
@@ -128,6 +125,9 @@ function Game:startBattle(battleType, enemyArmy, backgroundType)
                 print("Lost " .. #lostUnits .. " units in battle.")
             end
         end
+    end)
+    self.battle:setBattleFinishedCallback(function()
+        self:exitBattle()
     end)
 end
 

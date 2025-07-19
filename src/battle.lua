@@ -41,7 +41,8 @@ function Battle:new(battleType, playerArmy, enemyArmy, backgroundType)
         },
         
         -- Callback for when battle ends
-        on_battle_end = nil
+        on_battle_end = nil,
+        on_battle_finished = nil
     }
     
     -- Create background based on type
@@ -263,6 +264,9 @@ end
 function Battle:keypressed(key)
     if key == "space" and (self.state == "victory" or self.state == "defeat") then
         self.state = "finished"
+        if self.on_battle_finished then
+            self.on_battle_finished()
+        end
     end
 end
 
@@ -281,6 +285,10 @@ end
 
 function Battle:setBattleEndCallback(callback)
     self.on_battle_end = callback
+end
+
+function Battle:setBattleFinishedCallback(callback)
+    self.on_battle_finished = callback
 end
 
 function Battle:getLostUnits()
