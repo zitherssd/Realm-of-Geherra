@@ -6,7 +6,7 @@ local Overworld = require('src.overworld')
 local Town = require('src.town')
 local Battle = require('src.battle')
 local Utils = require('src.utils')
-local PartySystem = require('src.parties')
+local Party = require('src.parties')
 local partiesData = require('src.data.party_defs')
 
 local Game = {
@@ -60,7 +60,7 @@ function Game:init()
     self.camera.x = self.player.x - self.screenWidth / 2
     self.camera.y = self.player.y - self.screenHeight / 2
     
-    PartySystem:init(partiesData)
+    Party:init(partiesData)
     self:buildPartyGrid()
     
     print("Game initialized. Use WASD or arrow keys to move, Enter to interact with towns, ESC to quit.")
@@ -75,7 +75,7 @@ function Game:initializeBanditParties()
         
         for i = 1, numParties do
             local banditParty = self:createBanditParty(town)
-            PartySystem:addParty(banditParty)
+            Party:addParty(banditParty)
         end
     end
 end
@@ -176,7 +176,7 @@ function Game:update(dt)
     if self.state == "overworld" then
         self.player:update(dt)
         self.overworld:update(dt)
-        PartySystem:update(dt, self.player)
+        Party:update(dt, self.player)
         
         -- Update camera to follow player
         self.camera.x = self.player.x - self.screenWidth / 2
@@ -208,15 +208,15 @@ function Game:update(dt)
 end
 
 function Game:checkBattleTriggers(dt)
-    local nearbyParties = PartySystem:getNearbyParties(self.player.x, self.player.y, 50)
+    local nearbyParties = Party:getNearbyParties(self.player.x, self.player.y, 50)
     for _, party in ipairs(nearbyParties) do
         if party.party_type == "enemy" then
             self:startEnemyPartyBattle(party)
-            PartySystem:removeParty(party)
+            Party:removeParty(party)
             break
         elseif party.party_type == "bandit" then
             self:startBanditBattle(party)
-            PartySystem:removeParty(party)
+            Party:removeParty(party)
             break
         end
     end

@@ -1,8 +1,8 @@
-local PartySystem = {}
+local Party = {}
 
 local GRID_SIZE = 128
 
-function PartySystem:init(party_defs)
+function Party:init(party_defs)
     self.parties = {}
     for _, party in ipairs(party_defs) do
         table.insert(self.parties, party)
@@ -10,11 +10,11 @@ function PartySystem:init(party_defs)
     self:buildPartyGrid()
 end
 
-function PartySystem:getCell(x, y)
+function Party:getCell(x, y)
     return math.floor(x / GRID_SIZE), math.floor(y / GRID_SIZE)
 end
 
-function PartySystem:buildPartyGrid()
+function Party:buildPartyGrid()
     local grid = {}
     for _, party in ipairs(self.parties) do
         local cx, cy = self:getCell(party.x, party.y)
@@ -25,7 +25,7 @@ function PartySystem:buildPartyGrid()
     self.partyGrid = grid
 end
 
-function PartySystem:getNearbyParties(px, py, radius)
+function Party:getNearbyParties(px, py, radius)
     local cx, cy = self:getCell(px, py)
     local parties = {}
     for dx = -1, 1 do
@@ -44,12 +44,12 @@ function PartySystem:getNearbyParties(px, py, radius)
     return parties
 end
 
-function PartySystem:addParty(party)
+function Party:addParty(party)
     table.insert(self.parties, party)
     self:buildPartyGrid()
 end
 
-function PartySystem:removeParty(party)
+function Party:removeParty(party)
     for i, p in ipairs(self.parties) do
         if p == party then
             table.remove(self.parties, i)
@@ -59,7 +59,7 @@ function PartySystem:removeParty(party)
     self:buildPartyGrid()
 end
 
-function PartySystem:update(dt, player)
+function Party:update(dt, player)
     -- Example: update bandit parties (expand for more AI later)
     for _, party in ipairs(self.parties) do
         if party.party_type == "bandit" then
@@ -70,4 +70,4 @@ function PartySystem:update(dt, player)
     self:buildPartyGrid()
 end
 
-return PartySystem
+return Party
