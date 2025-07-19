@@ -14,11 +14,8 @@ function Location:new()
         selectedIndex = 1,
         recruitableUnits = {},
         mainMenu = {},
-        shopItems = {
-            {name = "Health Potion", price = 20, description = "Restores health"},
-            {name = "Weapon Upgrade", price = 50, description = "Improves weapon"},
-            {name = "Armor Upgrade", price = 75, description = "Improves armor"}
-        }
+        shopItems = {},
+        tradeItems = {},
     }
     setmetatable(instance, {__index = self})
     return instance
@@ -29,12 +26,18 @@ function Location:enter(location, player)
     self.player = player
     self.menuState = "main"
     self.selectedIndex = 1
-    self:generateRecruitableUnits()
     -- Set mainMenu based on location type options
     local options = locationTypes[location.type] and locationTypes[location.type].options or {}
-    self.mainMenu = {}
+    self.mainMenu = options
+    -- Precompute recruitableUnits, shopItems, tradeItems for each option
     for _, opt in ipairs(options) do
-        table.insert(self.mainMenu, {text = opt, action = opt:lower():gsub(" ", "_")})
+        if opt.action == "recruit" then
+            self.recruitableUnits = opt.units or {}
+        elseif opt.action == "shop" then
+            self.shopItems = opt.items or {}
+        elseif opt.action == "trade" then
+            self.tradeItems = opt.items or {}
+        end
     end
     print("Entered " .. location.name)
 end
@@ -82,6 +85,8 @@ function Location:draw()
         self:drawRecruitMenu()
     elseif self.menuState == "shop" then
         self:drawShopMenu()
+    elseif self.menuState == "trade" then
+        self:drawTradeMenu()
     elseif self.menuState == "tavern" then
         self:drawTavernMenu()
     elseif self.menuState == "info" then
@@ -98,36 +103,32 @@ end
 function Location:drawMainMenu()
     love.graphics.setColor(1, 1, 1)
     love.graphics.print("Location Menu:", 50, 160)
-    
     for i, option in ipairs(self.mainMenu) do
         local color = (i == self.selectedIndex) and {1, 1, 0} or {1, 1, 1}
         love.graphics.setColor(color)
-        love.graphics.print((i == self.selectedIndex and "> " or "  ") .. option.text, 70, 180 + i * 25)
+        local prefix = (i == self.selectedIndex and "> " or "  ")
+        love.graphics.print(prefix .. option.label, 70, 180 + i * 25)
     end
 end
 
 function Location:drawRecruitMenu()
     love.graphics.setColor(1, 1, 1)
     love.graphics.print("Recruit Units:", 50, 160)
-    
     local playerGold = self.player:getStats().gold
     love.graphics.print("Your Gold: " .. playerGold, 50, 180)
-    
-    for i, unit in ipairs(self.recruitableUnits) do
+    for i, unitType in ipairs(self.recruitableUnits) do
+        local unitInfo = ArmyUnit.getTypeInfo(unitType)
         local color = (i == self.selectedIndex) and {1, 1, 0} or {1, 1, 1}
-        if playerGold < unit.cost then
-            color = {0.5, 0.5, 0.5} -- Gray out unaffordable units
+        if playerGold < unitInfo.cost then
+            color = {0.5, 0.5, 0.5}
         end
-        
         love.graphics.setColor(color)
         local prefix = (i == self.selectedIndex) and "> " or "  "
-        local text = string.format("%s%s - %d gold", prefix, unit.type, unit.cost)
+        local text = string.format("%s%s - %d gold", prefix, unitType, unitInfo.cost)
         love.graphics.print(text, 70, 200 + i * 25)
-        
-        -- Show description for selected unit
         if i == self.selectedIndex then
             love.graphics.setColor(0.8, 0.8, 0.8)
-            love.graphics.print("    " .. unit.description, 90, 220 + i * 25)
+            love.graphics.print("    " .. (unitInfo.description or ""), 90, 220 + i * 25)
         end
     end
 end
@@ -135,25 +136,27 @@ end
 function Location:drawShopMenu()
     love.graphics.setColor(1, 1, 1)
     love.graphics.print("Shop:", 50, 160)
-    
     local playerGold = self.player:getStats().gold
     love.graphics.print("Your Gold: " .. playerGold, 50, 180)
-    
-    for i, item in ipairs(self.shopItems) do
+    for i, itemName in ipairs(self.shopItems) do
         local color = (i == self.selectedIndex) and {1, 1, 0} or {1, 1, 1}
-        if playerGold < item.price then
-            color = {0.5, 0.5, 0.5}
-        end
-        
+        -- For now, just display item name; you can expand with item data
         love.graphics.setColor(color)
         local prefix = (i == self.selectedIndex) and "> " or "  "
-        local text = string.format("%s%s - %d gold", prefix, item.name, item.price)
+        local text = string.format("%s%s", prefix, itemName)
         love.graphics.print(text, 70, 200 + i * 25)
-        
-        if i == self.selectedIndex then
-            love.graphics.setColor(0.8, 0.8, 0.8)
-            love.graphics.print("    " .. item.description, 90, 220 + i * 25)
-        end
+    end
+end
+
+function Location:drawTradeMenu()
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.print("Trade:", 50, 160)
+    for i, itemName in ipairs(self.tradeItems) do
+        local color = (i == self.selectedIndex) and {1, 1, 0} or {1, 1, 1}
+        love.graphics.setColor(color)
+        local prefix = (i == self.selectedIndex) and "> " or "  "
+        local text = string.format("%s%s", prefix, itemName)
+        love.graphics.print(text, 70, 200 + i * 25)
     end
 end
 
@@ -252,17 +255,18 @@ function Location:selectOption()
         elseif option.action == "shop" then
             self.menuState = "shop"
             self.selectedIndex = 1
+        elseif option.action == "trade" then
+            self.menuState = "trade"
+            self.selectedIndex = 1
         elseif option.action == "tavern" then
             self.menuState = "tavern"
+            self.selectedIndex = 1
         elseif option.action == "info" then
             self.menuState = "info"
+            self.selectedIndex = 1
         elseif option.action == "leave" then
             self:leave()
         end
-    elseif self.menuState == "recruit" then
-        self:recruitUnit()
-    elseif self.menuState == "shop" then
-        self:buyItem()
     end
 end
 
