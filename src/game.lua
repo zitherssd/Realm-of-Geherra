@@ -100,35 +100,15 @@ function Game:draw()
     if self.state == "overworld" then
         love.graphics.push()
         love.graphics.translate(-self.camera.x, -self.camera.y)
-        
-        -- Draw overworld
-        self.overworld:draw()
-        
-        -- Draw enemy parties
-        self.overworld:drawEnemyParties(self.battle_triggers.parties)
-        
-        -- Draw bandit parties
-        self.overworld:drawBanditParties(self.battle_triggers.parties)
-        
-        -- Draw interaction indicators
-        self.overworld:drawInteractionIndicators(self.player.x, self.player.y)
-        
-        -- Draw player
-        self.player:draw()
-        
+        self.overworld:draw(self.player, Party.parties)
         love.graphics.pop()
-        
-        -- Draw UI
         self:drawUI()
-        
     elseif self.state == "encounter" then
         Encounter:draw(self.screenWidth, self.screenHeight)
     elseif self.state == "town" then
         self.town:draw()
-        
     elseif self.state == "battle" then
         self.battle:draw()
-        
     elseif self.state == "army" then
         self:drawArmyScreen()
     end

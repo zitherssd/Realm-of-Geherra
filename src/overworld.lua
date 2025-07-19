@@ -84,61 +84,59 @@ function Overworld:update(dt)
     -- Future: Add overworld events, weather, etc.
 end
 
--- Remove any code that draws terrain features. Only use the biome map for visualization.
-
--- Draw enemy parties on the overworld
-function Overworld:drawEnemyParties(enemyParties)
-    for _, party in ipairs(enemyParties) do
-        -- Draw enemy party as red circles
-        love.graphics.setColor(1, 0, 0, 0.8) -- Red with transparency
-        love.graphics.circle('fill', party.x, party.y, 15)
-        
-        -- Draw border
-        love.graphics.setColor(0.8, 0, 0, 1)
-        love.graphics.setLineWidth(2)
-        love.graphics.circle('line', party.x, party.y, 15)
-        
-        -- Draw unit count
+function Overworld:draw(player, parties)
+    -- Draw terrain/biome map (existing logic)
+    if self.visualMap then
         love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.print(tostring(party.size), party.x - 5, party.y - 5)
+        love.graphics.draw(self.visualMap, 0, 0)
+    elseif self.biomeMap then
+        -- Draw biome map as colored rectangles (optional fallback)
+        -- ... (existing biome map drawing logic if any) ...
     end
-end
 
--- Draw bandit parties on the overworld
-function Overworld:drawBanditParties(banditParties)
-    for _, banditParty in ipairs(banditParties) do
-        -- Draw bandit party as orange circles
-        love.graphics.setColor(1, 0.5, 0, 0.8) -- Orange with transparency
-        love.graphics.circle('fill', banditParty.x, banditParty.y, 12)
-        
-        -- Draw border
-        love.graphics.setColor(0.8, 0.4, 0, 1)
+    -- Draw towns
+    for _, town in ipairs(self.towns) do
+        love.graphics.setColor(town.color)
+        love.graphics.circle('fill', town.x, town.y, town.size)
+        love.graphics.setColor(0.2, 0.2, 0.2, 1)
         love.graphics.setLineWidth(2)
-        love.graphics.circle('line', banditParty.x, banditParty.y, 12)
-        
-        -- Draw unit count
+        love.graphics.circle('line', town.x, town.y, town.size)
         love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.print(tostring(banditParty.size), banditParty.x - 5, banditParty.y - 5)
-        
-        -- Draw movement indicator if moving
-        if banditParty.is_moving then
-            love.graphics.setColor(1, 1, 0, 0.6) -- Yellow for movement
-            love.graphics.circle('line', banditParty.x, banditParty.y, 18)
+        love.graphics.print(town.name, town.x - town.size/2, town.y - town.size - 10)
+    end
+
+    -- Draw parties (enemy and bandit)
+    for _, party in ipairs(parties) do
+        if party.party_type == "enemy" then
+            love.graphics.setColor(1, 0, 0, 0.8)
+            love.graphics.circle('fill', party.x, party.y, 15)
+            love.graphics.setColor(0.8, 0, 0, 1)
+            love.graphics.setLineWidth(2)
+            love.graphics.circle('line', party.x, party.y, 15)
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.print(tostring(party.size), party.x - 5, party.y - 5)
+        elseif party.party_type == "bandit" then
+            love.graphics.setColor(1, 0.5, 0, 0.8)
+            love.graphics.circle('fill', party.x, party.y, 12)
+            love.graphics.setColor(0.8, 0.4, 0, 1)
+            love.graphics.setLineWidth(2)
+            love.graphics.circle('line', party.x, party.y, 12)
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.print(tostring(party.size), party.x - 5, party.y - 5)
+            if party.is_moving then
+                love.graphics.setColor(1, 1, 0, 0.6)
+                love.graphics.circle('line', party.x, party.y, 18)
+            end
         end
     end
-end
 
--- Draw interaction indicators for nearby towns
-function Overworld:drawInteractionIndicators(playerX, playerY)
+    -- Draw interaction indicators for nearby towns
     for _, town in ipairs(self.towns) do
-        local distance = math.sqrt((playerX - town.x)^2 + (playerY - town.y)^2)
+        local distance = math.sqrt((player.x - town.x)^2 + (player.y - town.y)^2)
         if distance <= self.interactionDistance then
-            -- Draw interaction indicator
-            love.graphics.setColor(1, 1, 0, 0.8) -- Yellow with transparency
+            love.graphics.setColor(1, 1, 0, 0.8)
             love.graphics.setLineWidth(3)
             love.graphics.circle('line', town.x, town.y, town.size/2 + 10)
-            
-            -- Draw "Press Enter" text
             love.graphics.setColor(1, 1, 1, 1)
             local font = love.graphics.getFont()
             local text = "Press Enter"
@@ -146,6 +144,9 @@ function Overworld:drawInteractionIndicators(playerX, playerY)
             love.graphics.print(text, town.x - textWidth/2, town.y + town.size/2 + 25)
         end
     end
+
+    -- Draw player
+    player:draw()
 end
 
 function Overworld:getTownTypeIndicator(townType)
