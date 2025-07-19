@@ -66,9 +66,6 @@ function Game:update(dt)
             self:enterTown(nearbyTown)
         end
         
-        -- Check for battle triggers
-        self:checkBattleTriggers(dt)
-        
     elseif self.state == "town" then
         self.town:update(dt)
         
@@ -82,21 +79,6 @@ function Game:update(dt)
         
     elseif self.state == "army" then
         -- Army screen - no updates needed
-    end
-end
-
-function Game:checkBattleTriggers(dt)
-    local nearbyParties = Party:getNearbyParties(self.player.x, self.player.y, 50)
-    for _, party in ipairs(nearbyParties) do
-        if party.party_type == "enemy" then
-            self:startBattle("encounter", party.types, "forest")
-            Party:removeParty(party)
-            break
-        elseif party.party_type == "bandit" then
-            self:startBattle("bandit_encounter", party.types, "forest")
-            Party:removeParty(party)
-            break
-        end
     end
 end
 
