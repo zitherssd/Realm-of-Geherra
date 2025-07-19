@@ -34,7 +34,7 @@ function Encounter:draw(screenWidth, screenHeight)
     love.graphics.rectangle('line', x, y, w, h)
     local party = self.party
     love.graphics.print("Encountered a " .. (party and party.party_type or "party") .. "!", x + 20, y + 20)
-    love.graphics.print("Units: " .. table.concat(party and party.types or {}, ", "), x + 20, y + 50)
+    love.graphics.print("Units: " .. table.concat(party and party.army or {}, ", "), x + 20, y + 50)
     for i, option in ipairs(self.options or {}) do
         if i == self.selected then
             love.graphics.setColor(1, 1, 0, 1)
