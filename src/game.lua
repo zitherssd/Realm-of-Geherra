@@ -6,6 +6,7 @@ local Overworld = require('src.overworld')
 local Town = require('src.town')
 local Battle = require('src.battle')
 local Utils = require('src.utils')
+local PartySystem = require('src.parties')
 local partiesData = require('src.data.party_defs')
 
 local Game = {
@@ -59,7 +60,7 @@ function Game:init()
     self.camera.x = self.player.x - self.screenWidth / 2
     self.camera.y = self.player.y - self.screenHeight / 2
     
-    self.battle_triggers.parties = partiesData
+    PartySystem:init(partiesData)
     self:buildPartyGrid()
     
     print("Game initialized. Use WASD or arrow keys to move, Enter to interact with towns, ESC to quit.")
@@ -74,7 +75,7 @@ function Game:initializeBanditParties()
         
         for i = 1, numParties do
             local banditParty = self:createBanditParty(town)
-            table.insert(self.battle_triggers.parties, banditParty)
+            PartySystem:addParty(banditParty)
         end
     end
 end
@@ -175,9 +176,7 @@ function Game:update(dt)
     if self.state == "overworld" then
         self.player:update(dt)
         self.overworld:update(dt)
-        
-        -- Update bandit parties
-        self:updateParties(dt)
+        PartySystem:update(dt, self.player)
         
         -- Update camera to follow player
         self.camera.x = self.player.x - self.screenWidth / 2
@@ -209,27 +208,16 @@ function Game:update(dt)
 end
 
 function Game:checkBattleTriggers(dt)
-    -- Check for enemy party encounters
-    for i, party in ipairs(self.battle_triggers.parties) do
+    local nearbyParties = PartySystem:getNearbyParties(self.player.x, self.player.y, 50)
+    for _, party in ipairs(nearbyParties) do
         if party.party_type == "enemy" then
-            local distance = math.sqrt((self.player.x - party.x)^2 + (self.player.y - party.y)^2)
-            if distance < 50 then
-                self:startEnemyPartyBattle(party)
-                table.remove(self.battle_triggers.parties, i)
-                break
-            end
-        end
-    end
-    
-    -- Check for bandit party encounters
-    for i, banditParty in ipairs(self.battle_triggers.parties) do
-        if banditParty.party_type == "bandit" then
-            local distance = math.sqrt((self.player.x - banditParty.x)^2 + (self.player.y - banditParty.y)^2)
-            if distance < 50 then
-                self:startBanditBattle(banditParty)
-                table.remove(self.battle_triggers.parties, i)
-                break
-            end
+            self:startEnemyPartyBattle(party)
+            PartySystem:removeParty(party)
+            break
+        elseif party.party_type == "bandit" then
+            self:startBanditBattle(party)
+            PartySystem:removeParty(party)
+            break
         end
     end
 end
