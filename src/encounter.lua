@@ -1,16 +1,14 @@
 local Encounter = {
-    active = false,
     party = nil,
     options = nil,
     selected = 1,
-    onChoice = nil
+    onEnd = nil
 }
 
-function Encounter:startEncounter(party, onChoice)
-    self.active = true
+function Encounter:init(party, onEnd)
     self.party = party
     self.selected = 1
-    self.onChoice = onChoice
+    self.onEnd = onEnd
     if party.party_type == "enemy" or party.party_type == "bandit" then
         self.options = {"Fight", "Flee"}
     else
@@ -23,7 +21,7 @@ function Encounter:update(dt)
 end
 
 function Encounter:draw(screenWidth, screenHeight)
-    if not self.active then return end
+    if not self.party then return end
     local w, h = 400, 200
     local x = (screenWidth - w) / 2
     local y = (screenHeight - h) / 2
@@ -45,28 +43,38 @@ function Encounter:draw(screenWidth, screenHeight)
     end
 end
 
-function Encounter:keypressed(key)
-    if not self.active then return end
+function Encounter:keypressed(key, startBattle, removeParty)
+    if not self.party then return end
     if key == "up" or key == "w" then
         self.selected = math.max(1, self.selected - 1)
     elseif key == "down" or key == "s" then
         self.selected = math.min(#self.options, self.selected + 1)
     elseif key == "return" or key == "space" then
-        if self.onChoice then
-            self.onChoice(self.options[self.selected], self.party)
+        local option = self.options[self.selected]
+        if option == "Fight" then
+            if self.party.party_type == "enemy" then
+                startBattle("encounter", self.party.types, "forest")
+            elseif self.party.party_type == "bandit" then
+                startBattle("bandit_encounter", self.party.types, "forest")
+            end
+            removeParty(self.party)
+            self:clear()
+            if self.onEnd then self.onEnd("battle") end
+        else
+            self:clear()
+            if self.onEnd then self.onEnd("overworld") end
         end
-        self:clear()
     elseif key == "escape" then
         self:clear()
+        if self.onEnd then self.onEnd("overworld") end
     end
 end
 
 function Encounter:clear()
-    self.active = false
     self.party = nil
     self.options = nil
     self.selected = 1
-    self.onChoice = nil
+    self.onEnd = nil
 end
 
 return Encounter

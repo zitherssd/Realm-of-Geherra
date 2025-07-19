@@ -96,18 +96,8 @@ function Game:checkEncounter()
     local nearbyParties = Party:getNearbyParties(self.player.x, self.player.y, 50)
     for _, party in ipairs(nearbyParties) do
         self.state = "encounter"
-        Encounter:startEncounter(party, function(option, party)
-            if option == "Fight" then
-                if party.party_type == "enemy" then
-                    self:startBattle("encounter", party.types, "forest")
-                elseif party.party_type == "bandit" then
-                    self:startBattle("bandit_encounter", party.types, "forest")
-                end
-                Party:removeParty(party)
-                self.state = "battle"
-            else
-                self.state = "overworld"
-            end
+        Encounter:init(party, function(nextState)
+            self.state = nextState
         end)
         break
     end
@@ -384,7 +374,11 @@ end
 
 function Game:keypressed(key)
     if self.state == "encounter" then
-        Encounter:keypressed(key)
+        Encounter:keypressed(key, function(...)
+            self:startBattle(...)
+        end, function(party)
+            Party:removeParty(party)
+        end)
         return
     end
     if key == 'escape' then
