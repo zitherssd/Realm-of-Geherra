@@ -161,10 +161,6 @@ function Game:draw()
         -- Draw UI
         self:drawUI()
         
-        if Encounter.active then
-            Encounter:draw(self.screenWidth, self.screenHeight)
-        end
-        
     elseif self.state == "encounter" then
         Encounter:draw(self.screenWidth, self.screenHeight)
     elseif self.state == "town" then
@@ -175,28 +171,6 @@ function Game:draw()
         
     elseif self.state == "army" then
         self:drawArmyScreen()
-    end
-end
-
-function Game:drawEncounterDialogue()
-    local w, h = 400, 200
-    local x = (self.screenWidth - w) / 2
-    local y = (self.screenHeight - h) / 2
-    love.graphics.setColor(0, 0, 0, 0.85)
-    love.graphics.rectangle('fill', x, y, w, h)
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.setLineWidth(2)
-    love.graphics.rectangle('line', x, y, w, h)
-    local party = self.encounteredParty
-    love.graphics.print("Encountered a " .. (party and party.party_type or "party") .. "!", x + 20, y + 20)
-    love.graphics.print("Units: " .. table.concat(party and party.types or {}, ", "), x + 20, y + 50)
-    for i, option in ipairs(self.encounterOptions or {}) do
-        if i == self.selectedEncounterOption then
-            love.graphics.setColor(1, 1, 0, 1)
-        else
-            love.graphics.setColor(1, 1, 1, 1)
-        end
-        love.graphics.print(option, x + 40, y + 80 + 30 * (i-1))
     end
 end
 
