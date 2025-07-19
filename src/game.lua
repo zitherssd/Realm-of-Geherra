@@ -30,17 +30,6 @@ local Game = {
         playerColor = {1, 1, 0, 1}, -- Yellow for player
         townColor = {0.8, 0.6, 0.2, 1}, -- Gold for towns
         waterColor = {0.2, 0.4, 0.8, 0.5} -- Blue for water
-    },
-    
-    -- Battle triggers
-    -- Remove encounter_chance, encounter_timer, and parties from battle_triggers
-    -- Remove any logic related to random encounters (e.g., encounter timer, startRandomEncounter)
-    -- Update code to expect parties to be loaded from a data file
-    battle_triggers = {
-        -- Parties on the map
-        parties = {},
-        bandit_roam_radius = 100, -- Radius for bandit parties to roam
-        bandit_movement_speed = 100 -- Speed for bandit parties
     }
 }
 
@@ -94,7 +83,7 @@ function Game:createBanditParty(town)
     
     -- Random position around the settlement
     local angle = math.random() * 2 * math.pi
-    local distance = math.random(50, self.battle_triggers.bandit_roam_radius)
+    local distance = math.random(50, 100) -- Changed roam radius to 100
     local x = town.x + math.cos(angle) * distance
     local y = town.y + math.sin(angle) * distance
     
@@ -469,7 +458,7 @@ function Game:drawArmyScreen()
     end
     
     -- Draw instructions
-    love.graphics.print("ESC: Return to overworld | A: Add unit (if you have gold)", 10, self.screenHeight - 30)
+    love.graphics.print("ESC: Return to overworld | A: Add unit", 10, self.screenHeight - 30)
 end
 
 function Game:drawUnitCard(unit, x, y, width, height)
