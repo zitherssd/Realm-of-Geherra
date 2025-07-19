@@ -1,14 +1,14 @@
--- Town module
--- Handles town interaction menus and services
+-- Location module (was Town)
+-- Handles location interaction menus and services
 
 local ArmyUnit = require('src.army_unit')
-local settlementTypes = require('src.data.settlement_types')
+local locationTypes = require('src.data.location_types')
 
-local Town = {}
+local Location = {}
 
-function Town:new()
+function Location:new()
     local instance = {
-        currentTown = nil,
+        currentLocation = nil,
         player = nil,
         menuState = "main", -- "main", "recruit", "shop", "tavern", "info"
         selectedIndex = 1,
@@ -19,8 +19,8 @@ function Town:new()
             {text = "Recruit Units", action = "recruit"},
             {text = "Shop", action = "shop"},
             {text = "Tavern", action = "tavern"},
-            {text = "Town Info", action = "info"},
-            {text = "Leave Town", action = "leave"}
+            {text = "Location Info", action = "info"},
+            {text = "Leave Location", action = "leave"}
         },
         
         -- Shop items (basic implementation)
@@ -35,25 +35,25 @@ function Town:new()
     return instance
 end
 
-function Town:enter(town, player)
-    self.currentTown = town
+function Location:enter(location, player)
+    self.currentLocation = location
     self.player = player
     self.menuState = "main"
     self.selectedIndex = 1
     
-    -- Generate recruitable units based on town type
+    -- Generate recruitable units based on location type
     self:generateRecruitableUnits()
     
-    print("Entered " .. town.name)
+    print("Entered " .. location.name)
 end
 
-function Town:generateRecruitableUnits()
+function Location:generateRecruitableUnits()
     self.recruitableUnits = {}
     
-    -- Use settlementTypes for town/settlement type definitions instead of local tables.
-    local unitsByTownType = settlementTypes.unitsByType
+    -- Use locationTypes for location/settlement type definitions instead of local tables.
+    local unitsByLocationType = locationTypes.unitsByType
     
-    local availableUnits = unitsByTownType[self.currentTown.type] or {"Peasant"}
+    local availableUnits = unitsByLocationType[self.currentLocation.type] or {"Peasant"}
     
     for _, unitType in ipairs(availableUnits) do
         local unitInfo = ArmyUnit.getTypeInfo(unitType)
@@ -65,23 +65,23 @@ function Town:generateRecruitableUnits()
     end
 end
 
-function Town:update(dt)
-    -- Town-specific updates can go here
+function Location:update(dt)
+    -- Location-specific updates can go here
 end
 
-function Town:draw()
+function Location:draw()
     -- Draw background
     love.graphics.setColor(0.1, 0.1, 0.2)
     love.graphics.rectangle('fill', 0, 0, love.graphics.getWidth(), love.graphics.getHeight())
     
-    -- Draw town header
+    -- Draw location header
     love.graphics.setColor(1, 1, 1)
-    local headerText = self.currentTown.name .. " (" .. self.currentTown.type .. ")"
+    local headerText = self.currentLocation.name .. " (" .. self.currentLocation.type .. ")"
     love.graphics.print(headerText, 50, 50, 0, 2, 2)
     
-    -- Draw town description
-    love.graphics.print(self.currentTown.description, 50, 100)
-    love.graphics.print("Population: " .. self.currentTown.population, 50, 120)
+    -- Draw location description
+    love.graphics.print(self.currentLocation.description, 50, 100)
+    love.graphics.print("Population: " .. self.currentLocation.population, 50, 120)
     
     -- Draw current menu
     if self.menuState == "main" then
@@ -103,9 +103,9 @@ function Town:draw()
     love.graphics.print("Use UP/DOWN to navigate, ENTER to select, ESC to go back", 50, love.graphics.getHeight() - 50)
 end
 
-function Town:drawMainMenu()
+function Location:drawMainMenu()
     love.graphics.setColor(1, 1, 1)
-    love.graphics.print("Town Menu:", 50, 160)
+    love.graphics.print("Location Menu:", 50, 160)
     
     for i, option in ipairs(self.mainMenu) do
         local color = (i == self.selectedIndex) and {1, 1, 0} or {1, 1, 1}
@@ -114,7 +114,7 @@ function Town:drawMainMenu()
     end
 end
 
-function Town:drawRecruitMenu()
+function Location:drawRecruitMenu()
     love.graphics.setColor(1, 1, 1)
     love.graphics.print("Recruit Units:", 50, 160)
     
@@ -140,7 +140,7 @@ function Town:drawRecruitMenu()
     end
 end
 
-function Town:drawShopMenu()
+function Location:drawShopMenu()
     love.graphics.setColor(1, 1, 1)
     love.graphics.print("Shop:", 50, 160)
     
@@ -165,7 +165,7 @@ function Town:drawShopMenu()
     end
 end
 
-function Town:drawTavernMenu()
+function Location:drawTavernMenu()
     love.graphics.setColor(1, 1, 1)
     love.graphics.print("Tavern:", 50, 160)
     love.graphics.print("The tavern is bustling with activity.", 50, 200)
@@ -173,15 +173,15 @@ function Town:drawTavernMenu()
     love.graphics.print("(Future: Quests, information, recruitment)", 50, 260)
 end
 
-function Town:drawInfoMenu()
+function Location:drawInfoMenu()
     love.graphics.setColor(1, 1, 1)
-    love.graphics.print("Town Information:", 50, 160)
+    love.graphics.print("Location Information:", 50, 160)
     
     local info = {
-        "Name: " .. self.currentTown.name,
-        "Type: " .. self.currentTown.type,
-        "Population: " .. self.currentTown.population,
-        "Description: " .. self.currentTown.description,
+        "Name: " .. self.currentLocation.name,
+        "Type: " .. self.currentLocation.type,
+        "Population: " .. self.currentLocation.population,
+        "Description: " .. self.currentLocation.description,
         "",
         "Available Services:",
         "- Unit Recruitment",
@@ -194,7 +194,7 @@ function Town:drawInfoMenu()
     end
 end
 
-function Town:drawPlayerStats()
+function Location:drawPlayerStats()
     -- Draw player info on the right side
     love.graphics.setColor(0, 0, 0, 0.7)
     love.graphics.rectangle('fill', love.graphics.getWidth() - 250, 50, 200, 200)
@@ -219,7 +219,7 @@ function Town:drawPlayerStats()
     end
 end
 
-function Town:keypressed(key)
+function Location:keypressed(key)
     if key == 'up' then
         self:navigateUp()
     elseif key == 'down' then
@@ -231,7 +231,7 @@ function Town:keypressed(key)
     end
 end
 
-function Town:navigateUp()
+function Location:navigateUp()
     if self.menuState == "main" then
         self.selectedIndex = math.max(1, self.selectedIndex - 1)
     elseif self.menuState == "recruit" then
@@ -241,7 +241,7 @@ function Town:navigateUp()
     end
 end
 
-function Town:navigateDown()
+function Location:navigateDown()
     if self.menuState == "main" then
         self.selectedIndex = math.min(#self.mainMenu, self.selectedIndex + 1)
     elseif self.menuState == "recruit" then
@@ -251,7 +251,7 @@ function Town:navigateDown()
     end
 end
 
-function Town:selectOption()
+function Location:selectOption()
     if self.menuState == "main" then
         local option = self.mainMenu[self.selectedIndex]
         if option.action == "recruit" then
@@ -274,7 +274,7 @@ function Town:selectOption()
     end
 end
 
-function Town:recruitUnit()
+function Location:recruitUnit()
     if self.selectedIndex <= #self.recruitableUnits then
         local unit = self.recruitableUnits[self.selectedIndex]
         
@@ -295,7 +295,7 @@ function Town:recruitUnit()
     end
 end
 
-function Town:buyItem()
+function Location:buyItem()
     if self.selectedIndex <= #self.shopItems then
         local item = self.shopItems[self.selectedIndex]
         
@@ -320,7 +320,7 @@ function Town:buyItem()
     end
 end
 
-function Town:goBack()
+function Location:goBack()
     if self.menuState == "main" then
         self:leave()
     else
@@ -329,17 +329,17 @@ function Town:goBack()
     end
 end
 
-function Town:leave()
+function Location:leave()
     -- This will be handled by the Game module
-    print("Leaving " .. self.currentTown.name)
+    print("Leaving " .. self.currentLocation.name)
 end
 
-function Town:mousepressed(x, y, button)
+function Location:mousepressed(x, y, button)
     -- Future: Add mouse support for menus
 end
 
-function Town:mousereleased(x, y, button)
+function Location:mousereleased(x, y, button)
     -- Future: Add mouse support for menus
 end
 
-return Town
+return Location

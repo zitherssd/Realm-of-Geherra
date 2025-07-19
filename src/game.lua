@@ -3,7 +3,7 @@
 
 local Player = require('src.player')
 local Overworld = require('src.overworld')
-local Town = require('src.town')
+local Location = require('src.location')
 local Battle = require('src.battle')
 local Utils = require('src.utils')
 local Party = require('src.parties')
@@ -13,9 +13,9 @@ local Game = {
     state = "overworld", -- Current game state: "overworld", "town", "battle", "army", "menu"
     player = nil,
     overworld = nil,
-    town = nil,
+    location = nil,
     battle = nil,
-    currentTown = nil,
+    currentLocation = nil,
     camera = {x = 0, y = 0},
     screenWidth = 1024,
     screenHeight = 768,
@@ -39,7 +39,7 @@ function Game:init()
     Overworld:init()
     self.player = Player
     self.overworld = Overworld
-    self.town = Town:new()
+    self.location = Location:new()
     -- Connect player to overworld for collision detection
     self.player:setOverworld(self.overworld)
     -- Center camera on player
@@ -62,15 +62,15 @@ function Game:update(dt)
         self:checkEncounter()
         
         -- Check for town interactions
-        local nearbyTown = self.overworld:checkTownInteraction(self.player.x, self.player.y)
-        if nearbyTown and love.keyboard.isDown('return') then
-            self:enterTown(nearbyTown)
+        local nearbyLocation = self.overworld:checkLocationInteraction(self.player.x, self.player.y)
+        if nearbyLocation and love.keyboard.isDown('return') then
+            self:enterLocation(nearbyLocation)
         end
         
     elseif self.state == "encounter" then
         Encounter:update(dt)
-    elseif self.state == "town" then
-        self.town:update(dt)
+    elseif self.state == "location" then
+        self.location:update(dt)
         
     elseif self.state == "battle" then
         self.battle:update(dt)
@@ -103,8 +103,8 @@ function Game:draw()
         self:drawUI()
     elseif self.state == "encounter" then
         Encounter:draw(self.screenWidth, self.screenHeight)
-    elseif self.state == "town" then
-        self.town:draw()
+    elseif self.state == "location" then
+        self.location:draw()
     elseif self.state == "battle" then
         self.battle:draw()
     elseif self.state == "army" then
@@ -182,26 +182,26 @@ function Game:drawMinimap()
     love.graphics.setLineWidth(2)
     love.graphics.rectangle('line', x, y, size, size)
     -- Draw towns on minimap with different colors based on type
-    for _, town in ipairs(self.overworld.towns) do
-        local townX = (town.x - self.player.x) * scale
-        local townY = (town.y - self.player.y) * scale
-        local townSize = math.max(2, town.size * scale / 4)
-        if townX >= -size/2 and townX <= size/2 and townY >= -size/2 and townY <= size/2 then
-            if town.type == "village" then
+    for _, location in ipairs(self.overworld.locations) do
+        local locationX = (location.x - self.player.x) * scale
+        local locationY = (location.y - self.player.y) * scale
+        local locationSize = math.max(2, location.size * scale / 4)
+        if locationX >= -size/2 and locationX <= size/2 and locationY >= -size/2 and locationY <= size/2 then
+            if location.type == "village" then
                 love.graphics.setColor(0.8, 0.6, 0.2, 1)
-            elseif town.type == "city" then
+            elseif location.type == "city" then
                 love.graphics.setColor(0.7, 0.7, 0.7, 1)
-            elseif town.type == "port" then
+            elseif location.type == "port" then
                 love.graphics.setColor(0.2, 0.4, 0.8, 1)
-            elseif town.type == "fortress" then
+            elseif location.type == "fortress" then
                 love.graphics.setColor(0.5, 0.5, 0.5, 1)
             else
                 love.graphics.setColor(unpack(minimap.townColor))
             end
-            love.graphics.circle('fill', offsetX + townX, offsetY + townY, townSize)
+            love.graphics.circle('fill', offsetX + locationX, offsetY + locationY, locationSize)
             love.graphics.setColor(0.2, 0.2, 0.2, 1)
             love.graphics.setLineWidth(1)
-            love.graphics.circle('line', offsetX + townX, offsetY + townY, townSize)
+            love.graphics.circle('line', offsetX + locationX, offsetY + locationY, locationSize)
         end
     end
     -- Draw player position on minimap (centered)
@@ -269,15 +269,15 @@ function Game:drawUnitCard(unit, x, y, width, height)
 >>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
 end
 
-function Game:enterTown(town)
-    self.state = "town"
-    self.currentTown = town
-    self.town:enter(town, self.player)
+function Game:enterLocation(location)
+    self.state = "location"
+    self.currentLocation = location
+    self.location:enter(location, self.player)
 end
 
-function Game:exitTown()
+function Game:exitLocation()
     self.state = "overworld"
-    self.currentTown = nil
+    self.currentLocation = nil
 end
 
 function Game:keypressed(key)
@@ -290,8 +290,8 @@ function Game:keypressed(key)
         return
     end
     if key == 'escape' then
-        if self.state == "town" then
-            self:exitTown()
+        if self.state == "location" then
+            self:exitLocation()
         elseif self.state == "battle" then
             -- Allow escaping from battle (with penalty)
             self.player:addGold(-10)
@@ -306,12 +306,12 @@ function Game:keypressed(key)
         self:enterArmyScreen()
     elseif key == 'return' and self.state == "overworld" then
         -- Check for town interactions
-        local nearbyTown = self.overworld:checkTownInteraction(self.player.x, self.player.y)
-        if nearbyTown then
-            self:enterTown(nearbyTown)
+        local nearbyLocation = self.overworld:checkLocationInteraction(self.player.x, self.player.y)
+        if nearbyLocation then
+            self:enterLocation(nearbyLocation)
         end
-    elseif self.state == "town" then
-        self.town:keypressed(key)
+    elseif self.state == "location" then
+        self.location:keypressed(key)
     elseif self.state == "battle" then
         self.battle:keypressed(key)
     elseif self.state == "army" then
@@ -323,8 +323,8 @@ function Game:gamepadpressed(joystick, button)
     -- Handle gamepad button presses
     if button == 'start' or button == 'back' then
         -- Start/Back button acts like ESC
-        if self.state == "town" then
-            self:exitTown()
+        if self.state == "location" then
+            self:exitLocation()
         elseif self.state == "battle" then
             -- Allow escaping from battle (with penalty)
             self.player:addGold(-10)
@@ -338,9 +338,9 @@ function Game:gamepadpressed(joystick, button)
         -- A button (Xbox) / Cross button (PlayStation) for interactions
         if self.state == "overworld" then
             -- Check for town interactions
-            local nearbyTown = self.overworld:checkTownInteraction(self.player.x, self.player.y)
-            if nearbyTown then
-                self:enterTown(nearbyTown)
+            local nearbyLocation = self.overworld:checkLocationInteraction(self.player.x, self.player.y)
+            if nearbyLocation then
+                self:enterLocation(nearbyLocation)
             end
         elseif self.state == "army" then
             self:armyKeypressed('a')
@@ -354,8 +354,8 @@ function Game:gamepadpressed(joystick, button)
         -- B button (Xbox) / Circle button (PlayStation) for cancel/back
         if self.state == "army" then
             self:exitArmyScreen()
-        elseif self.state == "town" then
-            self:exitTown()
+        elseif self.state == "location" then
+            self:exitLocation()
         end
     end
 end
@@ -381,21 +381,21 @@ function Game:armyKeypressed(key)
         else
             love.event.quit()
         end
-    elseif self.state == "town" then
-        self.town:keypressed(key)
+    elseif self.state == "location" then
+        self.location:keypressed(key)
 >>>>>>> origin/cursor/enable-bandit-parties-to-wander-towns-2efd
     end
 end
 
 function Game:mousepressed(x, y, button)
-    if self.state == "town" then
-        self.town:mousepressed(x, y, button)
+    if self.state == "location" then
+        self.location:mousepressed(x, y, button)
     end
 end
 
 function Game:mousereleased(x, y, button)
-    if self.state == "town" then
-        self.town:mousereleased(x, y, button)
+    if self.state == "location" then
+        self.location:mousereleased(x, y, button)
     end
 end
 
