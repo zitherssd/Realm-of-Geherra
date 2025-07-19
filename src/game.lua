@@ -227,133 +227,65 @@ function Game:drawMinimap()
     local minimap = self.minimap
     local x = self.screenWidth - minimap.size - minimap.margin
     local y = minimap.margin
-    
-    -- Draw minimap background
-    love.graphics.setColor(unpack(minimap.backgroundColor))
-    love.graphics.rectangle('fill', x, y, minimap.size, minimap.size)
-    
+    local size = minimap.size
+    local block = 4 -- block size for performance
+    local scale = minimap.scale
+    local offsetX = x + size / 2
+    local offsetY = y + size / 2
+    local biomeMap = self.overworld.biomeMap
+    local biomeTypes = require('src.data.biome_types')
+    if biomeMap then
+        for mx = 0, size-1, block do
+            for my = 0, size-1, block do
+                -- World coordinates for this minimap block
+                local wx = self.player.x + (mx - size/2) / scale
+                local wy = self.player.y + (my - size/2) / scale
+                local r, g, b = biomeMap:getPixel(math.floor(wx), math.floor(wy))
+                local hex = string.format("#%02x%02x%02x", r*255, g*255, b*255)
+                local biome = biomeTypes[hex]
+                if biome then
+                    love.graphics.setColor(biome.color[1], biome.color[2], biome.color[3], 1)
+                else
+                    love.graphics.setColor(0.1, 0.1, 0.1, 1) -- fallback
+                end
+                love.graphics.rectangle('fill', x + mx, y + my, block, block)
+            end
+        end
+    else
+        -- fallback: draw background
+        love.graphics.setColor(unpack(minimap.backgroundColor))
+        love.graphics.rectangle('fill', x, y, size, size)
+    end
     -- Draw minimap border
     love.graphics.setColor(unpack(minimap.borderColor))
     love.graphics.setLineWidth(2)
-    love.graphics.rectangle('line', x, y, minimap.size, minimap.size)
-    
-    -- Calculate minimap scale and offset (center on player)
-    local scale = minimap.scale
-    local offsetX = x + minimap.size / 2
-    local offsetY = y + minimap.size / 2
-    
-    -- Draw terrain features
-    for _, feature in ipairs(self.overworld.terrain) do
-        if feature.type == "forest" then
-            love.graphics.setColor(0.2, 0.5, 0.2, 0.6) -- Dark green for forests
-            local forestX = (feature.x - self.player.x) * scale
-            local forestY = (feature.y - self.player.y) * scale
-            local forestW = feature.width * scale
-            local forestH = feature.height * scale
-            
-            if forestX >= -minimap.size/2 and forestX <= minimap.size/2 and 
-               forestY >= -minimap.size/2 and forestY <= minimap.size/2 then
-                love.graphics.rectangle('fill', offsetX + forestX, offsetY + forestY, forestW, forestH)
-            end
-        elseif feature.type == "mountain" then
-            love.graphics.setColor(0.4, 0.4, 0.4, 0.7) -- Gray for mountains
-            local mountainX = (feature.x - self.player.x) * scale
-            local mountainY = (feature.y - self.player.y) * scale
-            local mountainW = feature.width * scale
-            local mountainH = feature.height * scale
-            
-            if mountainX >= -minimap.size/2 and mountainX <= minimap.size/2 and 
-               mountainY >= -minimap.size/2 and mountainY <= minimap.size/2 then
-                love.graphics.rectangle('fill', offsetX + mountainX, offsetY + mountainY, mountainW, mountainH)
-            end
-        end
-    end
-    
-    -- Draw water features (lakes and rivers)
-    love.graphics.setColor(unpack(minimap.waterColor))
-    for _, feature in ipairs(self.overworld.terrain) do
-        if feature.type == "lake" then
-            local centerX = (feature.x + feature.width / 2 - self.player.x) * scale
-            local centerY = (feature.y + feature.height / 2 - self.player.y) * scale
-            local radiusX = feature.width * scale / 2
-            local radiusY = feature.height * scale / 2
-            
-            if centerX >= -minimap.size/2 and centerX <= minimap.size/2 and 
-               centerY >= -minimap.size/2 and centerY <= minimap.size/2 then
-                love.graphics.ellipse('fill', offsetX + centerX, offsetY + centerY, radiusX, radiusY)
-            end
-        elseif feature.type == "river" then
-            local riverX = (feature.x - self.player.x) * scale
-            local riverY = (feature.y - self.player.y) * scale
-            local riverW = feature.width * scale
-            local riverH = feature.height * scale
-            
-            if riverX >= -minimap.size/2 and riverX <= minimap.size/2 and 
-               riverY >= -minimap.size/2 and riverY <= minimap.size/2 then
-                love.graphics.rectangle('fill', offsetX + riverX, offsetY + riverY, riverW, riverH)
-            end
-        end
-    end
-    
-    -- Draw roads on minimap
-    love.graphics.setColor(0.6, 0.4, 0.2, 0.8) -- Brown for roads
-    love.graphics.setLineWidth(1)
-    for _, road in ipairs(self.overworld.roads) do
-        local fromX = (road.from[1] - self.player.x) * scale
-        local fromY = (road.from[2] - self.player.y) * scale
-        local toX = (road.to[1] - self.player.x) * scale
-        local toY = (road.to[2] - self.player.y) * scale
-        
-        -- Only draw roads that are at least partially visible
-        if (fromX >= -minimap.size/2 or toX >= -minimap.size/2) and 
-           (fromX <= minimap.size/2 or toX <= minimap.size/2) and
-           (fromY >= -minimap.size/2 or toY >= -minimap.size/2) and
-           (fromY <= minimap.size/2 or toY <= minimap.size/2) then
-            love.graphics.line(offsetX + fromX, offsetY + fromY, offsetX + toX, offsetY + toY)
-        end
-    end
-    
+    love.graphics.rectangle('line', x, y, size, size)
     -- Draw towns on minimap with different colors based on type
     for _, town in ipairs(self.overworld.towns) do
         local townX = (town.x - self.player.x) * scale
         local townY = (town.y - self.player.y) * scale
-        local townSize = math.max(2, town.size * scale / 4) -- Minimum size of 2 pixels
-        
-        -- Only draw towns that are within the minimap bounds
-        if townX >= -minimap.size/2 and townX <= minimap.size/2 and 
-           townY >= -minimap.size/2 and townY <= minimap.size/2 then
-            
-            -- Set color based on town type
+        local townSize = math.max(2, town.size * scale / 4)
+        if townX >= -size/2 and townX <= size/2 and townY >= -size/2 and townY <= size/2 then
             if town.type == "village" then
-                love.graphics.setColor(0.8, 0.6, 0.2, 1) -- Gold for villages
+                love.graphics.setColor(0.8, 0.6, 0.2, 1)
             elseif town.type == "city" then
-                love.graphics.setColor(0.7, 0.7, 0.7, 1) -- Gray for cities
+                love.graphics.setColor(0.7, 0.7, 0.7, 1)
             elseif town.type == "port" then
-                love.graphics.setColor(0.2, 0.4, 0.8, 1) -- Blue for ports
+                love.graphics.setColor(0.2, 0.4, 0.8, 1)
             elseif town.type == "fortress" then
-                love.graphics.setColor(0.5, 0.5, 0.5, 1) -- Dark gray for fortresses
+                love.graphics.setColor(0.5, 0.5, 0.5, 1)
             else
                 love.graphics.setColor(unpack(minimap.townColor))
             end
-            
             love.graphics.circle('fill', offsetX + townX, offsetY + townY, townSize)
-            
-            -- Draw town border
             love.graphics.setColor(0.2, 0.2, 0.2, 1)
             love.graphics.setLineWidth(1)
             love.graphics.circle('line', offsetX + townX, offsetY + townY, townSize)
         end
     end
-    
     -- Draw player position on minimap (centered)
     love.graphics.setColor(unpack(minimap.playerColor))
-    -- Player is at (0,0) relative to themselves, so they're at the center
-    local playerX = 0
-    local playerY = 0
-    
-    -- Draw player as a small circle (at center)
-    love.graphics.circle('fill', offsetX + playerX, offsetY + playerY, 3)
-    
+    love.graphics.circle('fill', offsetX, offsetY, 3)
     -- Draw minimap title
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.print("Minimap", x + 5, y + 5)
