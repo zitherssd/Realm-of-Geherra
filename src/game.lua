@@ -7,7 +7,6 @@ local Town = require('src.town')
 local Battle = require('src.battle')
 local Utils = require('src.utils')
 local Party = require('src.parties')
-local partiesData = require('src.data.party_defs')
 
 local Game = {
     state = "overworld", -- Current game state: "overworld", "town", "battle", "army", "menu"
@@ -42,68 +41,13 @@ function Game:init()
     -- Connect player to overworld for collision detection
     self.player:setOverworld(self.overworld)
     
-    -- Initialize bandit parties around settlements
-    self:initializeBanditParties()
-    
     -- Center camera on player
     self.camera.x = self.player.x - self.screenWidth / 2
     self.camera.y = self.player.y - self.screenHeight / 2
     
-    Party:init(partiesData)
+    Party:init()
     
     print("Game initialized. Use WASD or arrow keys to move, Enter to interact with towns, ESC to quit.")
-end
-
-function Game:initializeBanditParties()
-    local towns = self.overworld:getAllTowns()
-    
-    for _, town in ipairs(towns) do
-        -- Create 1-3 bandit parties per settlement
-        local numParties = math.random(1, 3)
-        
-        for i = 1, numParties do
-            local banditParty = self:createBanditParty(town)
-            Party:addParty(banditParty)
-        end
-    end
-end
-
-function Game:createBanditParty(town)
-    -- Random number of bandits (1-5)
-    local numBandits = math.random(1, 5)
-    
-    -- Random bandit types
-    local banditTypes = {"peasant", "soldier", "archer"}
-    local types = {}
-    
-    for i = 1, numBandits do
-        local randomType = banditTypes[math.random(1, #banditTypes)]
-        table.insert(types, randomType)
-    end
-    
-    -- Random position around the settlement
-    local angle = math.random() * 2 * math.pi
-    local distance = math.random(50, 100) -- Changed roam radius to 100
-    local x = town.x + math.cos(angle) * distance
-    local y = town.y + math.sin(angle) * distance
-    
-    -- Keep within world bounds
-    x = math.max(50, math.min(x, 2048 - 50))
-    y = math.max(50, math.min(y, 2048 - 50))
-    
-    return {
-        x = x,
-        y = y,
-        size = numBandits,
-        types = types,
-        home_town = town,
-        target_x = x,
-        target_y = y,
-        movement_timer = 0,
-        movement_duration = math.random(3, 8), -- How long to move to target
-        is_moving = false,
-        party_type = "bandit"
-    }
 end
 
 function Game:update(dt)
