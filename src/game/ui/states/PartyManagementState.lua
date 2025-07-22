@@ -5,6 +5,8 @@ local ItemModule = require('src.game.modules.ItemModule')
 local GameState = require('src.game.GameState')
 local EquipmentPanel = require('src.game.ui.EquipmentPanel')
 local InputModule = require('src.game.modules.InputModule')
+local UnitListPanel = require('src.game.ui.UnitListPanel')
+local InventoryPanel = require('src.game.ui.InventoryPanel')
 
 function PartyManagementState:enter()
   self.party = PartyModule.parties[1] -- player party
@@ -98,45 +100,14 @@ function PartyManagementState:draw()
   local gridPad = 8
   -- Unit grid (top left)
   local ux, uy = margin, margin
-  for i, unit in ipairs(units) do
-    local col = (i-1) % self.unitCols
-    local row = math.floor((i-1) / self.unitCols)
-    local cx, cy = ux + col*(gridCell+gridPad), uy + row*(gridCell+gridPad)
-    -- Always show a border for the selected unit
-    if i == self.selectedUnitIdx then
-      if self.focus == "units" then
-        love.graphics.setColor(1, 1, 0, 0.7) -- yellow highlight for focus
-      else
-        love.graphics.setColor(0, 0.7, 1, 0.5) -- blue highlight for selected but not focused
-      end
-      love.graphics.setLineWidth(4)
-      love.graphics.rectangle('line', cx-2, cy-2, gridCell+4, gridCell+4, 8, 8)
-      love.graphics.setLineWidth(1)
-    end
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.rectangle('line', cx, cy, gridCell, gridCell, 8, 8)
-    love.graphics.printf(unit.name, cx+2, cy+2, gridCell-4, 'center')
-    love.graphics.printf("HP:"..unit.health, cx+2, cy+22, gridCell-4, 'center')
-  end
+  local unitGridW = self.unitCols * gridCell + (self.unitCols-1)*gridPad
+  local unitGridH = self.unitRows * gridCell + (self.unitRows-1)*gridPad
+  UnitListPanel:draw(units, self.selectedUnitIdx, ux, uy, unitGridW, unitGridH, self.focus=="units")
   -- Inventory grid (bottom left)
-  local ix, iy = margin, uy + self.unitRows*(gridCell+gridPad) + 32
-  for i, item in ipairs(items) do
-    local col = (i-1) % self.inventoryCols
-    local row = math.floor((i-1) / self.inventoryCols)
-    local cx, cy = ix + col*(gridCell+gridPad), iy + row*(gridCell+gridPad)
-    if self.focus == "inventory" and i == self.selectedItemIdx then
-      love.graphics.setColor(1, 1, 0, 0.7)
-      love.graphics.setLineWidth(4)
-      love.graphics.rectangle('line', cx-2, cy-2, gridCell+4, gridCell+4, 8, 8)
-      love.graphics.setLineWidth(1)
-    end
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.rectangle('line', cx, cy, gridCell, gridCell, 8, 8)
-    love.graphics.printf(item.name, cx+2, cy+2, gridCell-4, 'center')
-    if item.quantity then
-      love.graphics.printf("x"..item.quantity, cx+2, cy+22, gridCell-4, 'center')
-    end
-  end
+  local ix, iy = margin, uy + unitGridH + 32
+  local invGridW = self.inventoryCols * gridCell + (self.inventoryCols-1)*gridPad
+  local invGridH = self.inventoryRows * gridCell + (self.inventoryRows-1)*gridPad
+  InventoryPanel:draw(items, self.selectedItemIdx, ix, iy, invGridW, invGridH, self.focus=="inventory")
   -- Info panel for selected unit (right side)
   local unit = units[self.selectedUnitIdx]
   if unit then
