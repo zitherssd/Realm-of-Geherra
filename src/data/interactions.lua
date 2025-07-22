@@ -1,6 +1,7 @@
 local GameState = require('src.game.GameState')
 local PartyManagementState = require('src.game.ui.states.PartyManagementState')
 local TradingState = require('src.game.ui.states.TradingState')
+local ItemModule = require('src.game.modules.ItemModule')
 
 local interactions = {
   armyInspect = {
@@ -37,6 +38,20 @@ local interactions = {
         -- Here you would push your BattleState, e.g.:
         -- GameState:push(BattleState, context.target)
       end
+    end
+  },
+  trade_fishing_village = {
+    label = "Trade (Fishing Village)",
+    action = function(context)
+      local trader = context.target
+      if not trader.stock then
+        trader.stock = {
+          ItemModule.create("fish", 10),
+          ItemModule.create("bread", 5),
+          ItemModule.create("cheese", 2),
+        }
+      end
+      GameState:push(TradingState, trader)
     end
   },
   -- Add more interactions as needed

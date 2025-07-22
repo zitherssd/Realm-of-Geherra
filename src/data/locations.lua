@@ -2,8 +2,8 @@ return {
   {
     id = "village1",
     name = "Green Village",
-    position = { x = 600, y = 300 },
-    interactions = { "trade", "rest", "talk" },
+    position = { x = 300, y = 300 },
+    interactions = { "trade_fishing_village", "rest", "talk" },
     description = "A peaceful farming village.",
   },
   {

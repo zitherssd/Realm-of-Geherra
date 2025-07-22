@@ -24,4 +24,42 @@ function ItemModule.create(templateName, quantity)
   return item
 end
 
+-- Add an item to an inventory, merging stacks if possible
+function ItemModule.addToInventory(inventory, item)
+  if item.stackable then
+    for _, invItem in ipairs(inventory) do
+      if invItem.template == item.template then
+        invItem.quantity = (invItem.quantity or 0) + (item.quantity or 1)
+        return
+      end
+    end
+    -- No stack found, create a new item object to avoid reference issues
+    local newItem = ItemModule.create(item.template, item.quantity or 1)
+    table.insert(inventory, newItem)
+  else
+    table.insert(inventory, item)
+  end
+end
+
+-- Remove a quantity of an item from inventory (by template), returns removed item(s)
+function ItemModule.removeFromInventory(inventory, template, quantity)
+  for i, invItem in ipairs(inventory) do
+    if invItem.template == template then
+      if invItem.stackable then
+        local removeQty = math.min(invItem.quantity or 1, quantity or 1)
+        invItem.quantity = invItem.quantity - removeQty
+        local removed = ItemModule.create(template, removeQty)
+        if invItem.quantity <= 0 then
+          table.remove(inventory, i)
+        end
+        return removed
+      else
+        table.remove(inventory, i)
+        return invItem
+      end
+    end
+  end
+  return nil
+end
+
 return ItemModule 

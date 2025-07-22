@@ -2,9 +2,9 @@ local GameState = {}
 
 GameState.stack = {}
 
-function GameState:push(newState)
+function GameState:push(newState, ...)
   table.insert(self.stack, newState)
-  if newState.enter then newState:enter() end
+  if newState.enter then newState:enter(...) end
 end
 
 function GameState:pop()

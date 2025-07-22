@@ -17,7 +17,7 @@ function InventoryPanel:draw(items, selected, x, y, w, h, focus)
     love.graphics.setColor(1, 1, 1)
     love.graphics.rectangle('line', cx, cy, gridCell, gridCell, 8, 8)
     love.graphics.printf(item.name, cx+2, cy+2, gridCell-4, 'center')
-    if item.quantity then
+    if item.quantity and item.quantity > 1 then
       love.graphics.printf("x"..item.quantity, cx+2, cy+22, gridCell-4, 'center')
     end
   end

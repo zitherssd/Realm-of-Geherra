@@ -46,4 +46,9 @@ function PlayerModule:checkNearbyInteractables()
   end
 end
 
+function PlayerModule:isMoving()
+  local x, y = InputModule:getMovementDirection()
+  return x ~= 0 or y ~= 0
+end
+
 return PlayerModule 

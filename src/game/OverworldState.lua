@@ -10,6 +10,7 @@ local PartyManagementState = require('src.game.ui.states.PartyManagementState')
 local TradingState = require('src.game.ui.states.TradingState')
 local InputModule = require('src.game.modules.InputModule')
 local interactions = require('src.data.interactions')
+local TimeSystem = require('src.game.TimeSystem')
 
 function OverworldState:enter()
   self.activeMenu = nil
@@ -56,6 +57,7 @@ end
 function OverworldState:update(dt)
   if self.activeMenu then
     self.menuJustOpened = false
+    TimeSystem:setPaused(true)
     return
   end
   -- Camera follow logic (now local)
@@ -71,6 +73,14 @@ function OverworldState:update(dt)
   -- Only update player movement if no menu is open
   if not self.activeMenu then
     PlayerModule:update(dt)
+    if PlayerModule:isMoving() then
+      TimeSystem:setPaused(false)
+    else
+      TimeSystem:setPaused(true)
+    end
+    if TimeSystem:getTimeStatus() == "RUNNING" then
+      TimeSystem:update(dt)
+    end
   end
   -- Proximity detection: open menu if near something
   local px, py = player and player.position.x or 0, player and player.position.y or 0
@@ -118,8 +128,15 @@ function OverworldState:draw()
   LocationsModule:draw()
   PartyModule:draw()
   love.graphics.pop()
+  -- Draw night tint overlay
+  local w, h = love.graphics.getWidth(), love.graphics.getHeight()
+  local r, g, b, a = TimeSystem:getNightTint()
+  if a > 0 then
+    love.graphics.setColor(r, g, b, a)
+    love.graphics.rectangle('fill', 0, 0, w, h)
+    love.graphics.setColor(1, 1, 1, 1)
+  end
   if self.activeMenu then
-    local w, h = love.graphics.getWidth(), love.graphics.getHeight()
     local mw, mh = 300, 40 + 30 * #self.activeMenu.options
     local mx, my = (w - mw) / 2, (h - mh) / 2
     love.graphics.setColor(0, 0, 0, 0.8)
@@ -137,6 +154,16 @@ function OverworldState:draw()
     end
     love.graphics.setColor(1, 1, 1)
   end
+  -- Display current time period and debug info in top right
+  local period = TimeSystem:getPeriodName()
+  local hour = TimeSystem:getHour()
+  local timeStatus = TimeSystem:getTimeStatus()
+  love.graphics.setColor(0, 0, 0, 0.7)
+  love.graphics.rectangle('fill', w-160, 10, 150, 60, 8, 8)
+  love.graphics.setColor(1, 1, 1)
+  love.graphics.printf(period, w-150, 18, 130, 'center')
+  love.graphics.printf(string.format("Hour: %.2f", hour), w-150, 34, 130, 'center')
+  love.graphics.printf("Time: "..timeStatus, w-150, 50, 130, 'center')
 end
 
 function OverworldState:keypressed(key)

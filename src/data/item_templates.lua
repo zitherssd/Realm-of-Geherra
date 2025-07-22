@@ -1,4 +1,4 @@
-return {
+local itemTemplates = {
   iron_sword = {
     name = "Iron Sword",
     type = "weapon",
@@ -14,16 +14,32 @@ return {
     slot = "chest",
     stats = { defense = 4 },
     weight = 5.0,
-    value = 30,
+    value = 40,
     sprite = "sprites/items/leather_armor.png",
   },
   bread = {
     name = "Bread",
     type = "food",
+    value = 5,
     hungerRestore = 10,
     stackable = true,
     weight = 0.2,
-    value = 2,
     sprite = "sprites/items/bread.png",
-  }
-} 
+  },
+  cheese = {
+    name = "Cheese",
+    type = "food",
+    value = 8,
+    hungerRestore = 15,
+    stackable = true,
+  },
+  fish = {
+    name = "Fish",
+    type = "food",
+    value = 3,
+    hungerRestore = 8,
+    stackable = true,
+  },
+}
+
+return itemTemplates 
