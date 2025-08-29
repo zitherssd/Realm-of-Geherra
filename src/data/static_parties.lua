@@ -2,10 +2,19 @@ return {
   {
     id = "bandits",
     name = "Bandit Gang",
-    position = { x = 400, y = 350 },
+    position = { x = 200, y = 370 },
     interactions = { "fight", "talk" },
     unitsRaw = {
-      { template = "militia", count = 4 }
+      { template = "militia", count = 6 }
+    }
+  },
+  {
+    id = "dragon_king",
+    name = "Dragon King",
+    position = { x = 300, y = 460 },
+    interactions = { "fight", "talk" },
+    unitsRaw = {
+      { template = "dragon", count = 1 }
     }
   },
   {

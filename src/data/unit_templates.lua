@@ -1,4 +1,17 @@
 return {
+  player = {
+    name = "Player",
+    attack = 10,
+    defense = 10,
+    strength = 10,
+    protection = 10,
+    morale = 100,
+    health = 100,
+    speed = 30,
+    equipmentSlots = { "main_hand", "off_hand", "chest", "head" },
+    abilities = {},
+    controllable = true,
+  },
   militia = {
     name = "Militia",
     attack = 10,
@@ -7,7 +20,7 @@ return {
     protection = 3,
     morale = 100,
     health = 60,
-    speed = 30,
+    speed = 25,
     equipmentSlots = { "main_hand", "off_hand", "chest" },
     abilities = {},
   },
@@ -19,8 +32,21 @@ return {
     protection = 8,
     morale = 120,
     health = 80,
-    speed = 28,
+    speed = 14,
     equipmentSlots = { "main_hand", "off_hand", "chest", "head" },
     abilities = {},
+  },
+  dragon = {
+    name = "Dragon",
+    attack = 60,
+    defense = 30,
+    strength = 74,
+    protection = 52,
+    morale = 100,
+    health = 2000,
+    speed = 50,
+    equipmentSlots = { "acessory" },
+    abilities = {},
+    scale = 3.5
   }
 } 

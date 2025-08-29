@@ -18,9 +18,8 @@ function Game:init()
         position = { x = 200, y = 300 },
         interactions = {"talk"},
         units = {
-            UnitModule.create("militia"),
-            UnitModule.create("militia"),
-            UnitModule.create("militia"),
+            UnitModule.create("player"),  -- Player-controlled unit
+            UnitModule.create("knight"),
             UnitModule.create("knight"),
         },
         inventory = {

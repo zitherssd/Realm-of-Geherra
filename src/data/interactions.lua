@@ -1,7 +1,11 @@
 local GameState = require('src.game.GameState')
 local PartyManagementState = require('src.game.ui.states.PartyManagementState')
 local TradingState = require('src.game.ui.states.TradingState')
+local GridBattleState = require('src.game.GridBattleState')
+local PartyModule = require('src.game.modules.PartyModule')
+local PlayerModule = require('src.game.modules.PlayerModule')
 local ItemModule = require('src.game.modules.ItemModule')
+local stages = require('src.data.stages')
 
 local interactions = {
   armyInspect = {
@@ -34,9 +38,10 @@ local interactions = {
     label = "Fight",
     action = function(context)
       if context and context.target then
-        print("You start a battle with " .. (context.target.name or "an enemy party") .. ".")
-        -- Here you would push your BattleState, e.g.:
-        -- GameState:push(BattleState, context.target)
+        local playerParty = PlayerModule.getPlayerParty()
+        local enemyParty = context.target
+        local defaultStage = {} -- You can expand this later
+        GameState:push(GridBattleState:new(), playerParty, enemyParty, stages.default)
       end
     end
   },

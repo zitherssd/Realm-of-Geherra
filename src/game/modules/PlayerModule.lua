@@ -18,7 +18,7 @@ function PlayerModule:update(dt)
     local norm = math.sqrt(x * x + y * y)
     x, y = x / norm, y / norm
   end
-  local speed = 100 -- pixels per second
+  local speed = 50 -- pixels per second
   player.position.x = player.position.x + x * speed * dt
   player.position.y = player.position.y + y * speed * dt
 end
@@ -49,6 +49,17 @@ end
 function PlayerModule:isMoving()
   local x, y = InputModule:getMovementDirection()
   return x ~= 0 or y ~= 0
+end
+
+-- Returns the controllable player unit from a party, or nil if not found
+function PlayerModule.getPlayerUnit(party)
+  if not party or not party.units then return nil end
+  for _, unit in ipairs(party.units) do
+    if unit.controllable then
+      return unit
+    end
+  end
+  return nil
 end
 
 return PlayerModule 

@@ -8,11 +8,37 @@ local PlayerModule = require('src.game.modules.PlayerModule')
 local GameState = require('src.game.GameState')
 local PartyManagementState = require('src.game.ui.states.PartyManagementState')
 local TradingState = require('src.game.ui.states.TradingState')
+-- Character editor removed
 local InputModule = require('src.game.modules.InputModule')
 local interactions = require('src.data.interactions')
-local TimeSystem = require('src.game.TimeSystem')
+local TimeModule = require('src.game.modules.TimeModule')
+
+local borderImg = nil
+local borderQuads = nil
+local borderTileSize = 16 -- corner size for 9-slice
+local borderImgSize = 48
+
+OverworldState.mapZoom = 1
 
 function OverworldState:enter()
+  if not borderImg then
+    borderImg = love.graphics.newImage('assets/sprites/ui/border2.png')
+    -- Create 9 quads for 9-slice
+    borderQuads = {
+      -- Corners
+      tl = love.graphics.newQuad(0, 0, borderTileSize, borderTileSize, borderImgSize, borderImgSize),
+      tr = love.graphics.newQuad(borderImgSize - borderTileSize, 0, borderTileSize, borderTileSize, borderImgSize, borderImgSize),
+      bl = love.graphics.newQuad(0, borderImgSize - borderTileSize, borderTileSize, borderTileSize, borderImgSize, borderImgSize),
+      br = love.graphics.newQuad(borderImgSize - borderTileSize, borderImgSize - borderTileSize, borderTileSize, borderTileSize, borderImgSize, borderImgSize),
+      -- Edges
+      top = love.graphics.newQuad(borderTileSize, 0, borderImgSize - 2*borderTileSize, borderTileSize, borderImgSize, borderImgSize),
+      bottom = love.graphics.newQuad(borderTileSize, borderImgSize - borderTileSize, borderImgSize - 2*borderTileSize, borderTileSize, borderImgSize, borderImgSize),
+      left = love.graphics.newQuad(0, borderTileSize, borderTileSize, borderImgSize - 2*borderTileSize, borderImgSize, borderImgSize),
+      right = love.graphics.newQuad(borderImgSize - borderTileSize, borderTileSize, borderTileSize, borderImgSize - 2*borderTileSize, borderImgSize, borderImgSize),
+      -- Center
+      center = love.graphics.newQuad(borderTileSize, borderTileSize, borderImgSize - 2*borderTileSize, borderImgSize - 2*borderTileSize, borderImgSize, borderImgSize),
+    }
+  end
   self.activeMenu = nil
   if self.lastMenuTarget then
     self:openMenu(self.lastMenuTarget)
@@ -30,19 +56,19 @@ function OverworldState:openMenu(target)
   for _, interactionKey in ipairs(target.interactions or {}) do
     local interaction = interactions[interactionKey]
     if interaction then
-      table.insert(options, {
+    table.insert(options, {
         label = interaction.label,
-        action = function()
+      action = function()
           interaction.action({
             target = target,
             closeMenu = function()
-              self.activeMenu = nil
-              self.menuCooldown = true
+        self.activeMenu = nil
+        self.menuCooldown = true
               self.lastMenuTarget = nil -- Prevent menu restoration
             end
           })
-        end
-      })
+      end
+    })
     end
   end
   table.insert(options, { label = "Leave", action = function() self.activeMenu = nil; self.menuCooldown = true; self.lastMenuTarget = nil end })
@@ -57,7 +83,7 @@ end
 function OverworldState:update(dt)
   if self.activeMenu then
     self.menuJustOpened = false
-    TimeSystem:setPaused(true)
+    TimeModule:setPaused(true)
     return
   end
   -- Camera follow logic (now local)
@@ -72,14 +98,14 @@ function OverworldState:update(dt)
   LocationsModule:update(dt)
   -- Only update player movement if no menu is open
   if not self.activeMenu then
-    PlayerModule:update(dt)
+  PlayerModule:update(dt)
     if PlayerModule:isMoving() then
-      TimeSystem:setPaused(false)
+      TimeModule:setPaused(false)
     else
-      TimeSystem:setPaused(true)
+      TimeModule:setPaused(true)
     end
-    if TimeSystem:getTimeStatus() == "RUNNING" then
-      TimeSystem:update(dt)
+    if TimeModule:getTimeStatus() == "RUNNING" then
+      TimeModule:update(dt)
     end
   end
   -- Proximity detection: open menu if near something
@@ -130,7 +156,7 @@ function OverworldState:draw()
   love.graphics.pop()
   -- Draw night tint overlay
   local w, h = love.graphics.getWidth(), love.graphics.getHeight()
-  local r, g, b, a = TimeSystem:getNightTint()
+  local r, g, b, a = TimeModule:getNightTint()
   if a > 0 then
     love.graphics.setColor(r, g, b, a)
     love.graphics.rectangle('fill', 0, 0, w, h)
@@ -139,8 +165,15 @@ function OverworldState:draw()
   if self.activeMenu then
     local mw, mh = 300, 40 + 30 * #self.activeMenu.options
     local mx, my = (w - mw) / 2, (h - mh) / 2
+    -- Make the background rectangle a bit bigger to fit inside the border
+    local bgPad = borderTileSize - 2
     love.graphics.setColor(0, 0, 0, 0.8)
-    love.graphics.rectangle('fill', mx, my, mw, mh, 8, 8)
+    love.graphics.rectangle('fill', mx - bgPad, my - bgPad, mw + bgPad * 2, mh + bgPad * 2, 8, 8)
+    -- Draw 9-slice border
+    if borderImg and borderQuads then
+      love.graphics.setColor(1, 1, 1, 1)
+      self:draw9SliceBorder(borderImg, borderQuads, mx - borderTileSize, my - borderTileSize, mw + borderTileSize * 2, mh + borderTileSize * 2)
+    end
     love.graphics.setColor(1, 1, 1)
     love.graphics.printf(self.activeMenu.target.name .. " - Choose an action:", mx, my + 10, mw, 'center')
     for i, opt in ipairs(self.activeMenu.options) do
@@ -155,15 +188,17 @@ function OverworldState:draw()
     love.graphics.setColor(1, 1, 1)
   end
   -- Display current time period and debug info in top right
-  local period = TimeSystem:getPeriodName()
-  local hour = TimeSystem:getHour()
-  local timeStatus = TimeSystem:getTimeStatus()
+  local period = TimeModule:getPeriodName()
+  local hour = TimeModule:getHour()
+  local timeStatus = TimeModule:getTimeStatus()
   love.graphics.setColor(0, 0, 0, 0.7)
   love.graphics.rectangle('fill', w-160, 10, 150, 60, 8, 8)
   love.graphics.setColor(1, 1, 1)
   love.graphics.printf(period, w-150, 18, 130, 'center')
   love.graphics.printf(string.format("Hour: %.2f", hour), w-150, 34, 130, 'center')
   love.graphics.printf("Time: "..timeStatus, w-150, 50, 130, 'center')
+  
+  -- Character editor removed
 end
 
 function OverworldState:keypressed(key)
@@ -198,6 +233,25 @@ function OverworldState:onAction(action)
     GameState:push(PartyManagementState)
     return
   end
+
+  -- Character editor removed
+end
+
+function OverworldState:draw9SliceBorder(img, quads, x, y, w, h)
+  local s = borderTileSize
+  local ex, ey = x + w - s, y + h - s
+  -- Corners
+  love.graphics.draw(img, quads.tl, x, y)
+  love.graphics.draw(img, quads.tr, ex, y)
+  love.graphics.draw(img, quads.bl, x, ey)
+  love.graphics.draw(img, quads.br, ex, ey)
+  -- Edges
+  love.graphics.draw(img, quads.top, x + s, y, 0, (w - 2*s)/(borderImgSize - 2*s), 1)
+  love.graphics.draw(img, quads.bottom, x + s, ey, 0, (w - 2*s)/(borderImgSize - 2*s), 1)
+  love.graphics.draw(img, quads.left, x, y + s, 0, 1, (h - 2*s)/(borderImgSize - 2*s))
+  love.graphics.draw(img, quads.right, ex, y + s, 0, 1, (h - 2*s)/(borderImgSize - 2*s))
+  -- Center
+  love.graphics.draw(img, quads.center, x + s, y + s, 0, (w - 2*s)/(borderImgSize - 2*s), (h - 2*s)/(borderImgSize - 2*s))
 end
 
 return OverworldState 

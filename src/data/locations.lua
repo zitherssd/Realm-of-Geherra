@@ -12,5 +12,7 @@ return {
     position = { x = 900, y = 200 },
     interactions = { "talk", "recruit", "rest" },
     description = "A formidable stone castle.",
+  
+    
   }
 } 

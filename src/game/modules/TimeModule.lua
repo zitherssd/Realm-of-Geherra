@@ -1,13 +1,13 @@
-local TimeSystem = {}
+local TimeModule = {}
 
 -- Config
-local SECONDS_PER_DAY = 30 -- 30 seconds per game day
+local SECONDS_PER_DAY = 18 -- 30 seconds per game day
 
 -- State
-TimeSystem.day = 1
-TimeSystem.hour = 6 -- Start at 6AM (Morning)
-TimeSystem._accum = 0
-TimeSystem._paused = false
+TimeModule.day = 1
+TimeModule.hour = 6 -- Start at 6AM (Morning)
+TimeModule._accum = 0
+TimeModule._paused = false
 
 local timePeriods = {
   {name = "Lowlight",        start = 3,  finish = 6},
@@ -20,7 +20,7 @@ local timePeriods = {
   {name = "Stilldark",    start = 0,  finish = 3},
 }
 
-function TimeSystem:update(dt)
+function TimeModule:update(dt)
   if self._paused then return end
   -- Advance time by dt, scaled to game day length
   local hoursPerSecond = 24 / SECONDS_PER_DAY
@@ -35,7 +35,7 @@ function TimeSystem:update(dt)
   end
 end
 
-function TimeSystem:getPeriodName()
+function TimeModule:getPeriodName()
   local h = self.hour
   for _, period in ipairs(timePeriods) do
     if period.start < period.finish then
@@ -47,23 +47,23 @@ function TimeSystem:getPeriodName()
   return "Unknown"
 end
 
-function TimeSystem:getHour()
+function TimeModule:getHour()
   return self.hour
 end
 
-function TimeSystem:getDay()
+function TimeModule:getDay()
   return self.day
 end
 
-function TimeSystem:setPaused(paused)
+function TimeModule:setPaused(paused)
   self._paused = paused and true or false
 end
 
-function TimeSystem:getTimeStatus()
+function TimeModule:getTimeStatus()
   return self._paused and "PAUSED" or "RUNNING"
 end
 
-function TimeSystem:getNightTint()
+function TimeModule:getNightTint()
   local h = self.hour
   -- Full sun from 8:00 to 18:00
   -- Fade in 18:00-21:00, full 21:00-4:00, fade out 4:00-8:00
@@ -76,14 +76,14 @@ function TimeSystem:getNightTint()
     elseif h >= 4 and h < 8 then
       alpha = (8 - h) / 4 * 0.5 -- fade out
     end
-    return 0.2, 0.3, 0.7, alpha
+    return 0.05, 0.08, 0.15, alpha
   end
   return 0, 0, 0, 0
 end
 
-function TimeSystem:isNightTime()
+function TimeModule:isNightTime()
   local h = self.hour
   return h >= 20 or h < 7
 end
 
-return TimeSystem 
+return TimeModule 

@@ -11,6 +11,7 @@ local keyMappings = {
   switch_panel_next = {'tab'},
   open_party_screen = {'i'}, -- New action
   camp_menu = {'c'}, -- New action for camping menu
+  -- Character editor removed
   -- switch_panel_prev will be handled specially for shift+tab
 }
 

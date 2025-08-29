@@ -87,10 +87,10 @@ function TradingState:draw()
     love.graphics.printf("Confirm", 320, h-26, 80, 'center')
     love.graphics.setColor(1,1,1,1)
   else
-    love.graphics.rectangle('line', 240, h-30, 80, 24)
-    love.graphics.printf("Cancel", 240, h-26, 80, 'center')
-    love.graphics.rectangle('line', 320, h-30, 80, 24)
-    love.graphics.printf("Confirm", 320, h-26, 80, 'center')
+  love.graphics.rectangle('line', 240, h-30, 80, 24)
+  love.graphics.printf("Cancel", 240, h-26, 80, 'center')
+  love.graphics.rectangle('line', 320, h-30, 80, 24)
+  love.graphics.printf("Confirm", 320, h-26, 80, 'center')
   end
 end
 
@@ -167,9 +167,9 @@ function TradingState:onAction(action)
           end
           self.playerInvIdx = math.max(1, math.min(self.playerInvIdx, #self.playerInventory))
         else
-          table.remove(self.playerInventory, self.playerInvIdx)
+        table.remove(self.playerInventory, self.playerInvIdx)
           ItemModule.addToInventory(self.playerOffer, item)
-          self.playerInvIdx = math.max(1, math.min(self.playerInvIdx, #self.playerInventory))
+        self.playerInvIdx = math.max(1, math.min(self.playerInvIdx, #self.playerInventory))
         end
       end
     end
@@ -205,9 +205,9 @@ function TradingState:onAction(action)
           end
           self.traderInvIdx = math.max(1, math.min(self.traderInvIdx, #self.traderInventory))
         else
-          table.remove(self.traderInventory, self.traderInvIdx)
+        table.remove(self.traderInventory, self.traderInvIdx)
           ItemModule.addToInventory(self.traderOffer, item)
-          self.traderInvIdx = math.max(1, math.min(self.traderInvIdx, #self.traderInventory))
+        self.traderInvIdx = math.max(1, math.min(self.traderInvIdx, #self.traderInventory))
         end
       end
     end
@@ -240,9 +240,9 @@ function TradingState:onAction(action)
           end
           self.playerOfferIdx = math.max(1, math.min(self.playerOfferIdx, #self.playerOffer))
         else
-          table.remove(self.playerOffer, self.playerOfferIdx)
+        table.remove(self.playerOffer, self.playerOfferIdx)
           ItemModule.addToInventory(self.playerInventory, item)
-          self.playerOfferIdx = math.max(1, math.min(self.playerOfferIdx, #self.playerOffer))
+        self.playerOfferIdx = math.max(1, math.min(self.playerOfferIdx, #self.playerOffer))
         end
       end
     end
@@ -275,9 +275,9 @@ function TradingState:onAction(action)
           end
           self.traderOfferIdx = math.max(1, math.min(self.traderOfferIdx, #self.traderOffer))
         else
-          table.remove(self.traderOffer, self.traderOfferIdx)
+        table.remove(self.traderOffer, self.traderOfferIdx)
           ItemModule.addToInventory(self.traderInventory, item)
-          self.traderOfferIdx = math.max(1, math.min(self.traderOfferIdx, #self.traderOffer))
+        self.traderOfferIdx = math.max(1, math.min(self.traderOfferIdx, #self.traderOffer))
         end
       end
     end

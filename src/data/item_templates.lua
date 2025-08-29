@@ -40,6 +40,15 @@ local itemTemplates = {
     hungerRestore = 8,
     stackable = true,
   },
+  fist = {
+    name = "Fist",
+    type = "weapon",
+    range = 1,
+    attack_speed = 1.5,
+    damage = 5,
+    value = 0,
+    sprite = nil,
+  },
 }
 
 return itemTemplates 

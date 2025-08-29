@@ -1,17 +1,19 @@
 local WorldMapModule = {}
 
-WorldMapModule.width = 1024
-WorldMapModule.height = 768
+WorldMapModule.width = 1660
+WorldMapModule.height = 1174
+local mapImg = nil
 
 function WorldMapModule:update(dt)
   -- Map logic (e.g., scrolling, effects) goes here
 end
 
 function WorldMapModule:draw()
-  -- Placeholder: draw a simple rectangle as the map
-  love.graphics.setColor(0.2, 0.6, 0.3)
-  love.graphics.rectangle('fill', 0, 0, self.width, self.height)
+  if not mapImg then
+    mapImg = love.graphics.newImage('assets/map/visual_map.png')
+  end
   love.graphics.setColor(1, 1, 1)
+  love.graphics.draw(mapImg, 0, 0)
 end
 
 return WorldMapModule 
