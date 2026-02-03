@@ -1,0 +1,173 @@
+# LOCATION_SCHEMA.md
+
+This document defines the **Location Schema** for the world map in *Realms of Geherra*.
+
+Locations are entities on the world map that provide **interactions**, **recruitment**, **trade**, and may influence battles. They can be **permanent** (towns) or **temporary/destructible** (bandit camps, ruins).
+
+---
+
+## 1. Design Goals
+
+* Type-driven interactions (coastal village, town, ruin, bandit camp)
+* Immediate update of interactions based on faction ownership
+* Finite recruitment pools, regenerating over time
+* Trade inventory determined by location type
+* Procedural and handcrafted locations supported
+* Battle stage determined by location type, reused for multiple encounters
+
+---
+
+## 2. Core Fields
+
+| Field               | Type        | Description                                                                   |
+| ------------------- | ----------- | ----------------------------------------------------------------------------- |
+| id                  | string      | Unique identifier                                                             |
+| name                | string      | Display name                                                                  |
+| type                | string      | Location type (town, village, ruin, camp, etc.)                               |
+| faction             | string/null | Owning faction; null if neutral                                               |
+| position            | {x, y}      | World coordinates                                                             |
+| persistent          | bool        | True if permanent (town), False if destroyable                                |
+| recruitment_pool    | list        | Units available for recruitment                                               |
+| trade_inventory     | list        | Items available for trade                                                     |
+| interaction_modules | list        | Modules defining interactions (trade, recruit, rest, quests)                  |
+| battle_stage        | string      | Stage type used for battle grid (forest, ruin, town, village)                 |
+| region              | string      | World map region (forest, plains, mountains, beach); affects movement/healing |
+| cooldowns           | dict        | Optional timers for regenerating recruits or trade stock                      |
+
+---
+
+## 3. Interaction Capabilities
+
+Each location type defines the **default interactions** it exposes:
+
+* Town: trade, recruit, rest, quests
+* Village: trade, rest, recruit (smaller pool)
+* Ruin: explore, fight
+* Bandit camp: fight, bribe, raid
+
+Interactions are generated dynamically and respect **faction ownership**.
+
+---
+
+## 4. Recruitment Pools
+
+* Pools are finite and regenerate on a defined schedule (e.g., every in-game day)
+* Mercenary groups can exist as one-off units
+* Units become unavailable once recruited, unless regenerated
+
+---
+
+## 5. Trade Inventory
+
+* Determined by location type (e.g., coastal village sells fish, salt)
+* Optional modifiers can be applied based on region or events
+* Inventory is updated dynamically if location ownership changes
+
+---
+
+## 6. Faction and Ownership
+
+* Locations can be neutral or belong to a faction
+* Ownership changes immediately affect available interactions
+
+  * e.g., losing a town to an enemy removes trade/recruit options for the player
+* Ownership can be changed through battle or scripted events
+
+---
+
+## 7. Battle Stage Mapping
+
+* Each location type defines a **battle stage**
+* Examples:
+
+  * Forest → forest_stage
+  * Ruin → ruin_stage
+  * Village → village_stage
+  * Town → town_stage
+* Battle stages define obstacles, cover, and grid layout
+* Stages are reusable across multiple encounters
+
+---
+
+## 8. Persistence Rules
+
+* Permanent locations: towns, fortified villages, capital cities
+* Destroyable locations: bandit camps, ruins
+* Destroyed temporary locations are removed from the world map and no longer generate interactions
+
+---
+
+## 9. Procedural vs Handcrafted
+
+* Procedural: bandit camps, ruins, random events
+* Handcrafted: towns, major villages, scripted locations
+* All locations conform to the same schema for interactions, battles, and recruitment
+
+---
+
+## 10. Example Location Data (YAML-style)
+
+```yaml
+- id: coastal_village_01
+  name: Seabreeze Village
+  type: coastal_village
+  faction: neutral
+  position: {x: 512, y: 1024}
+  persistent: true
+  recruitment_pool:
+    - fisherman
+    - villager_guard
+  trade_inventory:
+    - fish
+    - salt
+  interaction_modules:
+    - trade
+    - recruit
+    - rest
+  battle_stage: village_stage
+  region: beach
+  cooldowns:
+    recruitment: 86400  # seconds until next recruitment refresh
+
+- id: bandit_camp_07
+  name: Shadowcamp
+  type: bandit_camp
+  faction: bandits
+  position: {x: 1024, y: 2048}
+  persistent: false
+  recruitment_pool:
+    - bandit
+    - rogue
+  trade_inventory: []
+  interaction_modules:
+    - fight
+    - bribe
+  battle_stage: ruin_stage
+  region: forest
+  cooldowns:
+    recruitment: 43200
+```
+
+This example shows:
+
+* **Towns** with trade and recruitment
+* **Bandit camps** with combat and bribe interactions
+* Cooldowns for regeneration of recruits
+* Battle stage mapping
+
+---
+
+## 11. AI Usage
+
+* AI can query available locations in the world
+* Determine possible interactions based on type, faction, and state
+* Plan actions such as raids, trade, or recruitment
+* Ensure consistency with player-accessible interactions
+
+---
+
+## 12. Notes
+
+* Locations should always be defined via this schema, whether procedural or handcrafted
+* All interaction, battle, and recruitment logic should reference this schema
+* Future extensions (quests, events, special modifiers) can be added as fields without breaking the system
