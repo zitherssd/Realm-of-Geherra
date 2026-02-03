@@ -113,3 +113,15 @@ party = {
 * `UNIT_SCHEMA.md`
 * `ITEM_SCHEMA.md`
 * `COMMANDER_SQUADS.md`
+
+---
+
+## 9. Data File Location
+
+Canonical data lives in:
+
+* /data/parties.lua
+
+Core schema validation lives in:
+
+* /core/party.lua

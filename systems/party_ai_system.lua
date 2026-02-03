@@ -1,17 +1,17 @@
--- systems/ai_system.lua
+-- systems/party_ai_system.lua
 --
 -- System for controlling AI party behavior.
 
 local Math = require("util.math")
 
-local AISystem = {}
+local PartyAISystem = {}
 
 local function random_direction()
 	local angle = love.math.random() * math.pi * 2
 	return math.cos(angle), math.sin(angle)
 end
 
-function AISystem.update(parties, dt, world)
+function PartyAISystem.update(parties, dt, world)
 	for _, party in ipairs(parties) do
 		if not party.is_player then
 			party.ai = party.ai or {
@@ -48,4 +48,4 @@ function AISystem.update(parties, dt, world)
 	end
 end
 
-return AISystem
+return PartyAISystem

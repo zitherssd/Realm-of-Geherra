@@ -110,6 +110,7 @@ Providers include:
 * Party definitions
 * Quest system
 * Global rules
+* Camp menu provider
 
 Each provider may:
 
@@ -249,6 +250,16 @@ AI-controlled parties use the same interaction system.
 * Evaluates conditions
 * Builds interaction menu
 * Resolves selections
+
+---
+
+## Camp Menu Integration
+
+The camp menu is exposed through the interaction system:
+
+* Pressing **C** on the world map opens a **camp encounter**
+* Locations may expose a **Camp** interaction module
+* Camp menu provides **Inventory** and **Rest** options
 
 ---
 

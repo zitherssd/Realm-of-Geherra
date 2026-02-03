@@ -4,10 +4,11 @@
 
 local WorldGenerator = require("systems.world_generator")
 local MovementSystem = require("systems.movement_system")
-local AISystem = require("systems.ai_system")
+ local PartyAISystem = require("systems.party_ai_system")
 local BattleScene = require("scenes.battle_scene")
 local Math = require("util.math")
 local LocationData = require("data.locations")
+local PartyData = require("data.parties")
 local Time = require("core.time")
 local EncounterSystem = require("systems.encounter_system")
 local InteractionSystem = require("systems.interaction_system")
@@ -21,17 +22,40 @@ local REGION_COLORS = {
 	forest = { 0.1, 0.4, 0.16 },
 	mountain = { 0.55, 0.55, 0.6 },
 }
-local function new_party(id, name, x, y, color, is_player)
+local function hydrate_party(definition)
 	return {
-		id = id,
-		name = name,
-		position = { x = x, y = y },
+		id = definition.id,
+		name = definition.name,
+		faction = definition.faction,
+		position = { x = definition.position.x, y = definition.position.y },
 		velocity = { x = 0, y = 0 },
-		speed = is_player and 180 or 120,
-		radius = is_player and 14 or 11,
-		color = color,
-		is_player = is_player or false,
+		speed = definition.speed,
+		radius = definition.radius or (definition.is_player and 14 or 11),
+		color = definition.color or (definition.is_player and { 0.95, 0.9, 0.2 } or { 0.7, 0.7, 0.7 }),
+		is_player = definition.is_player or false,
+		commanders = definition.commanders or {},
+		units = definition.units or {},
+		inventory = definition.inventory or {},
+		gold = definition.gold or 0,
 	}
+end
+
+local function build_battle_config(world, encounter, player_party)
+	local config = {
+		parties = { player_party },
+		deployment = {},
+		stage = "field_stage",
+	}
+
+	if encounter and encounter.type == "party" then
+		table.insert(config.parties, encounter.target)
+		local sample = world:sample(player_party.position.x, player_party.position.y)
+		config.stage = (sample.region or "field") .. "_stage"
+	elseif encounter and encounter.type == "location" then
+		config.stage = (encounter.target.data and encounter.target.data.battle_stage) or "field_stage"
+	end
+
+	return config
 end
 
 function WorldScene.new(game)
@@ -39,13 +63,24 @@ function WorldScene.new(game)
 	self.game = game
 	self.world = WorldGenerator.generate(love.math.random(1, 9999), 2048, 2048)
 
-	self.player_party = new_party("player_party", "Player", self.world.width * 0.5, self.world.height * 0.5, { 0.95, 0.9, 0.2 }, true)
-	self.parties = {
-		self.player_party,
-		new_party("ai_patrol_1", "Patrol", self.world.width * 0.35, self.world.height * 0.45, { 0.85, 0.3, 0.3 }, false),
-		new_party("ai_patrol_2", "Patrol", self.world.width * 0.65, self.world.height * 0.4, { 0.3, 0.7, 0.9 }, false),
-		new_party("ai_raiders", "Raiders", self.world.width * 0.55, self.world.height * 0.62, { 0.8, 0.4, 0.75 }, false),
-	}
+	self.parties = {}
+	for _, party in ipairs(PartyData.list or {}) do
+		local instance = hydrate_party(party)
+		if instance.is_player then
+			self.player_party = instance
+		end
+		table.insert(self.parties, instance)
+	end
+	if not self.player_party then
+		self.player_party = hydrate_party({
+			id = "player_party",
+			name = "Player",
+			position = { x = self.world.width * 0.5, y = self.world.height * 0.5 },
+			speed = 180,
+			is_player = true,
+		})
+		table.insert(self.parties, 1, self.player_party)
+	end
 
 	self.locations = {}
 	for _, location in ipairs(LocationData.list or {}) do
@@ -73,6 +108,10 @@ function WorldScene.new(game)
 
 	self.encounter = nil
 	self.encounter_selection = 1
+	self.active_view = nil
+	self.view_return_encounter = nil
+	self.resting = false
+	self.encounter_cooldowns = {}
 	self.time = Time.new(18)
 
 	return self
@@ -87,7 +126,16 @@ local function world_to_screen(camera, world_x, world_y)
 end
 
 function WorldScene:update(dt)
-	if self.encounter then
+	for target_id, remaining in pairs(self.encounter_cooldowns) do
+		local updated = remaining - dt
+		if updated <= 0 then
+			self.encounter_cooldowns[target_id] = nil
+		else
+			self.encounter_cooldowns[target_id] = updated
+		end
+	end
+
+	if self.encounter or self.active_view then
 		return
 	end
 
@@ -108,12 +156,28 @@ function WorldScene:update(dt)
 	self.player_party.velocity.x = vx
 	self.player_party.velocity.y = vy
 
-	if vx ~= 0 or vy ~= 0 then
-		self.time:advance(dt)
+	local player_moving = (vx ~= 0 or vy ~= 0)
+	MovementSystem.update_party(self.player_party, dt, self.world)
+	if self.resting and player_moving then
+		self.resting = false
 	end
-
-	AISystem.update(self.parties, dt, self.world)
-	MovementSystem.update(self.parties, dt, self.world)
+	local time_advancing = player_moving or self.resting
+	if time_advancing then
+		self.time:advance(dt)
+		PartyAISystem.update(self.parties, dt, self.world)
+		for _, party in ipairs(self.parties) do
+			if not party.is_player then
+				MovementSystem.update_party(party, dt, self.world)
+			end
+		end
+	else
+		for _, party in ipairs(self.parties) do
+			if not party.is_player and party.velocity then
+				party.velocity.x = 0
+				party.velocity.y = 0
+			end
+		end
+	end
 
 	local cam_speed = math.min(dt * 5, 1)
 	self.camera.x = Math.lerp(self.camera.x, self.player_party.position.x, cam_speed)
@@ -124,16 +188,31 @@ function WorldScene:update(dt)
 	self.camera.x = Math.clamp(self.camera.x, view_w * 0.5, self.world.width - view_w * 0.5)
 	self.camera.y = Math.clamp(self.camera.y, view_h * 0.5, self.world.height - view_h * 0.5)
 
-	self:check_encounters()
+	if not self.resting then
+		self:check_encounters()
+	end
 end
 
 function WorldScene:check_encounters()
 	local encounter = EncounterSystem.detect(self.player_party, self.parties, self.locations, self.world)
 	if encounter then
+		local target_id = encounter.target and encounter.target.id
+		if target_id and self.encounter_cooldowns[target_id] then
+			return
+		end
 		encounter.options = InteractionSystem.build_interactions(encounter)
 		self.encounter = encounter
 		self.encounter_selection = 1
 	end
+end
+
+function WorldScene:open_camp_menu()
+	self.encounter = {
+		type = "camp",
+		target = self.player_party,
+		options = InteractionSystem.build_interactions({ type = "camp", target = self.player_party }),
+	}
+	self.encounter_selection = 1
 end
 
 function WorldScene:draw_terrain()
@@ -193,6 +272,23 @@ function WorldScene:draw_ui()
 	love.graphics.print("Day " .. day .. " - " .. self.time:get_period_label(), 16, 36)
 	love.graphics.print("Hour: " .. string.format("%.1f", hour), 16, 56)
 	love.graphics.print("Zoom: " .. string.format("%.2f", self.camera.zoom), 16, 76)
+	if self.resting then
+		love.graphics.print("Resting... (move or Esc to stop)", 16, 96)
+	end
+end
+
+function WorldScene:draw_inventory_view()
+	local width = love.graphics.getWidth()
+	local height = love.graphics.getHeight()
+
+	love.graphics.setColor(0, 0, 0, 0.75)
+	love.graphics.rectangle("fill", 0, 0, width, height)
+
+	love.graphics.setColor(1, 1, 1)
+	love.graphics.printf("Inventory (WIP)", 0, height * 0.18, width, "center")
+	love.graphics.setColor(0.85, 0.85, 0.9)
+	love.graphics.printf("Grid + Slots UI will go here.", 0, height * 0.24, width, "center")
+	love.graphics.printf("Press Esc to return.", 0, height * 0.3, width, "center")
 end
 
 function WorldScene:draw_encounter()
@@ -207,7 +303,14 @@ function WorldScene:draw_encounter()
 	love.graphics.rectangle("fill", 0, height * 0.65, width, height * 0.35)
 
 	love.graphics.setColor(1, 1, 1)
-	local title = self.encounter.type == "party" and ("Encounter: " .. self.encounter.target.name) or ("Location: " .. self.encounter.target.name)
+	local title
+	if self.encounter.type == "party" then
+		title = "Encounter: " .. self.encounter.target.name
+	elseif self.encounter.type == "camp" then
+		title = "Camp Menu"
+	else
+		title = "Location: " .. self.encounter.target.name
+	end
 	love.graphics.print(title, 24, height * 0.68)
 
 	for index, option in ipairs(self.encounter.options) do
@@ -236,9 +339,23 @@ function WorldScene:draw()
 
 	self:draw_ui()
 	self:draw_encounter()
+	if self.active_view == "inventory" then
+		self:draw_inventory_view()
+	end
 end
 
 function WorldScene:keypressed(key)
+	if self.active_view then
+		if key == "escape" then
+			self.active_view = nil
+			if self.view_return_encounter then
+				self.encounter = self.view_return_encounter
+				self.view_return_encounter = nil
+			end
+		end
+		return
+	end
+
 	if self.encounter then
 		if key == "up" or key == "w" then
 			self.encounter_selection = self.encounter_selection - 1
@@ -254,8 +371,29 @@ function WorldScene:keypressed(key)
 			local selected = self.encounter.options[self.encounter_selection]
 			if selected then
 				local result = InteractionSystem.resolve(selected, { time = self.time })
+				if selected.id == "ignore" or selected.id == "leave" then
+					local target_id = self.encounter and self.encounter.target and self.encounter.target.id
+					if target_id then
+						self.encounter_cooldowns[target_id] = 2.0
+					end
+				end
 				if result and result.transition and result.transition.scene == "battle" then
-					self.game:change_scene(BattleScene.new(self.game, self))
+					local config = build_battle_config(self.world, self.encounter, self.player_party)
+					self.game:change_scene(BattleScene.new(self.game, self, config))
+				end
+				if result and result.open_camp then
+					self.encounter = nil
+					self:open_camp_menu()
+					return
+				end
+				if result and result.open_inventory then
+					self.view_return_encounter = self.encounter
+					self.encounter = nil
+					self.active_view = "inventory"
+					return
+				end
+				if result and result.start_rest then
+					self.resting = true
 				end
 				if not result or result.close_encounter then
 					self.encounter = nil
@@ -272,9 +410,13 @@ function WorldScene:keypressed(key)
 	elseif key == "-" then
 		self.camera.zoom = Math.clamp(self.camera.zoom - 0.1, 0.6, 2.2)
 	elseif key == "c" then
-		self.time:advance_hours(6)
+		self:open_camp_menu()
 	elseif key == "escape" then
-		self.game:change_scene(require("scenes.title_scene").new(self.game))
+		if self.resting then
+			self.resting = false
+		else
+			self.game:change_scene(require("scenes.title_scene").new(self.game))
+		end
 	end
 end
 

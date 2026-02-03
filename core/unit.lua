@@ -20,6 +20,21 @@ local function is_number(value)
 	return type(value) == "number"
 end
 
+local function validate_size(size, errors)
+	if size == nil then
+		return
+	end
+
+	if not is_number(size) then
+		table.insert(errors, "size must be a number when provided")
+		return
+	end
+
+	if size < 1 or size > 10 then
+		table.insert(errors, "size must be between 1 and 10")
+	end
+end
+
 local function validate_sprite(sprite, errors)
 	if sprite == nil then
 		return
@@ -144,6 +159,7 @@ function Unit.validate(definition)
 	end
 
 	validate_sprite(definition.sprite, errors)
+	validate_size(definition.size, errors)
 	validate_stats(definition.stats, errors)
 	validate_equipment_slots(definition.equipment_slots, errors)
 	validate_actions(definition.actions, errors)
@@ -162,6 +178,7 @@ function Unit.normalize(definition)
 			scale = definition.sprite.scale or 1.0,
 			offset = definition.sprite.offset or { x = 0, y = 0 },
 		} or nil,
+		size = definition.size or 1,
 		stats = {
 			hp = definition.stats.hp,
 			attack = definition.stats.attack,

@@ -17,7 +17,8 @@ The camp menu pauses world time and provides management options for the party.
 
 ## 2. Availability
 
-* Accessible from the World Map at any time
+* Accessible from the World Map at any time via **C**
+* Can also be opened from location interactions (Camp option)
 * World time is paused while the menu is open
 
 ---
@@ -36,6 +37,7 @@ The camp menu pauses world time and provides management options for the party.
 * Equipment changes are commander-only
 * Regular units remain locked to `starting_equipment`
 * Resting advances world time according to the time system
+* Resting continues until the player moves or cancels
 
 ---
 
@@ -45,3 +47,4 @@ The camp menu pauses world time and provides management options for the party.
 * `COMMANDER_SQUADS.md`
 * `TIME_SYSTEM.md`
 * `UNIT_SCHEMA.md`
+* `INTERACTION_SYSTEM.md`

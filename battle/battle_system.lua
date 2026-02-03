@@ -1,9 +1,10 @@
--- systems/battle_system.lua
+-- battle/battle_system.lua
 --
 -- System for managing the battle logic.
 
 local BattleMap = require("battle.battle_map")
 local BattleState = require("battle.battle_state")
+local BattleGrid = require("battle.battle_grid")
 
 local BattleSystem = {}
 
@@ -20,11 +21,18 @@ function BattleSystem.create_state(config)
 		grid = map.grid,
 		units = config.units or {},
 		player_unit_id = config.player_unit_id,
+		parties = config.parties or {},
+		stage = config.stage,
+		deployment = config.deployment or {},
 	})
 end
 
 function BattleSystem.update_ticks(state, ticks)
 	state.tick = state.tick + (ticks or 1)
+end
+
+function BattleSystem.place_unit(grid, unit, x, y)
+	return BattleGrid.add_unit(grid, x, y, unit)
 end
 
 return BattleSystem

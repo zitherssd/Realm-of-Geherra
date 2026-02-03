@@ -13,6 +13,7 @@ local MODULE_DEFINITIONS = {
     bribe = { id = "bribe", label = "Bribe", effects = { { type = "bribe" } } },
     explore = { id = "explore", label = "Explore", effects = { { type = "explore" } } },
     raid = { id = "raid", label = "Raid", effects = { { type = "raid" } } },
+    camp = { id = "camp", label = "Camp", effects = { { type = "camp" } } },
 }
 
 local function clone_interaction(template)
@@ -27,6 +28,26 @@ local function clone_interaction(template)
 end
 
 function InteractionSystem.build_interactions(encounter)
+    if encounter.type == "camp" then
+        return {
+            {
+                id = "inventory",
+                label = "Inventory",
+                effects = { { type = "inventory" } },
+            },
+            {
+                id = "rest",
+                label = "Rest",
+                effects = { { type = "resting" } },
+            },
+            {
+                id = "leave",
+                label = "Leave",
+                effects = { { type = "leave" } },
+            },
+        }
+    end
+
     if encounter.type == "party" then
         return {
             {
@@ -68,6 +89,22 @@ end
 function InteractionSystem.resolve(interaction, context)
     if interaction.transition and interaction.transition.scene == "battle" then
         return { transition = interaction.transition, close_encounter = true }
+    end
+
+    if interaction.effects then
+        for _, effect in ipairs(interaction.effects) do
+            if effect.type == "inventory" then
+                return { open_inventory = true, close_encounter = true }
+            end
+
+            if effect.type == "camp" then
+                return { open_camp = true, close_encounter = true }
+            end
+
+            if effect.type == "resting" then
+                return { start_rest = true, close_encounter = true }
+            end
+        end
     end
 
     if interaction.effects then

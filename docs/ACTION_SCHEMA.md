@@ -191,6 +191,7 @@ Effects are symbolic descriptions resolved by combat systems.
 type: damage | move | status
 stat: attack | strength | magic
 formula: string
+damage_bonus: number
 ```
 
 Multiple effects may be applied per action.
@@ -299,3 +300,10 @@ execution:
 * DAMAGE_RESOLUTION.md
 * BATTLE_TICK_SYSTEM.md
 * AI_ACTION_SELECTION.md
+
+---
+
+## Canonical Implementation
+
+* Core schema validation: /core/action.lua
+* Action data definitions: /data/actions.lua

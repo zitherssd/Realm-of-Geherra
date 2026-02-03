@@ -47,6 +47,21 @@ sprite = {
 
 ---
 
+## 3.1 Unit Size
+
+Units define a **size** value used for battle grid stacking.
+
+```lua
+size = 2
+```
+
+Rules:
+
+* Size ranges from **1 to 10**
+* A battle cell holds units whose total size ≤ 10
+
+---
+
 ## 4. Base Stats
 
 Stats represent the **unit’s intrinsic combat capability** before equipment.
@@ -163,6 +178,8 @@ This logic is handled by systems, not units.
 unit = {
   id = "human_swordsman",
   name = "Swordsman",
+
+  size = 2,
 
   sprite = {
     image = "sprites/units/swordsman.png",

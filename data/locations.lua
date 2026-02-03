@@ -26,6 +26,7 @@ local location_definitions = {
             "trade",
             "recruit",
             "rest",
+            "camp",
         },
         battle_stage = "town_stage",
         region = "plains",
@@ -51,6 +52,7 @@ local location_definitions = {
             "trade",
             "recruit",
             "rest",
+            "camp",
         },
         battle_stage = "village_stage",
         region = "forest",
@@ -70,6 +72,7 @@ local location_definitions = {
         interaction_modules = {
             "explore",
             "fight",
+            "camp",
         },
         battle_stage = "ruin_stage",
         region = "mountain",
