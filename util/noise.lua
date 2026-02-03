@@ -1,0 +1,3 @@
+-- util/noise.lua
+--
+-- Utility functions for noise generation.

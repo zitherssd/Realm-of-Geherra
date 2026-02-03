@@ -1,0 +1,3 @@
+-- systems/world_simulation.lua
+--
+-- System for simulating AI party movement and interactions.

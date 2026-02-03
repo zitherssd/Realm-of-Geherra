@@ -1,11 +1,11 @@
--- Main entry point for the Feudalism game
+-- Main entry point for the game
 -- This handles the Love2D callbacks and manages the game state
 
 local Game = require('src.game')
 
 function love.load()
     -- Initialize the game
-    love.window.setTitle("Feudalism")
+    love.window.setTitle("Realms-of-Geherra")
     love.graphics.setDefaultFilter('nearest', 'nearest')
     
     Game:init()

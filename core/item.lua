@@ -1,0 +1,3 @@
+-- core/item.lua
+--
+-- Defines the item data structure.

@@ -1,0 +1,3 @@
+-- data/items.lua
+--
+-- Data for all item types.

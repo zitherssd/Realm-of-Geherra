@@ -1,0 +1,3 @@
+-- battle/battle_rules.lua
+--
+-- Defines the rules for battle resolution.

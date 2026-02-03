@@ -1,0 +1,3 @@
+-- scenes/world_scene.lua
+--
+-- Manages the main world map scene.

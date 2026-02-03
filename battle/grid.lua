@@ -1,0 +1,3 @@
+-- battle/grid.lua
+--
+-- Defines the grid data structure for battles.

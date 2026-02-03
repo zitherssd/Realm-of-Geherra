@@ -1,0 +1,3 @@
+-- util/math.lua
+--
+-- Utility functions for mathematical operations.

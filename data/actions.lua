@@ -1,0 +1,3 @@
+-- data/actions.lua
+--
+-- Data for all battle actions.

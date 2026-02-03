@@ -1,0 +1,3 @@
+-- battle/battle_map.lua
+--
+-- Defines the battle map data structure.

@@ -1,0 +1,3 @@
+-- core/party.lua
+--
+-- Defines the party data structure.

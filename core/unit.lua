@@ -1,0 +1,3 @@
+-- core/unit.lua
+--
+-- Defines the core unit data structure.

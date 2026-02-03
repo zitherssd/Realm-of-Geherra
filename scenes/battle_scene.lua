@@ -1,0 +1,3 @@
+-- scenes/battle_scene.lua
+--
+-- Manages the tactical battle scene.

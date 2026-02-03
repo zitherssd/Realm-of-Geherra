@@ -1,0 +1,3 @@
+-- core/action.lua
+--
+-- Defines the battle action data structure.

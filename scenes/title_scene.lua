@@ -1,0 +1,3 @@
+-- scenes/title_scene.lua
+--
+-- Manages the title screen scene.
