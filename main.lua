@@ -6,7 +6,7 @@ local Game = require('src.game')
 function love.load()
     -- Initialize the game
     love.window.setTitle("Feudalism")
-    love.graphics.setDefaultFilter('nearest', 'nearest')
+    love.graphics.setDefaultFilter('linear', 'linear')
     
     Game:init()
 end

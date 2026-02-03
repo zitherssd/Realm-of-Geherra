@@ -1,7 +1,7 @@
 local Object = require('lib.classic')
 local unitTemplates = require('src.data.unit_templates')
-local unitAnimations = require('src.data.unit_animations')
--- LPC system removed
+local assetManager = require('src.game.util.AssetManager')
+local ItemModule = require('src.game.modules.ItemModule')
 local nextUnitId = 1
 
 local Unit = Object:extend()
@@ -10,6 +10,11 @@ local Unit = Object:extend()
 function Unit:new(templateName)
   local tpl = unitTemplates[templateName]
   if not tpl then error('Unknown unit template: ' .. tostring(templateName)) end
+  if tpl.sprite then
+    self.sprite = assetManager:loadImage(tpl.sprite)
+  else
+    self.sprite = assetManager:loadImage("units/peasant.png")
+  end
   self.id = 'unit_' .. nextUnitId
   nextUnitId = nextUnitId + 1
   self.template = templateName
@@ -22,12 +27,37 @@ function Unit:new(templateName)
   self.health = tpl.health
   self.max_health = tpl.health
   self.speed = tpl.speed
-  self.equipmentSlots = tpl.equipmentSlots
+  -- Structured equipment slots: { {type="main_hand", item=nil}, ... }
+  self.equipmentSlots = {}
+  if tpl.equipmentSlots then
+    for _, entry in ipairs(tpl.equipmentSlots) do
+      if type(entry) == 'string' then
+        table.insert(self.equipmentSlots, { type = entry, item = nil })
+      elseif type(entry) == 'table' then
+        table.insert(self.equipmentSlots, { type = entry.type, item = entry.item })
+      end
+    end
+  end
+  -- Legacy quick lookup map kept in sync for existing battle code
   self.equipment = {}
+  for _, slot in ipairs(self.equipmentSlots) do
+    if slot.item then self.equipment[slot.type] = slot.item end
+  end
   self.abilities = tpl.abilities
   self.scale = tpl.scale or 1
+  self.size = tpl.size or 3
   self.controllable = tpl.controllable or false
   self.unit_type = tpl.unit_type or "human"
+  self.actions = tpl.actions or {}
+  -- Commander support
+  self.commander = tpl.commander or false
+  if self.commander and not self.squads then
+    -- Initialize 4 empty squads for commanders
+    self.squads = {
+      { units = {} },
+      { units = {} },
+    }
+  end
   -- State machine fields
   self.state = "idle"
   self.state_timer = 0
@@ -36,12 +66,14 @@ function Unit:new(templateName)
   -- For drawing
   self.battle_x = 0
   self.battle_y = 0
-  self.battle_radius = 12
-  -- LPC system removed
-  -- Add more fields as needed
+  self.visuals = {
+    flash_color = {1, 1, 1}, -- RGB tint
+    flash_alpha = 0,         -- 0 = none, 1 = full flash
+    shake_intensity = 0,
+    shake_time = 0
+}
 end
 
--- LPC system removed
 
 function Unit:drawHpBar(x, y)
   -- Draw name and HP bar above the unit
@@ -64,120 +96,69 @@ function Unit:drawHpBar(x, y)
   love.graphics.setColor(1, 1, 1, 1)
 end
 
-function Unit:moveWithCollision(dx, dy, dt, units)
-  local scale = self.scale or 1
-  local radius = (self.battle_radius or 14) * scale
-  local nx = self.battle_x + dx
-  local ny = self.battle_y + dy
-  ny = math.max(240 + (radius * 0.5), math.min(ny, 480 - (radius * 0.5)))
-  for _, other in ipairs(units) do
-    if other ~= self and other.health > 0 then
-      local oscale = other.scale or 1
-      local oradius = (other.battle_radius or 14) * oscale
-      local dist = math.sqrt((nx - other.battle_x)^2 + ((ny - other.battle_y) * 2)^2)
-      if dist < radius + oradius then
-        local overlap = radius + oradius - dist
-        if dist > 0 then
-          nx = nx + (nx - other.battle_x)/dist * overlap
-          ny = ny + (ny - other.battle_y)/dist * overlap
-        else
-          nx = nx + math.random(-1,1)
-          ny = ny + math.random(-1,1)
-        end
-      end
+function Unit:draw()
+    if self.health <= 0 then return end
+    local sprite = self.sprite
+    if not sprite then return end
+
+    local v = self.visuals
+    local spriteScale = (self.scale or 1) + math.max(0, (self.size - 3) * 0.1)
+    local spriteWidth = sprite:getWidth() * spriteScale
+    local spriteHeight = sprite:getHeight() * spriteScale
+    local drawX = self.battle_x - 10
+    local drawY = self.battle_y - spriteHeight + 6
+
+    -- Apply facing
+    local flipX = self.facing_right
+    local scaleX = flipX and -spriteScale or spriteScale
+    if flipX then drawX = self.battle_x + spriteWidth / 2 end
+
+    -- Shake
+    if v.shake_time > 0 then
+        drawX = drawX + love.math.random(-v.shake_intensity, v.shake_intensity)
+        drawY = drawY + love.math.random(-v.shake_intensity, v.shake_intensity)
     end
-  end
-  self.battle_x = nx
-  self.battle_y = ny
-end
 
-function Unit:drawCollisionBox(x, y)
-  local scale = self.scale or 1
-  local radius = (self.battle_radius or 14) * scale
-  love.graphics.setColor(1, 0, 0, 0.5)
-  love.graphics.ellipse('line', x, y, radius, radius * 0.5)
-  love.graphics.setColor(1, 1, 1, 1)
-end
+   -- 🔹 Step 1: draw the base sprite normally
+    love.graphics.setBlendMode("alpha")
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(sprite, drawX, drawY, 0, scaleX, spriteScale)
 
--- Update Unit:draw to optionally draw collision box
-function Unit:draw(x, y)
-  if require('src.game.modules.UnitModule').debugOnlyCollision then
-    self:drawCollisionBox(x, y)
-    return
-  end
+    -- 🔹 Step 2: overlay the flash using additive blending (does not affect transparency)
+    if v.flash_alpha > 0 then
+        love.graphics.setBlendMode("add")
+        local intensity = v.flash_alpha * 0.8
+        love.graphics.setColor(
+            v.flash_color[1],
+            v.flash_color[2],
+            v.flash_color[3],
+            intensity
+        )
+        love.graphics.draw(sprite, drawX, drawY, 0, scaleX, spriteScale)
+        love.graphics.setBlendMode("alpha")
+    end
+
+
+        -- Draw health bar for player unit
+    if self.controllable then
+        local healthPercent = self.health / (self.max_health or self.health)
+        local hpBarY = self.battle_y + 7
+        love.graphics.setColor(0.2, 0.2, 0.2, 1)
+        love.graphics.rectangle('fill', self.battle_x - 15, hpBarY, 30, 4)
+        love.graphics.setColor(0.2, 1, 0.2, 1)
+        love.graphics.rectangle('fill', self.battle_x - 15, hpBarY, 30 * healthPercent, 4)
+    end
+end
   
-  -- LPC system removed
-  
-  -- Fallback to original rendering
-  local animName = self.animation or 'idle'
-  local frame = self.animationFrame or 1
-  local anim = unitAnimations[animName] and unitAnimations[animName][frame] or nil
-  if not anim then anim = unitAnimations['idle'][1] end
-  -- Draw body
-  if self.bodySprite then
-    love.graphics.draw(self.bodySprite, x + anim.body.x, y + anim.body.y, anim.body.r, anim.body.sx, anim.body.sy)
-  end
-  -- Draw armor (if any, as overlay)
-  if self.equipment.chest and self.equipment.chest.sprite then
-    love.graphics.draw(self.equipment.chest.sprite, x + anim.body.x, y + anim.body.y, anim.body.r, anim.body.sx, anim.body.sy)
-  end
-  -- Draw head
-  if self.headSprite then
-    love.graphics.draw(self.headSprite, x + anim.head.x, y + anim.head.y, anim.head.r, anim.head.sx, anim.head.sy)
-  end
-  -- Draw helmet (if any)
-  if self.equipment.head and self.equipment.head.sprite then
-    love.graphics.draw(self.equipment.head.sprite, x + anim.head.x, y + anim.head.y, anim.head.r, anim.head.sx, anim.head.sy)
-  end
-  -- Draw main hand (weapon)
-  if self.equipment.main_hand and self.equipment.main_hand.sprite then
-    love.graphics.draw(self.equipment.main_hand.sprite, x + anim.main_hand.x, y + anim.main_hand.y, anim.main_hand.r, anim.main_hand.sx, anim.main_hand.sy)
-  end
-  -- Draw off hand (weapon/shield)
-  if self.equipment.off_hand and self.equipment.off_hand.sprite then
-    love.graphics.draw(self.equipment.off_hand.sprite, x + anim.off_hand.x, y + anim.off_hand.y, anim.off_hand.r, anim.off_hand.sx, anim.off_hand.sy)
-  end
-  -- Draw HP bar and name
-  --self:drawHpBar(x, y)
-  -- Optionally draw collision box
-  self:drawCollisionBox(x, y)
+function Unit:flash(color, duration)
+    self.visuals.flash_color = color or {1, 1, 1}
+    self.visuals.flash_timer = duration or 0.2
+    self.visuals.flash_duration = self.visuals.flash_timer
 end
 
-function Unit:getComposedImage()
-  local canvas = love.graphics.newCanvas(25, 32)
-  canvas:setFilter('nearest', 'nearest')
-  love.graphics.setCanvas(canvas)
-  love.graphics.clear(0,0,0,0)
-  -- Load images if needed
-  local base_img = self.unit_type.base_sprite
-  if type(base_img) == "string" then
-    if love.filesystem.getInfo(base_img) then
-      base_img = love.graphics.newImage(base_img)
-    else
-      print("Missing base sprite:", base_img)
-      base_img = nil
-    end
-  end
-  local head_img = self.unit_type.head_sprite
-  if type(head_img) == "string" then
-    if love.filesystem.getInfo(head_img) then
-      head_img = love.graphics.newImage(head_img)
-    else
-      print("Missing head sprite:", head_img)
-      head_img = nil
-    end
-  end
-  -- Draw with correct origin
-  if base_img then
-    local bw, bh = base_img:getWidth(), base_img:getHeight()
-    love.graphics.draw(base_img, 12, 16, 0, 1, 1, bw/2, bh)
-  end
-  if head_img then
-    local hw, hh = head_img:getWidth(), head_img:getHeight()
-    love.graphics.draw(head_img, 12, 16, 0, 1, 1, hw/2, hh)
-  end
-  love.graphics.setCanvas()
-  return canvas
+function Unit:shake(duration, intensity)
+    self.visuals.shake_time = duration or 0.2
+    self.visuals.shake_intensity = intensity or 1
 end
 
 function Unit:pickTarget(battle)
@@ -209,7 +190,6 @@ function Unit:pickTarget(battle)
   return enemies[1]
 end
 
--- State machine update for battle
 function Unit:update(dt, battle)
   -- If dead, do nothing
   if self.health <= 0 then return end
@@ -387,17 +367,116 @@ function Unit:update(dt, battle)
   end
 end
 
-local UnitModule = {}
+function Unit:_applyItemStats(item)
+  if not item or not item.stats then return end
+  local s = item.stats
+  self.attack = (self.attack or 0) + (s.attack or 0)
+  self.defense = (self.defense or 0) + (s.defense or 0)
+  -- Map item.damage to unit.strength as requested
+  self.strength = (self.strength or 0) + (s.damage or 0)
+  self.protection = (self.protection or 0) + (s.protection or 0)
+end
 
-UnitModule.debugCollision = true
-UnitModule.debugOnlyCollision = true
+function Unit:_removeItemStats(item)
+  if not item or not item.stats then return end
+  local s = item.stats
+  self.attack = (self.attack or 0) - (s.attack or 0)
+  self.defense = (self.defense or 0) - (s.defense or 0)
+  self.strength = (self.strength or 0) - (s.damage or 0)
+  self.protection = (self.protection or 0) - (s.protection or 0)
+end
+
+-- Action application helpers (tie actions to the item that granted them)
+function Unit:_addItemActions(item)
+  if not item or not item.actions then return end
+  self.actions = self.actions or {}
+  for _, act in ipairs(item.actions) do
+    local exists = false
+    for __, ua in ipairs(self.actions) do
+      if ua.id == act.id and ua.sourceItemId == item.id then
+        exists = true; break
+      end
+    end
+    if not exists then
+      local copy = {}
+      for k, v in pairs(act) do copy[k] = v end
+      copy.sourceItemId = item.id
+      table.insert(self.actions, copy)
+    end
+  end
+end
+
+function Unit:_removeItemActions(item)
+  if not item or not self.actions then return end
+  local filtered = {}
+  for _, ua in ipairs(self.actions) do
+    if ua.sourceItemId ~= item.id then
+      table.insert(filtered, ua)
+    end
+  end
+  self.actions = filtered
+end
+
+function Unit:equip(item)
+  if not item then return nil end
+  local allowed = ItemModule.resolveEquipSlotTypes(item)
+  -- 1) Try exact template slot first if empty
+  if item.slot then
+    for _, slot in ipairs(self.equipmentSlots or {}) do
+      if slot.type == item.slot and slot.item == nil then
+        slot.item = item
+        self.equipment[slot.type] = item
+        self:_applyItemStats(item)
+        self:_addItemActions(item)
+        return nil
+      end
+    end
+  end
+  -- 2) Try any compatible empty slot
+  if allowed and #allowed > 0 then
+    for _, slot in ipairs(self.equipmentSlots or {}) do
+      for _, t in ipairs(allowed) do
+        if slot.type == t and slot.item == nil then
+          slot.item = item
+          self.equipment[slot.type] = item
+          self:_applyItemStats(item)
+          self:_addItemActions(item)
+          return nil
+        end
+      end
+    end
+  end
+  return nil
+end
+
+function Unit:unequip(slotType)
+  for _, slot in ipairs(self.equipmentSlots or {}) do
+    if slot.type == slotType and slot.item ~= nil then
+      local prev = slot.item
+      slot.item = nil
+      self.equipment[slot.type] = nil
+      self:_removeItemStats(prev)
+      self:_removeItemActions(prev)
+      return prev
+    end
+  end
+  return nil
+end
+
+local UnitModule = {}
 
 function UnitModule.create(templateName)
   return Unit(templateName)
 end
 
-function UnitModule.getComposedImage(unit)
-  return unit:getComposedImage()
+function UnitModule.createMultiple(templateName, count)
+  local units = {}
+  for i = 1, count do
+    table.insert(units, Unit(templateName))
+  end
+  return units
 end
+
+
 
 return UnitModule 

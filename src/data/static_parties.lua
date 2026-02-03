@@ -5,7 +5,7 @@ return {
     position = { x = 200, y = 370 },
     interactions = { "fight", "talk" },
     unitsRaw = {
-      { template = "militia", count = 6 }
+      { template = "militia", count = 8 }
     }
   },
   {
@@ -15,6 +15,15 @@ return {
     interactions = { "fight", "talk" },
     unitsRaw = {
       { template = "dragon", count = 1 }
+    }
+  },
+    {
+    id = "troll_king",
+    name = "T King",
+    position = { x = 400, y = 360 },
+    interactions = { "fight", "talk" },
+    unitsRaw = {
+      { template = "troll", count = 1 }
     }
   },
   {

@@ -3,7 +3,23 @@ local itemTemplates = {
     name = "Iron Sword",
     type = "weapon",
     slot = "main_hand",
-    stats = { attack = 10, speed = -1 },
+    stats = { attack = 1, defense = 1, damage = 5 },
+    actions = {
+      {
+        id = "attack",
+        name = "Iron Sword",
+        description = "Deal damage to the target",
+        cooldownStart = 25,
+        cooldownEnd = 25,
+      },
+      {
+        id = "attack2",
+        name = "Dagger",
+        description = "Deal damage to the target",
+        cooldownStart = 0,
+        cooldownEnd = 30,
+      }
+    },
     weight = 3.5,
     value = 50,
     sprite = "sprites/items/iron_sword.png",
@@ -12,7 +28,7 @@ local itemTemplates = {
     name = "Leather Armor",
     type = "armor",
     slot = "chest",
-    stats = { defense = 4 },
+    stats = { protection = 4 },
     weight = 5.0,
     value = 40,
     sprite = "sprites/items/leather_armor.png",
@@ -48,6 +64,24 @@ local itemTemplates = {
     damage = 5,
     value = 0,
     sprite = nil,
+  },
+  dagger = {
+    name = "Dagger",
+    type = "weapon",
+    slot = "main_hand",
+    stats = { attack = 0, defense = 0, damage = 3 },
+    actions = {
+      {
+        id = "attack",
+        name = "Attack",
+        description = "Deal damage to the target",
+        cooldownStart = 0,
+        cooldownEnd = 30,
+      }
+    },
+    weight = 1,
+    value = 10,
+    sprite = "sprites/items/dagger.png",
   },
 }
 

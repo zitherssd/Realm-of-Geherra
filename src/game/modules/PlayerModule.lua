@@ -1,12 +1,15 @@
-local PlayerModule = {}
+local PlayerModule = {
+  playerUnit = nil,
+  playerParty = nil,
+  gold = 0,
+  favor = 50,
+}
 local PartyModule = require('src.game.modules.PartyModule')
 local LocationsModule = require('src.game.modules.LocationsModule')
 local InputModule = require('src.game.modules.InputModule')
 
 function PlayerModule:getPlayerParty()
-  for _, party in ipairs(PartyModule.parties) do
-    if party.id == "player" then return party end
-  end
+  return PartyModule.parties[1]
 end
 
 function PlayerModule:update(dt)
@@ -51,10 +54,14 @@ function PlayerModule:isMoving()
   return x ~= 0 or y ~= 0
 end
 
--- Returns the controllable player unit from a party, or nil if not found
-function PlayerModule.getPlayerUnit(party)
-  if not party or not party.units then return nil end
-  for _, unit in ipairs(party.units) do
+function PlayerModule:getPlayerHealthPercentage()
+  local player = self:getPlayerUnit()
+  return player.health/player.max_health
+end
+
+function PlayerModule:getPlayerUnit()
+  local playerParty = self:getPlayerParty()
+  for _, unit in ipairs(playerParty.units) do
     if unit.controllable then
       return unit
     end

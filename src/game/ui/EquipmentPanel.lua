@@ -13,11 +13,14 @@ function EquipmentPanel:draw(unit, hoveredSlot, x, y, w, h)
     end
     love.graphics.setColor(1, 1, 1)
     love.graphics.rectangle('line', x + 8, sy, w - 16, 32, 6, 6)
-    local eq = unit.equipment and unit.equipment[slot] or nil
-    local label = slot .. ": " .. (eq and eq.name or "-")
+    -- Support both string slots (legacy) and structured slots { type=..., item=... }
+    local slotType = (type(slot) == 'table') and slot.type or slot
+    local eq = (type(slot) == 'table' and slot.item) or (unit.equipment and unit.equipment[slotType]) or nil
+    local label = tostring(slotType) .. ": " .. (eq and eq.name or "-")
     love.graphics.printf(label, x + 16, sy + 8, w - 32, 'left')
   end
+
   love.graphics.setColor(1, 1, 1)
 end
 
-return EquipmentPanel 
+return EquipmentPanel

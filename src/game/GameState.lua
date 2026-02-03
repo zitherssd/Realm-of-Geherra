@@ -3,8 +3,16 @@ local GameState = {}
 GameState.stack = {}
 
 function GameState:push(newState, ...)
-  table.insert(self.stack, newState)
-  if newState.enter then newState:enter(...) end
+  local instance
+  if type(newState) == "table" and newState.new then
+    -- If it's a class with a new method, create an instance
+    instance = newState:new()
+  else
+    -- If it's already an instance, use it directly
+    instance = newState
+  end
+  table.insert(self.stack, instance)
+  if instance.enter then instance:enter(...) end
 end
 
 function GameState:pop()

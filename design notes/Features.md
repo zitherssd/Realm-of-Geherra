@@ -11,6 +11,8 @@ Skills go from 0 to a maximum of 5.
 - Navigation/Pathfinding
 - Foraging?
 
+For divination: hepatoscopy, extispicy
+
 ## Resource bars
 
 - HP bar indicates hp of player unit with a marker and average party hp

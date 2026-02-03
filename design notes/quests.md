@@ -42,3 +42,10 @@ Quest:
 Fight rebels
 
 Quest:
+Discover ancient ruins,
+
+Quest:
+Troll bridge
+
+Quest:
+

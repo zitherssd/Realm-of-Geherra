@@ -13,6 +13,7 @@ function ItemModule.create(templateName, quantity)
     type = tpl.type,
     slot = tpl.slot,
     stats = tpl.stats,
+    actions = tpl.actions,
     weight = tpl.weight,
     value = tpl.value,
     sprite = tpl.sprite,
@@ -62,4 +63,29 @@ function ItemModule.removeFromInventory(inventory, template, quantity)
   return nil
 end
 
-return ItemModule 
+-- Equipment helpers
+
+function ItemModule.resolveEquipSlotTypes(item)
+  if not item then return {} end
+  -- Prefer explicit slot if provided by template
+  if item.slot then
+    return { item.slot }
+  end
+  -- Fallback: map generic item.type to slot types
+  local map = {
+    weapon = { "main_hand", "off_hand" },
+    armor  = { "chest" },
+    helmet = { "head" },
+    shield = { "off_hand" },
+  }
+  return map[item.type] or {}
+end
+
+function ItemModule.isCompatibleWithSlot(item, slotType)
+  if not item or not slotType then return false end
+  local types = ItemModule.resolveEquipSlotTypes(item)
+  for _, t in ipairs(types) do if t == slotType then return true end end
+  return false
+end
+
+return ItemModule
