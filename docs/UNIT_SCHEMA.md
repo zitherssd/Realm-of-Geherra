@@ -53,6 +53,7 @@ Stats represent the **unit’s intrinsic combat capability** before equipment.
 
 ```lua
 stats = {
+  hp = 30,
   attack = 10,
   defense = 8,
   strength = 9,
@@ -66,6 +67,7 @@ stats = {
 * **defense** – evasion and defensive skill
 * **strength** – damage scaling and physical power
 * **protection** – damage reduction from armor
+* **hp** – base hit points before modifiers
 
 Stats may be modified by:
 
@@ -126,6 +128,25 @@ Use cases:
 
 ---
 
+## 6.1 Starting Equipment (Optional)
+
+Units may define a starting equipment loadout. This is **default gear** granted when the unit is created.
+
+```lua
+starting_equipment = {
+  mainhand = "iron_spear",
+  offhand = "wooden_shield",
+}
+```
+
+Rules:
+
+* Keys must be valid equipment slot names
+* Values are item ids from `ITEM_SCHEMA.md`
+* Systems validate slot compatibility and availability
+
+---
+
 ## 7. Equipment-Derived Actions
 
 * Items may define actions
@@ -148,6 +169,7 @@ unit = {
   },
 
   stats = {
+    hp = 34,
     attack = 11,
     defense = 9,
     strength = 10,
@@ -160,6 +182,10 @@ unit = {
     boots    = { type = "feet" },
     mainhand = { type = "weapon" },
     offhand  = { type = "weapon" },
+  },
+
+  starting_equipment = {
+    mainhand = "iron_sword",
   },
 
   actions = {},

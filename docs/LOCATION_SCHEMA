@@ -157,6 +157,18 @@ This example shows:
 
 ---
 
+## 13. Data File Location
+
+Canonical data lives in:
+
+* /data/locations.lua
+
+Core schema validation lives in:
+
+* /core/location.lua
+
+---
+
 ## 11. AI Usage
 
 * AI can query available locations in the world

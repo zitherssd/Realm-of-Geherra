@@ -252,6 +252,14 @@ AI-controlled parties use the same interaction system.
 
 ---
 
+## Canonical Implementation
+
+* Encounter detection: /systems/encounter_system.lua
+* Interaction assembly + resolution: /systems/interaction_system.lua
+* World scene integration: /scenes/world_scene.lua
+
+---
+
 ## Design Constraints
 
 * No hard-coded interaction logic per location
