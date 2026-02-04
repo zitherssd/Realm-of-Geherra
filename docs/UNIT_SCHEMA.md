@@ -62,6 +62,21 @@ Rules:
 
 ---
 
+## 3.2 Combat Speed
+
+Units define a **combat_speed** used to scale movement cooldown.
+
+```lua
+combat_speed = 13
+```
+
+Rules:
+
+* Higher values reduce movement cooldown
+* Default should be around **13**
+
+---
+
 ## 4. Base Stats
 
 Stats represent the **unit’s intrinsic combat capability** before equipment.
@@ -82,7 +97,7 @@ stats = {
 * **defense** – evasion and defensive skill
 * **strength** – damage scaling and physical power
 * **protection** – damage reduction from armor
-* **hp** – base hit points before modifiers
+* **hp** – max hit points before modifiers
 
 Stats may be modified by:
 
@@ -180,6 +195,8 @@ unit = {
   name = "Swordsman",
 
   size = 2,
+
+  combat_speed = 13,
 
   sprite = {
     image = "sprites/units/swordsman.png",

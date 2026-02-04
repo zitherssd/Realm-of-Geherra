@@ -9,6 +9,8 @@ local ActionData = require("data.actions")
 
 local BattleActions = {}
 
+local MOVE_COOLDOWN_BASE = 120
+
 local function manhattan(a, b)
 	return math.abs(a.x - b.x) + math.abs(a.y - b.y)
 end
@@ -84,7 +86,14 @@ function BattleActions.queue_action(state, unit, action, target)
 		target = target,
 		execute_tick = execute_tick,
 	})
-	unit.cooldown = action.cooldown_ticks or 0
+	if action.action_id == "move_step" then
+		local speed = unit.combat_speed or 13
+		local variance = (love.math.random() - 0.5) * 0.2
+		local cooldown = MOVE_COOLDOWN_BASE * (1 + variance) / speed
+		unit.cooldown = math.max(1, math.floor(cooldown + 0.5))
+	else
+		unit.cooldown = action.cooldown_ticks or 0
+	end
 end
 
 function BattleActions.execute_pending(state)
@@ -112,6 +121,11 @@ function BattleActions.resolve_action(state, attacker, action, target)
 			if BattleRules.roll_hit(attacker_stats, target_stats) then
 				local damage = BattleRules.compute_damage(attacker_stats, target_stats, action)
 				target.current_hp = math.max(0, (target.current_hp or 0) - damage)
+				if target.party_state then
+					target.party_state.current_hp = target.current_hp
+				end
+				target.hit_flash_timer = 0.2
+				table.insert(state.damage_events, { target = target, amount = damage })
 			end
 		end
 	end

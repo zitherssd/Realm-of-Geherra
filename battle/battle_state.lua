@@ -19,6 +19,7 @@ function BattleState.new(config)
 	self.deployment = config.deployment or {}
 	self.cooldowns = {}
 	self.pending_actions = {}
+	self.damage_events = {}
 	return self
 end
 

@@ -10,6 +10,7 @@ local unit_definitions = {
 		name = "Infantry",
 		description = "Basic human foot soldier",
 		size = 3,
+		combat_speed = 13,
 		sprite = {
 			image = "sprites/units/infantry.png",
 			scale = 1.0,
@@ -39,6 +40,7 @@ local unit_definitions = {
 		name = "Swordsman",
 		description = "Trained human warrior with a blade",
 		size = 3,
+		combat_speed = 13,
 		sprite = {
 			image = "sprites/units/swordsman.png",
 			scale = 1.0,
@@ -68,6 +70,7 @@ local unit_definitions = {
 		name = "Forest Wolf",
 		description = "Fast predator with a vicious bite",
 		size = 3,
+		combat_speed = 16,
 		sprite = {
 			image = "sprites/units/forest_wolf.png",
 			scale = 1.0,
@@ -90,6 +93,7 @@ local unit_definitions = {
 		name = "Cave Bear",
 		description = "Massive beast with crushing power",
 		size = 5,
+		combat_speed = 10,
 		sprite = {
 			image = "sprites/units/cave_bear.png",
 			scale = 1.0,
@@ -112,6 +116,7 @@ local unit_definitions = {
 		name = "Commander",
 		description = "Veteran leader with battlefield authority",
 		size = 3,
+		combat_speed = 13,
 		sprite = {
 			image = "sprites/units/commander.png",
 			scale = 1.0,
@@ -136,7 +141,6 @@ local unit_definitions = {
 			mainhand = "iron_sword",
 		},
 		actions = {
-			"rally",
 		},
 	},
 }

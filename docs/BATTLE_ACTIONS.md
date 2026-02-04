@@ -7,7 +7,7 @@ This document links battle actions to `ACTION_SCHEMA.md`.
 ## 1. Sources of Actions
 
 * Unit intrinsic actions
-* Item-granted actions
+* Item-granted actions (from equipped items)
 
 ---
 

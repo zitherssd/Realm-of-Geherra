@@ -78,6 +78,7 @@ The equipment system is **data-driven** and uses `ITEM_SCHEMA.md` and `UNIT_SCHE
 
 * Inventory/Equipment logic: (future) systems/equipment_system.lua
 * Camp menu UI: see `CAMP_MENU.md`
+* Inventory view UI: see `INVENTORY_VIEW.md`
 * Commander flags and leadership limits: (future) core/commander.lua
 
 ---
@@ -88,3 +89,4 @@ The equipment system is **data-driven** and uses `ITEM_SCHEMA.md` and `UNIT_SCHE
 * `ITEM_SCHEMA.md`
 * `ACTION_SCHEMA.md`
 * `CAMP_MENU.md`
+* `INVENTORY_VIEW.md`

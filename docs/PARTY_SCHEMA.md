@@ -86,6 +86,14 @@ morale = 75
 supplies = 40
 ```
 
+Parties may also store **unit state** for persistence:
+
+```lua
+unit_states = {
+  ["player_party_human_commander_1"] = { current_hp = 32 },
+}
+```
+
 State fields are optional and may be expanded later.
 
 ---
@@ -103,6 +111,9 @@ party = {
   units = { "human_infantry", "human_infantry", "human_swordsman" },
   inventory = { "iron_spear", "iron_sword", "wooden_shield" },
   gold = 120,
+  unit_states = {
+    ["player_party_human_commander_1"] = { current_hp = 32 },
+  },
 }
 ```
 

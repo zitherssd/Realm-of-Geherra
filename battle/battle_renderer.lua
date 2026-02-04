@@ -47,10 +47,18 @@ function BattleRenderer.draw_units(state, camera)
 		local wx, wy = cell_center(state.cell_size, unit.position.x, unit.position.y)
 		local sx, sy = BattleCamera.world_to_screen(camera, wx, wy)
 		local radius = (state.cell_size * 0.25) + (unit.size or 1)
-		if unit.team == "player" then
-			love.graphics.setColor(0.9, 0.85, 0.25)
+		local alpha = 1
+		if (unit.cooldown or 0) <= 0 then
+			alpha = 0.6
+		end
+		if unit.hit_flash_timer and unit.hit_flash_timer > 0 then
+			love.graphics.setColor(1, 0.2, 0.2, 0.9)
 		else
-			love.graphics.setColor(0.8, 0.35, 0.35)
+			if unit.team == "player" then
+				love.graphics.setColor(0.9, 0.85, 0.25, alpha)
+			else
+				love.graphics.setColor(0.8, 0.35, 0.35, alpha)
+			end
 		end
 		love.graphics.circle("fill", sx, sy, radius)
 		love.graphics.setColor(0, 0, 0, 0.6)

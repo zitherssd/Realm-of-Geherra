@@ -17,11 +17,12 @@ local MODULE_DEFINITIONS = {
 }
 
 local function clone_interaction(template)
+    local unpack_fn = table.unpack or unpack
     local interaction = {
         id = template.id,
         label = template.label,
         description = template.description,
-        effects = template.effects and { table.unpack(template.effects) } or {},
+        effects = template.effects and { unpack_fn(template.effects) } or {},
         transition = template.transition,
     }
     return interaction

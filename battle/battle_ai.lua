@@ -3,6 +3,7 @@
 -- Minimal battle AI behavior.
 
 local BattleActions = require("battle.battle_actions")
+local BattleGrid = require("battle.battle_grid")
 
 local BattleAI = {}
 
@@ -25,9 +26,32 @@ local function nearest_enemy(state, unit)
 	return best, best_dist
 end
 
+local function best_step_toward(state, unit, target)
+	local candidates = {
+		{ x = unit.position.x + 1, y = unit.position.y },
+		{ x = unit.position.x - 1, y = unit.position.y },
+		{ x = unit.position.x, y = unit.position.y + 1 },
+		{ x = unit.position.x, y = unit.position.y - 1 },
+	}
+
+	local best = nil
+	local best_dist = math.huge
+	for _, step in ipairs(candidates) do
+		if BattleGrid.in_bounds(state.grid, step.x, step.y) and BattleGrid.can_place(state.grid, step.x, step.y, unit.size or 1) then
+			local dist = manhattan(step, target.position)
+			if dist < best_dist then
+				best = step
+				best_dist = dist
+			end
+		end
+	end
+
+	return best
+end
+
 function BattleAI.update(state)
 	for _, unit in ipairs(state.units) do
-		if unit.team ~= "player" and (unit.current_hp or 0) > 0 then
+		if unit.id ~= state.player_unit_id and (unit.current_hp or 0) > 0 then
 			if (unit.cooldown or 0) <= 0 and not BattleActions.has_pending_action(state, unit) then
 				local enemy = nearest_enemy(state, unit)
 				if enemy then
@@ -45,18 +69,8 @@ function BattleAI.update(state)
 						BattleActions.queue_action(state, unit, chosen_action, enemy)
 					else
 						local move_action = BattleActions.get_action("move_step")
-						local step = { x = unit.position.x, y = unit.position.y }
-						if enemy.position.x > unit.position.x then
-							step.x = step.x + 1
-						elseif enemy.position.x < unit.position.x then
-							step.x = step.x - 1
-						end
-						if enemy.position.y > unit.position.y then
-							step.y = step.y + 1
-						elseif enemy.position.y < unit.position.y then
-							step.y = step.y - 1
-						end
-						if move_action and BattleActions.validate_target(state, move_action, unit, step) then
+						local step = best_step_toward(state, unit, enemy)
+						if move_action and step and BattleActions.validate_target(state, move_action, unit, step) then
 							BattleActions.queue_action(state, unit, move_action, step)
 						end
 					end

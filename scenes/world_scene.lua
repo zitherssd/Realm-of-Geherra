@@ -9,6 +9,9 @@ local BattleScene = require("scenes.battle_scene")
 local Math = require("util.math")
 local LocationData = require("data.locations")
 local PartyData = require("data.parties")
+local ItemData = require("data.items")
+local UnitData = require("data.units")
+local InventoryView = require("ui.inventory_view")
 local Time = require("core.time")
 local EncounterSystem = require("systems.encounter_system")
 local InteractionSystem = require("systems.interaction_system")
@@ -110,6 +113,7 @@ function WorldScene.new(game)
 	self.encounter_selection = 1
 	self.active_view = nil
 	self.view_return_encounter = nil
+	self.inventory_view = nil
 	self.resting = false
 	self.encounter_cooldowns = {}
 	self.time = Time.new(18)
@@ -278,17 +282,9 @@ function WorldScene:draw_ui()
 end
 
 function WorldScene:draw_inventory_view()
-	local width = love.graphics.getWidth()
-	local height = love.graphics.getHeight()
-
-	love.graphics.setColor(0, 0, 0, 0.75)
-	love.graphics.rectangle("fill", 0, 0, width, height)
-
-	love.graphics.setColor(1, 1, 1)
-	love.graphics.printf("Inventory (WIP)", 0, height * 0.18, width, "center")
-	love.graphics.setColor(0.85, 0.85, 0.9)
-	love.graphics.printf("Grid + Slots UI will go here.", 0, height * 0.24, width, "center")
-	love.graphics.printf("Press Esc to return.", 0, height * 0.3, width, "center")
+	if self.inventory_view then
+		self.inventory_view:draw()
+	end
 end
 
 function WorldScene:draw_encounter()
@@ -346,8 +342,20 @@ end
 
 function WorldScene:keypressed(key)
 	if self.active_view then
+		if self.active_view == "inventory" and self.inventory_view then
+			local result = self.inventory_view:handle_key(key)
+			if result == "close" then
+				self.active_view = nil
+				self.inventory_view = nil
+				if self.view_return_encounter then
+					self.encounter = self.view_return_encounter
+					self.view_return_encounter = nil
+				end
+			end
+		end
 		if key == "escape" then
 			self.active_view = nil
+			self.inventory_view = nil
 			if self.view_return_encounter then
 				self.encounter = self.view_return_encounter
 				self.view_return_encounter = nil
@@ -390,6 +398,11 @@ function WorldScene:keypressed(key)
 					self.view_return_encounter = self.encounter
 					self.encounter = nil
 					self.active_view = "inventory"
+					local commander_id = self.player_party.commanders and self.player_party.commanders[1]
+					local unit_def = commander_id and UnitData.by_id[commander_id] or nil
+					if unit_def then
+						self.inventory_view = InventoryView.new(self.player_party, unit_def, ItemData)
+					end
 					return
 				end
 				if result and result.start_rest then

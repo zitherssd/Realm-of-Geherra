@@ -35,6 +35,21 @@ local function validate_size(size, errors)
 	end
 end
 
+local function validate_combat_speed(combat_speed, errors)
+	if combat_speed == nil then
+		return
+	end
+
+	if not is_number(combat_speed) then
+		table.insert(errors, "combat_speed must be a number when provided")
+		return
+	end
+
+	if combat_speed <= 0 then
+		table.insert(errors, "combat_speed must be greater than 0")
+	end
+end
+
 local function validate_sprite(sprite, errors)
 	if sprite == nil then
 		return
@@ -160,6 +175,7 @@ function Unit.validate(definition)
 
 	validate_sprite(definition.sprite, errors)
 	validate_size(definition.size, errors)
+	validate_combat_speed(definition.combat_speed, errors)
 	validate_stats(definition.stats, errors)
 	validate_equipment_slots(definition.equipment_slots, errors)
 	validate_actions(definition.actions, errors)
@@ -179,6 +195,7 @@ function Unit.normalize(definition)
 			offset = definition.sprite.offset or { x = 0, y = 0 },
 		} or nil,
 		size = definition.size or 1,
+		combat_speed = definition.combat_speed or 13,
 		stats = {
 			hp = definition.stats.hp,
 			attack = definition.stats.attack,

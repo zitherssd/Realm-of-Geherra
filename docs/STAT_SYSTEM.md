@@ -11,6 +11,7 @@ The stat system produces a unit’s **effective stats** by combining base stats 
 * Base stats (from unit data)
 * Equipped items (`stat_modifiers`)
 * Status effects (`stat_modifiers`)
+* Item-granted actions (optional aggregation)
 
 ---
 
@@ -19,12 +20,17 @@ The stat system produces a unit’s **effective stats** by combining base stats 
 * Modifiers are **additive** per stat
 * Missing stats default to 0 during aggregation
 * The output is a new table (base stats are not mutated)
+* Action aggregation merges unit actions with item-granted actions
 
 ---
 
 ## 3. Canonical Implementation
 
 * /systems/stat_system.lua
+
+The stat system also provides:
+
+* `get_max_hp(base_stats, items, effects)`
 
 ---
 
