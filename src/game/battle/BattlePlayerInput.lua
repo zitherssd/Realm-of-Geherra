@@ -28,67 +28,37 @@ function BattlePlayerInput:keypressed(key)
     if moved then self.playerInputCooldown = 0.1 end
 end
 
-function BattlePlayerInput:TryPlayerAttackNear()
-    local player = self.battle.playerUnit
-    if player.action_cooldown and player.action_cooldown > 0 then
-        return false
-    end
-
-    local bestTarget = nil
-    local bestPriority = -math.huge
-
-    for _, enemy in ipairs(self.battle.enemyParty.units) do
-        local dx = enemy.currentCell.x - player.currentCell.x
-        local dy = enemy.currentCell.y - player.currentCell.y
-        local dist = math.abs(dx) + math.abs(dy)
-
-        if dist <= 2 then
-            local priority = 0
-
-            -- Prioritize enemies in front (based on facing direction)
-            local facingRight = player.facing_right
-            if facingRight and dx > 0 then
-                priority = priority + 10
-            elseif not facingRight and dx < 0 then
-                priority = priority + 10
-            end
-
-            -- Prefer same row (horizontal attacks)
-            if dy == 0 then
-                priority = priority + 5
-            end
-
-            -- Slightly less preference for diagonals
-            if math.abs(dy) == 1 then
-                priority = priority + 2
-            end
-
-            -- Slight preference for closer targets
-            priority = priority + (2 - dist)
-
-            if priority > bestPriority then
-                bestPriority = priority
-                bestTarget = enemy
-            end
-        end
-    end
-
-    if bestTarget then
-        gridActions:attack(player, bestTarget)
-        return true
-    end
-
-    return false
-end
-
 function BattlePlayerInput:TryPlayerUseSelectedAction()
     local player = self.battle.playerUnit
     if player.action_cooldown and player.action_cooldown > 0 then return false end
     local idx = self.battle.selectedAction or 1
-    local actions = player.actions or {}
-    local act = actions[idx]
-    if not act then return false end
-    return gridActions:useAction(player, act, self.battle.currentTick)
+    local actions = player:getActions() or {}
+    local action = actions[idx]
+    if not action then return false end
+
+    if not player.battle_target and action.getTarget then
+        player.battle_target = action.getTarget(player, self.battle)
+    end
+
+    if action.try then
+        local result = action:try(player, self.battle)
+        if result.valid then
+            player.pending_action = result.action
+            player.pending_action.target = result.target
+            player.action_cooldown = action.cooldownStart or 0
+            return true
+        else
+            if result.reason == "not_in_range" then
+                gridActions:moveTowardsUnit(player, player.battle_target)
+            end
+            print("Action not valid: " .. result.reason)
+            return false
+        end
+    else
+        -- Fallback for old actions
+        print("This action is not converted to the new system yet")
+        return false
+    end
 end
 
 function BattlePlayerInput:update(dt)

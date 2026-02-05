@@ -22,7 +22,7 @@ function BattleState:enter(party1, party2, stage)
     self.units = {}
     self.currentTick = 0
     self.tickTimer = 0
-    self.playerUnit = PlayerModule:getPlayerUnit(PlayerModule:getPlayerParty());
+    self.playerUnit = PlayerModule:getPlayerUnit();
     self.playerParty = party1
     self.enemyParty = party2
     self.selectedAction = 1 -- focused action index for player unit
@@ -31,8 +31,9 @@ function BattleState:enter(party1, party2, stage)
     for _, u in ipairs(self.units or {}) do
         u.pending_action = nil
         u.action_cooldown = 0
-        if u.actions then
-            for _, a in ipairs(u.actions) do
+        local unitActions = u:getActions()
+        if unitActions then
+            for _, a in ipairs(unitActions) do
                 a.last_used_tick = nil
                 a.executed_tick = nil
             end
@@ -151,7 +152,7 @@ function BattleState:update(dt)
                 self.currentTick = self.currentTick + 1
                 for _, unit in ipairs(self.units) do
                     if unit.health > 0 then
-                        ai:unitTick(unit)
+                        ai:unitTick(unit, self)
                     end
                 end
             end
@@ -182,13 +183,15 @@ end
 
 function BattleState:onAction(action)
     if action == 'switch_panel_next' then
-        if self.playerUnit and self.playerUnit.actions and #self.playerUnit.actions > 0 then
-            self.selectedAction = (self.selectedAction % #self.playerUnit.actions) + 1
+        local unitActions = self.playerUnit and self.playerUnit:getActions()
+        if unitActions and #unitActions > 0 then
+            self.selectedAction = (self.selectedAction % #unitActions) + 1
         end
         return
     elseif action == 'switch_panel_prev' then
-        if self.playerUnit and self.playerUnit.actions and #self.playerUnit.actions > 0 then
-            self.selectedAction = ((self.selectedAction - 2) % #self.playerUnit.actions) + 1
+        local unitActions = self.playerUnit and self.playerUnit:getActions()
+        if unitActions and #unitActions > 0 then
+            self.selectedAction = ((self.selectedAction - 2) % #unitActions) + 1
         end
         return
     end

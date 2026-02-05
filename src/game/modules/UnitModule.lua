@@ -2,6 +2,7 @@ local Object = require('lib.classic')
 local unitTemplates = require('src.data.unit_templates')
 local assetManager = require('src.game.util.AssetManager')
 local ItemModule = require('src.game.modules.ItemModule')
+local actions = require("src.data.battle_actions")
 local nextUnitId = 1
 
 local Unit = Object:extend()
@@ -40,15 +41,33 @@ function Unit:new(templateName)
   end
   -- Legacy quick lookup map kept in sync for existing battle code
   self.equipment = {}
+  self.actions = {}
+  
   for _, slot in ipairs(self.equipmentSlots) do
-    if slot.item then self.equipment[slot.type] = slot.item end
+    if slot.item and type(slot.item) == "string" then
+      local item = ItemModule.create(slot.item)
+      slot.item = item
+    end
+
+    if slot.item then
+      self.equipment[slot.type] = slot.item
+      self:_applyItemStats(slot.item)
+      self:_addItemActions(slot.item)
+    end
   end
+
+  if tpl.innate_actions then
+    for _, actionName in ipairs(tpl.innate_actions) do
+        local action = actions:create(actionName)
+        table.insert(self.actions, action)
+    end
+  end
+
   self.abilities = tpl.abilities
   self.scale = tpl.scale or 1
   self.size = tpl.size or 3
   self.controllable = tpl.controllable or false
   self.unit_type = tpl.unit_type or "human"
-  self.actions = tpl.actions or {}
   -- Commander support
   self.commander = tpl.commander or false
   if self.commander and not self.squads then
@@ -63,6 +82,7 @@ function Unit:new(templateName)
   self.state_timer = 0
   self.animation = 'idle'
   self.animationFrame = 1
+  self.pending_action = nil
   -- For drawing
   self.battle_x = 0
   self.battle_y = 0
@@ -74,6 +94,26 @@ function Unit:new(templateName)
 }
 end
 
+function Unit:getActions()
+    local availableActions = {}
+    for _, action in ipairs(self.actions) do
+        table.insert(availableActions, action)
+    end
+
+    local mainHandEquipped = false
+    for _, slot in ipairs(self.equipmentSlots) do
+        if slot.type == "main_hand" and slot.item then
+            mainHandEquipped = true
+            break
+        end
+    end
+
+    if not mainHandEquipped then
+        table.insert(availableActions, actions:unarmed_attack())
+    end
+
+    return availableActions
+end
 
 function Unit:drawHpBar(x, y)
   -- Draw name and HP bar above the unit
@@ -190,10 +230,17 @@ function Unit:pickTarget(battle)
   return enemies[1]
 end
 
+function Unit:distToTarget(target)
+    if not target then return math.huge end
+    local dx = target.battle_x - self.battle_x
+    local dy = target.battle_y - self.battle_y
+    return math.sqrt(dx*dx + dy*dy)
+end
+
 function Unit:update(dt, battle)
   -- If dead, do nothing
   if self.health <= 0 then return end
-
+  
   -- State timers
   self.state_timer = self.state_timer - dt
   if self.state_timer < 0 then self.state_timer = 0 end
@@ -209,25 +256,17 @@ function Unit:update(dt, battle)
   local block_chance = 0.25
   local move_speed = self.speed or 15
 
-  -- Helper: distance to target
-  local function distToTarget(target)
-    if not target then return math.huge end
-    local dx = target.battle_x - self.battle_x
-    local dy = target.battle_y - self.battle_y
-    return math.sqrt(dx*dx + dy*dy)
-  end
-
   if self.state == "idle" then
     -- Pick a target
     if not self.battle_target or self.battle_target.health <= 0 then
       self.battle_target = self:pickTarget(battle)
     end
     if self.battle_target and self.battle_target.health > 0 then
-      if distToTarget(self.battle_target) > weapon_range then
+      if self:distToTarget(self.battle_target) > weapon_range then
         self.state = "moving"
         self.animation = "walk"
         self._stuckTime = 0
-        self._lastDist = distToTarget(self.battle_target)
+        self._lastDist = self:distToTarget(self.battle_target)
       else
         self.state = "windup"
         self.state_timer = windup_time
@@ -275,7 +314,7 @@ function Unit:update(dt, battle)
       if newTarget ~= self.battle_target then
         self.battle_target = newTarget
         self._stuckTime = 0
-        self._lastDist = distToTarget(self.battle_target)
+        self._lastDist = self:distToTarget(self.battle_target)
       end
     end
     if dist <= weapon_range then
@@ -299,7 +338,7 @@ function Unit:update(dt, battle)
     -- Attack happens on first frame
     if not self._attack_resolved then
       local target = self.battle_target
-      if target and target.health > 0 and distToTarget(target) <= weapon_range + 4 then
+      if target and target.health > 0 and self:distToTarget(target) <= weapon_range + 4 then
         -- Block check
         if math.random() < block_chance then
           target.state = "blocking"
@@ -334,35 +373,6 @@ function Unit:update(dt, battle)
         end
       end
       self._attack_resolved = true
-    end
-    -- Animation: 3-frame attack
-    self.animationFrame = 1 + math.floor((attack_speed/3 - self.state_timer) / (attack_speed/9))
-    if self.state_timer <= 0 then
-      self.state = "recovering"
-      self.state_timer = recover_time
-      self.animation = "recover"
-      self.animationFrame = 1
-    end
-  elseif self.state == "recovering" then
-    self.animation = "recover"
-    if self.state_timer <= 0 then
-      self.state = "idle"
-      self.animation = "idle"
-      self.animationFrame = 1
-    end
-  elseif self.state == "blocking" then
-    self.animation = "block"
-    if self.state_timer <= 0 then
-      self.state = "idle"
-      self.animation = "idle"
-      self.animationFrame = 1
-    end
-  elseif self.state == "staggered" then
-    self.animation = "stagger"
-    if self.state_timer <= 0 then
-      self.state = "idle"
-      self.animation = "idle"
-      self.animationFrame = 1
     end
   end
 end

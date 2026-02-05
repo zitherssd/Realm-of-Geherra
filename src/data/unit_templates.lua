@@ -63,7 +63,7 @@ local defaultTemplates = {
     sprite = "units/peasant.png",
     equipmentSlots = { {
       type = "main_hand",
-      item = nil
+      item = "pitchfork"
     }, {
       type = "off_hand",
       item = nil
@@ -109,8 +109,11 @@ local defaultTemplates = {
     speed = 9,
     size = 9,
     sprite = "units/dragon.png",
+    innate_actions = {
+      "dragon_breath"
+    },
     equipmentSlots = { {
-      type = "acessory",
+      type = "accessory",
       item = nil
     } },
     abilities = {},
@@ -127,7 +130,7 @@ local defaultTemplates = {
     speed = 14,
     size = 9,
     sprite = "units/troll.png",
-    equipmentSlots = { "acessory" },
+    equipmentSlots = { "accessory" },
     abilities = {},
     scale = 1
   },

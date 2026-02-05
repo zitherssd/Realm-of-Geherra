@@ -72,12 +72,13 @@ function BattleUI:draw(battle)
 
   -- Player action bars (top-right)
   local unit = battle.playerUnit
-  if unit and unit.actions and #unit.actions > 0 then
+  local unitActions = unit and unit:getActions()
+  if unitActions and #unitActions > 0 then
     local margin = 12
     local barW, barH = 180, 22
     local startX = w - barW - margin
     local startY = margin
-    for i, action in ipairs(unit.actions) do
+    for i, action in ipairs(unitActions) do
       local y = startY + (i - 1) * (barH + 6)
       -- background
       love.graphics.setColor(0.1, 0.1, 0.12, 0.8)

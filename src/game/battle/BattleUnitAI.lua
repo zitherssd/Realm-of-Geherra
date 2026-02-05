@@ -3,72 +3,55 @@ local BattleUnitAI = {
     battle = nil
 }
 
-function BattleUnitAI:findTarget(unit)
-    local closestDist = math.huge
-    local closestUnit = nil
-    local oppositeParty = nil
-
-    -- Find closest enemy unit
-    if(unit.battle_party == 1) then
-        oppositeParty = self.battle.enemyParty
-    else
-        oppositeParty = self.battle.playerParty
-    end
-
-    for _, otherUnit in ipairs(oppositeParty.units) do
-        if otherUnit.health > 0 then
-            local dist = math.abs(otherUnit.currentCell.x - unit.currentCell.x) + 
-                        math.abs(otherUnit.currentCell.y - unit.currentCell.y)
-            if dist < closestDist then
-                closestDist = dist
-                closestUnit = otherUnit
-            end
-        end
-    end
-    
-    return closestUnit
-end
-
-function BattleUnitAI:unitTick(unit)
-
-    -- Player AI skip
-    if unit.controllable and unit == self.battle.playerUnit then
-        if unit.action_cooldown > 0 then
-            unit.action_cooldown = unit.action_cooldown - 1
-            if unit.action_cooldown <= 0 and unit.pending_action then
-                gridActions:executePending(unit, self.battle.currentTick)
-            end
-        end
-        return
-    end
-
-    -- Cooldown skip
+function BattleUnitAI:unitTick(unit, battleState)
+    -- Cooldown
     if unit.action_cooldown > 0 then
         unit.action_cooldown = unit.action_cooldown - 1
-        if unit.action_cooldown <= 0 and unit.pending_action then
-            gridActions:executePending(unit, self.battle.currentTick)
+    end
+
+    -- Execute pending action if ready
+    if unit.pending_action and unit.action_cooldown <= 0 then
+        if unit.pending_action.execute then
+            unit.pending_action:execute(unit, unit.pending_action.target, battleState)
+            unit.action_cooldown = unit.pending_action.cooldownEnd or 50
         end
+        unit.pending_action = nil
         return
     end
 
-    -- Check if current target is still alive, if not, clear it
-    if unit.battle_target and unit.battle_target.health <= 0 then
-        unit.battle_target = nil
+    -- Decide new action if possible
+    if not unit.pending_action and unit.action_cooldown <= 0 then
+        -- Player units are handled by BattlePlayerInput, so we don't decide for them
+        if unit.controllable and unit == self.battle.playerUnit then
+            return
+        end
+
+        -- AI decision logic
+        local availableActions = unit:getActions()
+        if not unit.battle_target then
+            for _, action in ipairs(availableActions) do
+                if action.getTarget then
+                    unit.battle_target = action.getTarget(unit, battleState)
+                    break 
+                end
+            end
+        end
+
+        for _, action in ipairs(availableActions) do
+            if action.try then
+                local result = action:try(unit, battleState)
+                if result.valid then
+                    unit.pending_action = result.action
+                    unit.pending_action.target = result.target
+                    unit.action_cooldown = action.cooldownStart or 0
+                    return
+                elseif result.reason == "not_in_range" then
+                    gridActions:moveTowardsUnit(unit, unit.battle_target)
+                    return
+                end
+            end
+        end
     end
-
-    -- Pick target
-    local target = unit.battle_target or self:findTarget(unit)
-    if not target then return end
-
-    -- Check if in range for attack
-    local dx = math.abs(unit.currentCell.x - target.currentCell.x)
-    local dy = math.abs(unit.currentCell.y - target.currentCell.y)
-    if (dx + dy) <= 1 then
-        gridActions:attack(unit, target) -- Attack if in range
-        return true
-    end
-
-    return gridActions:moveTowardsUnit(unit, target)
 end
 
 function BattleUnitAI:init(battle)

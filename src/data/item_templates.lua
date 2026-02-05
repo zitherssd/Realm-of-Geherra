@@ -1,24 +1,40 @@
+local actions = require("src/data/battle_actions")
 local itemTemplates = {
+  pitchfork = {
+    name = "pitchfork",
+    type = "weapon",
+    slot = "main_hand",
+    stats = { attack = 0, defense = 0, damage = 2 },
+    actions = {
+      actions:melee_attack({
+        cooldownStart = 15,
+        cooldownEnd = 45,
+      }),
+    },
+    weight = 2.5,
+    value = 10,
+    sprite = "sprites/items/iron_sword.png",
+  },
   iron_sword = {
     name = "Iron Sword",
     type = "weapon",
     slot = "main_hand",
     stats = { attack = 1, defense = 1, damage = 5 },
     actions = {
-      {
+      actions:melee_attack({
         id = "attack",
         name = "Iron Sword",
         description = "Deal damage to the target",
         cooldownStart = 25,
         cooldownEnd = 25,
-      },
-      {
+      }),
+      actions:melee_attack({
         id = "attack2",
         name = "Dagger",
         description = "Deal damage to the target",
         cooldownStart = 0,
         cooldownEnd = 30,
-      }
+      })
     },
     weight = 3.5,
     value = 50,
@@ -56,28 +72,19 @@ local itemTemplates = {
     hungerRestore = 8,
     stackable = true,
   },
-  fist = {
-    name = "Fist",
-    type = "weapon",
-    range = 1,
-    attack_speed = 1.5,
-    damage = 5,
-    value = 0,
-    sprite = nil,
-  },
   dagger = {
     name = "Dagger",
     type = "weapon",
     slot = "main_hand",
     stats = { attack = 0, defense = 0, damage = 3 },
     actions = {
-      {
+      actions:melee_attack({
         id = "attack",
         name = "Attack",
         description = "Deal damage to the target",
         cooldownStart = 0,
         cooldownEnd = 30,
-      }
+      })
     },
     weight = 1,
     value = 10,
