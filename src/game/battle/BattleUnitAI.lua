@@ -13,6 +13,7 @@ function BattleUnitAI:unitTick(unit, battleState)
     if unit.pending_action and unit.action_cooldown <= 0 then
         if unit.pending_action.execute then
             unit.pending_action:execute(unit, unit.pending_action.target, battleState)
+            unit.pending_action.executed_tick = battleState.currentTick
             unit.action_cooldown = unit.pending_action.cooldownEnd or 50
         end
         unit.pending_action = nil
@@ -38,17 +39,9 @@ function BattleUnitAI:unitTick(unit, battleState)
         end
 
         for _, action in ipairs(availableActions) do
-            if action.try then
-                local result = action:try(unit, battleState)
-                if result.valid then
-                    unit.pending_action = result.action
-                    unit.pending_action.target = result.target
-                    unit.action_cooldown = action.cooldownStart or 0
-                    return
-                elseif result.reason == "not_in_range" then
-                    gridActions:moveTowardsUnit(unit, unit.battle_target)
-                    return
-                end
+            local success, reason = gridActions:tryUseAction(unit, action, battleState)
+            if success or reason == "moved" then
+                return
             end
         end
     end

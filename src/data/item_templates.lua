@@ -32,7 +32,7 @@ local itemTemplates = {
         id = "attack2",
         name = "Dagger",
         description = "Deal damage to the target",
-        cooldownStart = 0,
+        cooldownStart = 1,
         cooldownEnd = 30,
       })
     },

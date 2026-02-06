@@ -104,4 +104,26 @@ function BattleGridActions:moveTowardsUnit(unit, target)
     return false
 end
 
+function BattleGridActions:tryUseAction(unit, action, battleState)
+    if not action or not action.try then return false, "invalid_action" end
+
+    local result = action:try(unit, battleState)
+    if result.valid then
+        unit.pending_action = result.action
+        unit.pending_action.target = result.target
+        unit.action_cooldown = action.cooldownStart or 0
+        action.last_used_tick = battleState.currentTick
+        action.executed_tick = nil -- Clear previous execution time so windup shows
+        return true, "executed"
+    elseif result.reason == "not_in_range" then
+        if self:moveTowardsUnit(unit, unit.battle_target) then
+            return false, "moved"
+        else
+            return false, "not_in_range"
+        end
+    else
+        return false, result.reason
+    end
+end
+
 return BattleGridActions

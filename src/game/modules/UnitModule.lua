@@ -93,7 +93,7 @@ function Unit:new(templateName)
     shake_time = 0
 }
 end
-
+    
 function Unit:getActions()
     local availableActions = {}
     for _, action in ipairs(self.actions) do
@@ -107,9 +107,18 @@ function Unit:getActions()
             break
         end
     end
-
+    
     if not mainHandEquipped then
-        table.insert(availableActions, actions:unarmed_attack())
+        if not self.unarmedAction then
+            self.unarmedAction = actions:melee_attack({
+                id = "unarmed_attack",
+                name = "Unarmed Attack",
+                description = "A basic melee attack with your fists.",
+                cooldownStart = 15,
+                cooldownEnd = 40,
+            })
+        end
+        table.insert(availableActions, self.unarmedAction)
     end
 
     return availableActions

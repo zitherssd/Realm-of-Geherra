@@ -110,7 +110,6 @@ local defaultTemplates = {
     size = 9,
     sprite = "units/dragon.png",
     innate_actions = {
-      "dragon_breath"
     },
     equipmentSlots = { {
       type = "accessory",

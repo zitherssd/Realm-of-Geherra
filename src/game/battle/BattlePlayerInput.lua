@@ -44,25 +44,17 @@ function BattlePlayerInput:TryPlayerUseSelectedAction()
         player.battle_target = action.getTarget(player, self.battle)
     end
 
-    if action.try then
-        local result = action:try(player, self.battle)
-        if result.valid then
-            player.pending_action = result.action
-            player.pending_action.target = result.target
-            player.action_cooldown = action.cooldownStart or 0
-            return true
-        else
-            if result.reason == "not_in_range" then
-                gridActions:moveTowardsUnit(player, player.battle_target)
-            end
-            print("Action not valid: " .. result.reason)
-            return false
-        end
-    else
-        -- Fallback for old actions
-        print("This action is not converted to the new system yet")
-        return false
+    local success, reason = gridActions:tryUseAction(player, action, self.battle)
+    if success then
+        return true
     end
+
+    if reason == "invalid_action" then
+        print("This action is not converted to the new system yet")
+    elseif reason ~= "moved" then
+        print("Action not valid: " .. tostring(reason))
+    end
+    return false
 end
 
 function BattlePlayerInput:update(dt)

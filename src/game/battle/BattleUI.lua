@@ -103,10 +103,8 @@ function BattleUI:draw(battle)
         local remainingPct = math.max(0, math.min(1, 1 - (elapsed / cooldownTotal)))
         if remainingPct > 0 then
           local wfill = math.floor(barW * remainingPct + 0.5)
-          local rightX = startX + wfill
-          local xfill = rightX - wfill
           love.graphics.setColor(0.6, 0.6, 0.6, 0.9)
-          love.graphics.rectangle('fill', xfill, y, wfill, barH, 6, 6)
+          love.graphics.rectangle('fill', startX, y, wfill, barH, 6, 6)
         end
       end
       -- border
