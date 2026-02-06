@@ -64,6 +64,7 @@ end
 
 function BattleGridActions:moveTowardsUnit(unit, target)
     if not unit or not target then return false end
+    if not unit.currentCell or not target.currentCell then return false end
     
     -- Move towards target
     local dx = target.currentCell.x - unit.currentCell.x

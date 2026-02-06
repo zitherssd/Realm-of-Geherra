@@ -36,6 +36,10 @@ function BattlePlayerInput:TryPlayerUseSelectedAction()
     local action = actions[idx]
     if not action then return false end
 
+    if player.battle_target and (player.battle_target.health <= 0 or not player.battle_target.currentCell) then
+        player.battle_target = nil
+    end
+
     if not player.battle_target and action.getTarget then
         player.battle_target = action.getTarget(player, self.battle)
     end

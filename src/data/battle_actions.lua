@@ -21,8 +21,7 @@ local actionTemplates = {
 
             for _, otherUnit in ipairs(oppositeParty.units) do
                 if otherUnit.health > 0 then
-                    local dist = math.abs(otherUnit.currentCell.x - unit.currentCell.x) +
-                        math.abs(otherUnit.currentCell.y - unit.currentCell.y)
+                    local dist = grid:getDistance(unit.currentCell, otherUnit.currentCell)
                     if dist < closestDist then
                         closestDist = dist
                         closestUnit = otherUnit
@@ -41,7 +40,7 @@ local actionTemplates = {
                 }
             end
 
-            if(unit:distToTarget(target) > self.range) then
+            if grid:getDistance(unit.currentCell, target.currentCell) > self.range then
                 return {
                     valid = false,
                     reason = "not_in_range"
@@ -58,8 +57,8 @@ local actionTemplates = {
         execute = function(self, unit, target, battleState)
         
             if not target then return end
-            if(unit:distToTarget(target) > self.range) then return end
-            local attacker = self
+            if not unit.currentCell or not target.currentCell or grid:getDistance(unit.currentCell, target.currentCell) > self.range then return end
+            local attacker = unit
             local defender = target
             
             if defender.currentCell.x > attacker.currentCell.x then
@@ -107,8 +106,7 @@ local actionTemplates = {
 
             for _, otherUnit in ipairs(oppositeParty.units) do
                 if otherUnit.health > 0 then
-                    local dist = math.abs(otherUnit.currentCell.x - unit.currentCell.x) +
-                        math.abs(otherUnit.currentCell.y - unit.currentCell.y)
+                    local dist = grid:getDistance(unit.currentCell, otherUnit.currentCell)
                     if dist < closestDist then
                         closestDist = dist
                         closestUnit = otherUnit
@@ -127,7 +125,7 @@ local actionTemplates = {
                 }
             end
 
-            if(unit:distToTarget(target) > self.range) then
+            if grid:getDistance(unit.currentCell, target.currentCell) > self.range then
                 return {
                     valid = false,
                     reason = "not_in_range"
@@ -144,8 +142,8 @@ local actionTemplates = {
         execute = function(self, unit, target, battleState)
 
             if not target then return end
-            if(unit:distToTarget(target) > self.range) then return end
-            local attacker = self
+            if not unit.currentCell or not target.currentCell or grid:getDistance(unit.currentCell, target.currentCell) > self.range then return end
+            local attacker = unit
             local defender = target
             
             if defender.currentCell.x > attacker.currentCell.x then
@@ -193,8 +191,7 @@ local actionTemplates = {
 
             for _, otherUnit in ipairs(oppositeParty.units) do
                 if otherUnit.health > 0 then
-                    local dist = math.abs(otherUnit.currentCell.x - unit.currentCell.x) +
-                        math.abs(otherUnit.currentCell.y - unit.currentCell.y)
+                    local dist = grid:getDistance(unit.currentCell, otherUnit.currentCell)
                     if dist < closestDist then
                         closestDist = dist
                         closestUnit = otherUnit
@@ -213,7 +210,7 @@ local actionTemplates = {
                 }
             end
 
-            if(unit:distToTarget(target) > self.range) then
+            if grid:getDistance(unit.currentCell, target.currentCell) > self.range then
                 return {
                     valid = false,
                     reason = "not_in_range"
@@ -230,8 +227,8 @@ local actionTemplates = {
         execute = function(self, unit, target, battleState)
 
             if not target then return end
-            if(unit:distToTarget(target) > self.range) then return end
-            local attacker = self
+            if not unit.currentCell or not target.currentCell or grid:getDistance(unit.currentCell, target.currentCell) > self.range then return end
+            local attacker = unit
             local defender = target
             
             if defender.currentCell.x > attacker.currentCell.x then
