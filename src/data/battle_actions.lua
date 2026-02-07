@@ -1,6 +1,7 @@
 local CombatFormulas = require("src.game.util.CombatFormulas")
 local ui = require("src.game.battle.BattleUI")
 local grid = require("src.game.battle.BattleGrid")
+local animations = require("src.game.battle.BattleAnimations")
 
 local actionTemplates = {
     melee_attack = {
@@ -22,7 +23,21 @@ local actionTemplates = {
             for _, otherUnit in ipairs(oppositeParty.units) do
                 if otherUnit.health > 0 then
                     local dist = grid:getDistance(unit.currentCell, otherUnit.currentCell)
+                    
+                    local isBetter = false
                     if dist < closestDist then
+                        isBetter = true
+                    elseif dist == closestDist and closestUnit then
+                        -- Tie-breaker: Prioritize unit we are facing
+                        local dxCurrent = otherUnit.currentCell.x - unit.currentCell.x
+                        local dxBest = closestUnit.currentCell.x - unit.currentCell.x
+                        
+                        -- If facing right, prefer targets to the right (dx > 0)
+                        if unit.facing_right and dxCurrent > dxBest then isBetter = true end
+                        if not unit.facing_right and dxCurrent < dxBest then isBetter = true end
+                    end
+
+                    if isBetter then
                         closestDist = dist
                         closestUnit = otherUnit
                     end
@@ -69,12 +84,16 @@ local actionTemplates = {
             elseif defender.currentCell.x < attacker.currentCell.x then
                 attacker.facing_right = false
             end
+            
+            animations:triggerLunge(attacker, defender)
 
             local roll = love.math.random(1, 100)
             local hit = roll <= CombatFormulas:calculateHitChance(attacker, defender)
 
             if hit then
-                defender.target = attacker
+                if not defender.battle_target or grid:getDistance(defender.currentCell, defender.battle_target.currentCell) > 1 then
+                    defender.battle_target = attacker
+                end
                 local damage = CombatFormulas:calculateDamage(attacker, defender)
                 ui:createDamagePopup(defender.battle_x, defender.battle_y, damage)
                 defender:flash({ 1, 0, 0 }, 0.4)

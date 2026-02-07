@@ -40,8 +40,12 @@ function BattlePlayerInput:TryPlayerUseSelectedAction()
         player.battle_target = nil
     end
 
-    if not player.battle_target and action.getTarget then
-        player.battle_target = action.getTarget(player, self.battle)
+    -- Always refresh target to find the best one currently available
+    if action.getTarget then
+        local newTarget = action.getTarget(player, self.battle)
+        if newTarget then
+            player.battle_target = newTarget
+        end
     end
 
     local success, reason = gridActions:tryUseAction(player, action, self.battle)

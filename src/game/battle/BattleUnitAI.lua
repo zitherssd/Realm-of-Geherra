@@ -29,6 +29,11 @@ function BattleUnitAI:unitTick(unit, battleState)
 
         -- AI decision logic
         local availableActions = unit:getActions()
+
+        if unit.battle_target and (unit.battle_target.health <= 0 or not unit.battle_target.currentCell) then
+            unit.battle_target = nil
+        end
+
         if not unit.battle_target then
             for _, action in ipairs(availableActions) do
                 if action.getTarget then

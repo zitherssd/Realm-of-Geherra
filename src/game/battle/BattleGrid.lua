@@ -89,7 +89,7 @@ end
 
 function BattleGrid:getDistance(cellA, cellB)
     if not cellA or not cellB then return math.huge end
-    return math.abs(cellA.x - cellB.x) + math.abs(cellA.y - cellB.y)
+    return math.max(math.abs(cellA.x - cellB.x), math.abs(cellA.y - cellB.y))
 end
 
 return BattleGrid

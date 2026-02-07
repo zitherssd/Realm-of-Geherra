@@ -168,6 +168,10 @@ function Unit:draw()
         drawY = drawY + love.math.random(-v.shake_intensity, v.shake_intensity)
     end
 
+    -- Lunge offset
+    drawX = drawX + (v.lunge_offset_x or 0)
+    drawY = drawY + (v.lunge_offset_y or 0)
+
    -- 🔹 Step 1: draw the base sprite normally
     love.graphics.setBlendMode("alpha")
     love.graphics.setColor(1, 1, 1, 1)
