@@ -1,4 +1,5 @@
 local GameState = require("src.game.GameState")
+local ai = require("src.game.battle.BattleUnitAI")
 
 local BattlePlayerInput = {
     battle = nil,
@@ -36,17 +37,7 @@ function BattlePlayerInput:TryPlayerUseSelectedAction()
     local action = actions[idx]
     if not action then return false end
 
-    if player.battle_target and (player.battle_target.health <= 0 or not player.battle_target.currentCell) then
-        player.battle_target = nil
-    end
-
-    -- Always refresh target to find the best one currently available
-    if action.getTarget then
-        local newTarget = action.getTarget(player, self.battle)
-        if newTarget then
-            player.battle_target = newTarget
-        end
-    end
+    ai:updateTarget(player, self.battle)
 
     local success, reason = gridActions:tryUseAction(player, action, self.battle)
     if success then

@@ -9,43 +9,6 @@ local actionTemplates = {
         cooldownStart = 25,
         cooldownEnd = 25,
 
-        getTarget = function(unit, battleState)
-            local closestDist = math.huge
-            local closestUnit = nil
-            local oppositeParty = nil
-
-            if (unit.battle_party == 1) then
-                oppositeParty = battleState.enemyParty
-            else
-                oppositeParty = battleState.playerParty
-            end
-
-            for _, otherUnit in ipairs(oppositeParty.units) do
-                if otherUnit.health > 0 then
-                    local dist = grid:getDistance(unit.currentCell, otherUnit.currentCell)
-                    
-                    local isBetter = false
-                    if dist < closestDist then
-                        isBetter = true
-                    elseif dist == closestDist and closestUnit then
-                        -- Tie-breaker: Prioritize unit we are facing
-                        local dxCurrent = otherUnit.currentCell.x - unit.currentCell.x
-                        local dxBest = closestUnit.currentCell.x - unit.currentCell.x
-                        
-                        -- If facing right, prefer targets to the right (dx > 0)
-                        if unit.facing_right and dxCurrent > dxBest then isBetter = true end
-                        if not unit.facing_right and dxCurrent < dxBest then isBetter = true end
-                    end
-
-                    if isBetter then
-                        closestDist = dist
-                        closestUnit = otherUnit
-                    end
-                end
-            end
-            return closestUnit
-        end,
-
         try = function(self, unit, battleState)
             local target = unit.battle_target
             if not target then
