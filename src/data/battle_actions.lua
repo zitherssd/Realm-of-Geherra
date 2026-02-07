@@ -80,7 +80,7 @@ local actionTemplates = {
         projectile_sprite = "projectiles/spear.png",
         projectile_speed = 600,
         damage = 5,
-        arc_height = 21,
+        arc_height = 35,
         projectile_count = 1,
         ammo = nil,
         max_ammo = 8,
@@ -145,6 +145,10 @@ local actionTemplates = {
             local dist = math.sqrt(dx*dx + dy*dy)
             local speed = self.projectile_speed or 600
             
+            -- Scale arc height based on distance (flatter at close range)
+            local maxDistPixels = self.range * grid.GRID_SIZE
+            local scaledArcHeight = (self.arc_height or 0) * math.min(1, dist / maxDistPixels)
+            
             local projectile = {
                 sprite = assetManager:loadImage(self.projectile_sprite),
                 x = startX, y = startY,
@@ -155,7 +159,7 @@ local actionTemplates = {
                 originalTarget = target,
                 timer = 0,
                 duration = math.max(0.1, dist / speed), -- Flight time based on speed
-                arcHeight = self.arc_height, -- Pixel height of the arc
+                arcHeight = scaledArcHeight, -- Pixel height of the arc
 
                 update = function(p, dt, state)
                     p.timer = p.timer + dt
@@ -268,6 +272,10 @@ local actionTemplates = {
             local dist = math.sqrt(dx*dx + dy*dy)
             local speed = self.projectile_speed or 600
             
+            -- Scale arc height based on distance
+            local maxDistPixels = self.range * grid.GRID_SIZE
+            local scaledArcHeight = (self.arc_height or 0) * math.min(1, dist / maxDistPixels)
+            
             local projectile = {
                 sprite = assetManager:loadImage(self.projectile_sprite),
                 x = startX, y = startY,
@@ -277,7 +285,7 @@ local actionTemplates = {
                 attacker = unit,
                 timer = 0,
                 duration = math.max(0.1, dist / speed),
-                arcHeight = self.arc_height,
+                arcHeight = scaledArcHeight,
                 aoeRadius = self.aoe_radius,
 
                 update = function(p, dt, state)
