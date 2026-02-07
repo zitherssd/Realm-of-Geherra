@@ -62,43 +62,91 @@ function BattleGridActions:moveUnitToCellByXY(unit, cellX, cellY)
     return BattleGridActions:moveUnitToCell(unit, targetCell)
 end
 
+local function heuristic(a, b)
+    return math.abs(a.x - b.x) + math.abs(a.y - b.y)
+end
+
+local function getPath(unit, targetCell)
+    local startNode = unit.currentCell
+    local goalNode = targetCell
+    
+    if not startNode or not goalNode then return nil end
+
+    local openSet = { startNode }
+    local cameFrom = {}
+    local gScore = {}
+    gScore[startNode] = 0
+    local fScore = {}
+    fScore[startNode] = heuristic(startNode, goalNode)
+    local visited = {} 
+    
+    while #openSet > 0 do
+        local current = nil
+        local minF = math.huge
+        local currentIndex = -1
+        
+        for i, node in ipairs(openSet) do
+            local f = fScore[node] or math.huge
+            if f < minF then
+                minF = f
+                current = node
+                currentIndex = i
+            end
+        end
+        
+        if not current then break end
+        if current == goalNode then
+            local path = {}
+            while current do
+                table.insert(path, 1, current)
+                current = cameFrom[current]
+            end
+            return path
+        end
+        
+        table.remove(openSet, currentIndex)
+        visited[current] = true
+        
+        local dirs = {{1,0}, {-1,0}, {0,1}, {0,-1}}
+        for _, dir in ipairs(dirs) do
+            local nx, ny = current.x + dir[1], current.y + dir[2]
+            if grid:isValidPosition(nx, ny) then
+                local neighbor = grid.cells[nx][ny]
+                if not visited[neighbor] then
+                    local isWalkable = true
+                    if neighbor ~= goalNode then
+                        if neighbor.total_size + unit.size > neighbor.max_size then isWalkable = false end
+                        local cellParty = grid:getCellPartyNumber(neighbor)
+                        if cellParty and cellParty ~= unit.battle_party then isWalkable = false end
+                    end
+                    
+                    if isWalkable then
+                        local tentative_gScore = (gScore[current] or math.huge) + 1
+                        if tentative_gScore < (gScore[neighbor] or math.huge) then
+                            cameFrom[neighbor] = current
+                            gScore[neighbor] = tentative_gScore
+                            fScore[neighbor] = tentative_gScore + heuristic(neighbor, goalNode)
+                            
+                            local inOpen = false
+                            for _, n in ipairs(openSet) do if n == neighbor then inOpen = true break end end
+                            if not inOpen then table.insert(openSet, neighbor) end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
 function BattleGridActions:moveTowardsUnit(unit, target)
     if not unit or not target then return false end
     if not unit.currentCell or not target.currentCell then return false end
     
-    -- Move towards target
-    local dx = target.currentCell.x - unit.currentCell.x
-    local dy = target.currentCell.y - unit.currentCell.y
-    
-    -- Determine move direction (prioritize X or Y based on larger distance)
-    local moveX, moveY = 0, 0
-    if math.abs(dx) > math.abs(dy) then
-        moveX = dx > 0 and 1 or -1
-    else
-        moveY = dy > 0 and 1 or -1
-    end
-    
-    -- Try to move in the chosen direction
-    local newX = unit.currentCell.x + moveX
-    local newY = unit.currentCell.y + moveY
-    
-    -- Prefer validated movement using moveUnit (handles cooldown/animation/stacking)
-    if self:moveUnitToCellByXY(unit, newX, newY) then
-        return true
-    end
-    
-    -- If preferred axis is blocked, try the alternate axis step
-    local altX, altY = unit.currentCell.x, unit.currentCell.y
-    if moveX ~= 0 then
-        altY = unit.currentCell.y + (dy > 0 and 1 or -1)
-    else
-        altX = unit.currentCell.x + (dx > 0 and 1 or -1)
-    end
-    
-    if (altX ~= unit.currentCell.x or altY ~= unit.currentCell.y) then
-        if self:moveUnitToCellByXY(unit, altX, altY) then
-            return true
-        end
+    local path = getPath(unit, target.currentCell)
+    if path and #path >= 2 then
+        local nextCell = path[2]
+        return self:moveUnitToCell(unit, nextCell)
     end
     
     return false
