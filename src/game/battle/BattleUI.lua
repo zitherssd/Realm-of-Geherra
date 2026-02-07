@@ -119,6 +119,9 @@ function BattleUI:draw(battle)
         love.graphics.setColor(1, 1, 1, 0.85)
       end
       local label = action.name or action.id or "Action"
+      if action.max_ammo then
+        label = label .. " (" .. (action.ammo or 0) .. "/" .. action.max_ammo .. ")"
+      end
       love.graphics.printf(label, startX + 8, y + 3, barW - 16, 'left')
     end
   end

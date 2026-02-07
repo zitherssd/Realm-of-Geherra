@@ -34,6 +34,7 @@ local itemTemplates = {
         description = "Deal damage to the target",
         cooldownStart = 15,
         cooldownEnd = 20,
+        max_ammo = 2,
       })
     },
     weight = 3.5,

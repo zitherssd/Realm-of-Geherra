@@ -37,6 +37,9 @@ function BattleState:enter(party1, party2, stage)
             for _, a in ipairs(unitActions) do
                 a.last_used_tick = nil
                 a.executed_tick = nil
+                if a.max_ammo then
+                    a.ammo = a.max_ammo
+                end
             end
         end
     end

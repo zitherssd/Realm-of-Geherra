@@ -92,4 +92,11 @@ function BattleGrid:getDistance(cellA, cellB)
     return math.max(math.abs(cellA.x - cellB.x), math.abs(cellA.y - cellB.y))
 end
 
+function BattleGrid:getEuclideanDistance(cellA, cellB)
+    if not cellA or not cellB then return math.huge end
+    local dx = cellA.x - cellB.x
+    local dy = cellA.y - cellB.y
+    return math.sqrt(dx * dx + dy * dy)
+end
+
 return BattleGrid

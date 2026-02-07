@@ -14,7 +14,16 @@ AssetManager.paths = {
 function AssetManager:loadImage(filename)
     if not loadedImages[filename] then
         local path = self.paths.images .. filename
-        loadedImages[filename] = love.graphics.newImage(path)
+        local success, result = pcall(love.graphics.newImage, path)
+        if success then
+            loadedImages[filename] = result
+        else
+            print("AssetManager: Failed to load image '" .. path .. "': " .. tostring(result))
+            -- Create a 16x16 magenta placeholder
+            local data = love.image.newImageData(16, 16)
+            data:mapPixel(function() return 1, 0, 1, 1 end)
+            loadedImages[filename] = love.graphics.newImage(data)
+        end
     end
     return loadedImages[filename]
 end

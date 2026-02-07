@@ -3,6 +3,7 @@ local ui = require("src.game.battle.BattleUI")
 local grid = require("src.game.battle.BattleGrid")
 local animations = require("src.game.battle.BattleAnimations")
 local assetManager = require("src.game.util.AssetManager")
+local BattleUnitAI = require("src.game.battle.BattleUnitAI")
 
 local actionTemplates = {
     melee_attack = {
@@ -73,16 +74,24 @@ local actionTemplates = {
     },
     -- This is not fully implemented yet, starting point
     ranged_attack = {
-        range = 5,
+        range = 8,
         cooldownStart = 25,
         cooldownEnd = 25,
         projectile_sprite = "projectiles/spear.png",
+        projectile_speed = 600,
         damage = 5,
-        arc_height = 60,
+        arc_height = 21,
+        projectile_count = 1,
+        ammo = nil,
+        max_ammo = 8,
         
 
         try = function(self, unit, battleState)
-            -- 
+            if self.max_ammo and self.ammo and self.ammo <= 0 then
+                return { valid = false, reason = "no_ammo" }
+            end
+
+            BattleUnitAI:updateTargetProjectile(unit, self, battleState) -- Ensure we have an updated target before trying
             local target = unit.battle_target
             if not target then
                 return {
@@ -112,6 +121,11 @@ local actionTemplates = {
         
             if not target then return end
             if not unit.currentCell or not target.currentCell or grid:getDistance(unit.currentCell, target.currentCell) > self.range then return end
+            
+            if self.max_ammo and self.ammo then
+                self.ammo = self.ammo - 1
+            end
+
             local attacker = unit
             local defender = target
             
@@ -125,6 +139,11 @@ local actionTemplates = {
             local startX, startY = unit.battle_x, unit.battle_y - 20
             local targetCell = target.currentCell
             local targetX, targetY = grid:getCellCenterPixel(targetCell)
+
+            local dx = targetX - startX
+            local dy = targetY - startY
+            local dist = math.sqrt(dx*dx + dy*dy)
+            local speed = self.projectile_speed or 600
             
             local projectile = {
                 sprite = assetManager:loadImage(self.projectile_sprite),
@@ -135,8 +154,8 @@ local actionTemplates = {
                 attacker = unit,
                 originalTarget = target,
                 timer = 0,
-                duration = 0.6, -- Flight time in seconds
-                arcHeight = self.a, -- Pixel height of the arc
+                duration = math.max(0.1, dist / speed), -- Flight time based on speed
+                arcHeight = self.arc_height, -- Pixel height of the arc
 
                 update = function(p, dt, state)
                     p.timer = p.timer + dt
@@ -177,31 +196,22 @@ local actionTemplates = {
                     local unitsInCell = grid:getUnitsInCell(p.targetCell)
                     if #unitsInCell == 0 then return end -- Missed everyone
 
-                    -- Try to hit original target, otherwise pick random unit in cell
-                    local hitTarget = nil
-                    for _, u in ipairs(unitsInCell) do
-                        if u == p.originalTarget then hitTarget = u break end
-                    end
-                    if not hitTarget then
-                        hitTarget = unitsInCell[love.math.random(#unitsInCell)]
-                    end
-
-                    -- Don't hit allies
-                    if hitTarget.battle_party == p.attacker.battle_party then return end
-
-                    -- Calculate Hit
+                    -- Calculate Hit Chance based on density
+                    local cell = p.targetCell
+                    local density = cell.total_size / cell.max_size
+                    local hitChance = math.min(100, density * 100)
                     local roll = love.math.random(1, 100)
-                    local chance = CombatFormulas:calculateHitChance(p.attacker, hitTarget)
-                    
-                    -- Bonus accuracy if cell is crowded (density check)
-                    if p.targetCell.total_size > (p.targetCell.max_size * 0.5) then
-                        chance = chance + 10
-                    end
 
-                    if roll <= chance then
-                        if not hitTarget.battle_target or grid:getDistance(hitTarget.currentCell, hitTarget.battle_target.currentCell) > 1 then
-                            hitTarget.battle_target = p.attacker
+                    if roll <= hitChance then
+                        -- Hit confirmed: Pick random unit in cell
+                        local hitTarget = unitsInCell[love.math.random(#unitsInCell)]
+                        
+                        if hitTarget.battle_party ~= p.attacker.battle_party then
+                            if not hitTarget.battle_target or grid:getDistance(hitTarget.currentCell, hitTarget.battle_target.currentCell) > 1 then
+                                hitTarget.battle_target = p.attacker
+                            end
                         end
+                        
                         local damage = CombatFormulas:calculateDamage(p.attacker, hitTarget)
                         ui:createDamagePopup(hitTarget.battle_x, hitTarget.battle_y, damage)
                         hitTarget:flash({ 1, 0, 0 }, 0.4)
@@ -210,12 +220,124 @@ local actionTemplates = {
                             grid:removeUnitFromCell(hitTarget, hitTarget.currentCell)
                         end
                     else
-                        hitTarget:shake(0.4, 1.5)
-                        ui:createDamagePopup(hitTarget.battle_x, hitTarget.battle_y, "Miss")
+                        -- Missed the cell contents entirely
+                        local cx, cy = grid:getCellCenterPixel(p.targetCell)
+                        ui:createDamagePopup(cx, cy, "Miss")
                     end
                 end
             }
             
+            table.insert(battleState.projectiles, projectile)
+        end
+    },
+    area_attack = {
+        range = 6,
+        cooldownStart = 30,
+        cooldownEnd = 30,
+        projectile_sprite = "projectiles/spear.png", -- Placeholder, ideally fireball
+        projectile_speed = 600,
+        damage = 8,
+        arc_height = 0, -- Flat trajectory by default
+        aoe_radius = 0, -- 0 = single cell, 1 = 3x3 area
+
+        try = function(self, unit, battleState)
+            local target = unit.battle_target
+            if not target then return { valid = false, reason = "no_target" } end
+
+            if grid:getDistance(unit.currentCell, target.currentCell) > self.range then
+                return { valid = false, reason = "not_in_range" }
+            end
+            unit:flash({ 1, 0.5, 0 }, 0.3)
+
+            return { valid = true, target = target, action = self }
+        end,
+
+        execute = function(self, unit, target, battleState)
+            if not target or not unit.currentCell or not target.currentCell then return end
+            
+            -- Face target
+            if target.currentCell.x > unit.currentCell.x then unit.facing_right = true
+            elseif target.currentCell.x < unit.currentCell.x then unit.facing_right = false end
+            
+            local startX, startY = unit.battle_x, unit.battle_y - 20
+            local targetCell = target.currentCell
+            local targetX, targetY = grid:getCellCenterPixel(targetCell)
+
+            local dx = targetX - startX
+            local dy = targetY - startY
+            local dist = math.sqrt(dx*dx + dy*dy)
+            local speed = self.projectile_speed or 600
+            
+            local projectile = {
+                sprite = assetManager:loadImage(self.projectile_sprite),
+                x = startX, y = startY,
+                startX = startX, startY = startY,
+                targetX = targetX, targetY = targetY,
+                targetCell = targetCell,
+                attacker = unit,
+                timer = 0,
+                duration = math.max(0.1, dist / speed),
+                arcHeight = self.arc_height,
+                aoeRadius = self.aoe_radius,
+
+                update = function(p, dt, state)
+                    p.timer = p.timer + dt
+                    local t = p.timer / p.duration
+                    if t >= 1 then t = 1 end
+
+                    local cx = p.startX + (p.targetX - p.startX) * t
+                    local cy = p.startY + (p.targetY - p.startY) * t
+                    local arc = 4 * p.arcHeight * t * (1 - t)
+                    p.x = cx
+                    p.y = cy - arc
+
+                    local dx = p.targetX - p.startX
+                    local dy_linear = p.targetY - p.startY
+                    local dy_arc = 4 * p.arcHeight * (1 - 2 * t)
+                    p.rotation = math.atan2(dy_linear - dy_arc, dx)
+
+                    if t >= 1 then
+                        p:onHit(state)
+                        return true
+                    end
+                    return false
+                end,
+
+                draw = function(p)
+                    if p.sprite then
+                        love.graphics.draw(p.sprite, p.x, p.y, p.rotation, 1, 1, p.sprite:getWidth()/2, p.sprite:getHeight()/2)
+                    end
+                end,
+
+                onHit = function(p, state)
+                    local cellsToCheck = { p.targetCell }
+                    -- Add neighbors if radius > 0
+                    if p.aoeRadius > 0 then
+                        local cx, cy = p.targetCell.x, p.targetCell.y
+                        for dx = -p.aoeRadius, p.aoeRadius do
+                            for dy = -p.aoeRadius, p.aoeRadius do
+                                if grid:isValidPosition(cx + dx, cy + dy) and not (dx==0 and dy==0) then
+                                    table.insert(cellsToCheck, grid.cells[cx+dx][cy+dy])
+                                end
+                            end
+                        end
+                    end
+
+                    for _, cell in ipairs(cellsToCheck) do
+                        for _, u in ipairs(cell.units) do
+                            if u.battle_party ~= p.attacker.battle_party then
+                                local damage = CombatFormulas:calculateDamage(p.attacker, u)
+                                ui:createDamagePopup(u.battle_x, u.battle_y, damage)
+                                u:flash({ 1, 0.2, 0 }, 0.4)
+                                u.health = u.health - damage
+                                if u.health <= 0 then
+                                    grid:removeUnitFromCell(u, u.currentCell)
+                                end
+                            end
+                        end
+                    end
+                end
+            }
             table.insert(battleState.projectiles, projectile)
         end
     }
@@ -241,6 +363,11 @@ function actions:create(actionId, overrides)
         end
     end
 
+    -- Initialize ammo if max_ammo is defined but ammo is not
+    if newAction.max_ammo and newAction.ammo == nil then
+        newAction.ammo = newAction.max_ammo
+    end
+
     return newAction
 end
 
@@ -250,6 +377,10 @@ end
 
 function actions:ranged_attack(overrides)
     return self:create("ranged_attack", overrides)
+end
+
+function actions:area_attack(overrides)
+    return self:create("area_attack", overrides)
 end
 
 return actions

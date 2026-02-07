@@ -133,6 +133,39 @@ function BattleUnitAI:updateTarget(unit, battleState)
     end
 end
 
+function BattleUnitAI:updateTargetProjectile(unit, action, battleState)
+    local range = action.range
+    if not range then return end
+
+    local currentTarget = unit.battle_target
+    local currentDist = math.huge
+
+    -- Calculate distance to current target if it exists
+    if currentTarget and currentTarget.health > 0 and currentTarget.currentCell and unit.currentCell then
+        currentDist = grid:getEuclideanDistance(unit.currentCell, currentTarget.currentCell)
+    end
+
+    -- If current target is out of range (or invalid), look for another target that IS in range
+    if currentDist > range then
+        local bestTarget = nil
+        local closestDist = math.huge
+
+        for _, candidate in ipairs(battleState.units) do
+            if candidate.battle_party ~= unit.battle_party and candidate.health > 0 and candidate.currentCell and unit.currentCell then
+                local d = grid:getEuclideanDistance(unit.currentCell, candidate.currentCell)
+                if d <= range and d < closestDist then
+                    closestDist = d
+                    bestTarget = candidate
+                end
+            end
+        end
+
+        if bestTarget then
+            unit.battle_target = bestTarget
+        end
+    end
+end
+
 function BattleUnitAI:init(battle)
     self.battle = battle
 end
