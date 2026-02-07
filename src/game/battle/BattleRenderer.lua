@@ -12,7 +12,11 @@ function BattleRenderer:drawUnits(units)
     end
 end
 
+function BattleRenderer:drawProjectiles(projectiles)
+    if not projectiles then return end
+    for _, p in ipairs(projectiles) do
+        if p.draw then p:draw() end
+    end
+end
+
 return BattleRenderer
-
-
-

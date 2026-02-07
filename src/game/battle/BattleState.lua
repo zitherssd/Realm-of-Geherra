@@ -20,6 +20,7 @@ local pauseReason = nil
 function BattleState:enter(party1, party2, stage)
     grid:initializeGrid()
     self.units = {}
+    self.projectiles = {}
     self.currentTick = 0
     self.tickTimer = 0
     self.playerUnit = PlayerModule:getPlayerUnit();
@@ -145,6 +146,14 @@ function BattleState:update(dt)
         
         -- Update battle logic if not paused
         if not self.paused then
+            -- Update projectiles (Visuals + Logic)
+            for i = #self.projectiles, 1, -1 do
+                local p = self.projectiles[i]
+                if p:update(dt, self) then
+                    table.remove(self.projectiles, i)
+                end
+            end
+
             self.tickTimer = self.tickTimer + dt
             local ticksThisFrame = math.floor(self.tickTimer * TICKS_PER_SECOND)
             
@@ -208,6 +217,7 @@ function BattleState:draw()
     
     -- Draw units
     renderer:drawUnits(self.units)
+    renderer:drawProjectiles(self.projectiles)
     -- Draw world-space UI (e.g., damage popups)
     ui:drawWorld(self)
     Camera:unapply()

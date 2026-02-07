@@ -214,35 +214,6 @@ function Unit:shake(duration, intensity)
     self.visuals.shake_intensity = intensity or 1
 end
 
-function Unit:pickTarget(battle)
-  -- AI: pick nearest enemy, but spread out
-  if not battle or not battle.units then return nil end
-  local enemies = {}
-  for _, u in ipairs(battle.units) do
-    if u.battle_party ~= self.battle_party and u.health > 0 then
-      table.insert(enemies, u)
-    end
-  end
-  if #enemies == 0 then return nil end
-  -- Count how many allies are targeting each enemy
-  local targetCounts = {}
-  for _, ally in ipairs(battle.units) do
-    if ally.battle_party == self.battle_party and ally ~= self and ally.battle_target then
-      targetCounts[ally.battle_target] = (targetCounts[ally.battle_target] or 0) + 1
-    end
-  end
-  -- Prefer nearest enemy with lowest target count
-  table.sort(enemies, function(a, b)
-    local ca = targetCounts[a] or 0
-    local cb = targetCounts[b] or 0
-    if ca ~= cb then return ca < cb end
-    local da = math.abs(a.battle_x - self.battle_x) + math.abs(a.battle_y - self.battle_y)
-    local db = math.abs(b.battle_x - self.battle_x) + math.abs(b.battle_y - self.battle_y)
-    return da < db
-  end)
-  return enemies[1]
-end
-
 function Unit:_applyItemStats(item)
   if not item or not item.stats then return end
   local s = item.stats

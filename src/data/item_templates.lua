@@ -28,12 +28,12 @@ local itemTemplates = {
         cooldownStart = 25,
         cooldownEnd = 25,
       }),
-      actions:melee_attack({
-        id = "attack2",
-        name = "Dagger",
+      actions:ranged_attack({
+        id = "throw_spear",
+        name = "Throw Spear",
         description = "Deal damage to the target",
-        cooldownStart = 1,
-        cooldownEnd = 30,
+        cooldownStart = 15,
+        cooldownEnd = 20,
       })
     },
     weight = 3.5,

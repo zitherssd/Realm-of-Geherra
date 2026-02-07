@@ -98,18 +98,38 @@ function BattleUnitAI:updateTarget(unit, battleState)
 
     -- 3. Fallback: Find closest enemy if still no target
     if not unit.battle_target then
-        local closest = nil
-        local minDist = math.huge
+        local enemies = {}
         for _, u in ipairs(battleState.units) do
-            if u.battle_party ~= unit.battle_party and u.health > 0 and u.currentCell and unit.currentCell then
-                local d = grid:getDistance(unit.currentCell, u.currentCell)
-                if d < minDist then
-                    minDist = d
-                    closest = u
-                end
+            if u.battle_party ~= unit.battle_party and u.health > 0 and u.currentCell then
+                table.insert(enemies, u)
             end
         end
-        unit.battle_target = closest
+
+        if #enemies > 0 then
+            -- Count how many allies are targeting each enemy
+            local targetCounts = {}
+            for _, ally in ipairs(battleState.units) do
+                if ally.battle_party == unit.battle_party and ally ~= unit and ally.battle_target then
+                    targetCounts[ally.battle_target] = (targetCounts[ally.battle_target] or 0) + 1
+                end
+            end
+
+            -- Pre-calculate distances for sorting
+            local distances = {}
+            for _, e in ipairs(enemies) do
+                distances[e] = grid:getDistance(unit.currentCell, e.currentCell)
+            end
+
+            -- Prefer nearest enemy with lowest target count
+            table.sort(enemies, function(a, b)
+                local ca = targetCounts[a] or 0
+                local cb = targetCounts[b] or 0
+                if ca ~= cb then return ca < cb end
+                return distances[a] < distances[b]
+            end)
+
+            unit.battle_target = enemies[1]
+        end
     end
 end
 
