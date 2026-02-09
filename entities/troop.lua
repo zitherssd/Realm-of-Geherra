@@ -4,6 +4,7 @@
 local Actor = require("entities.actor")
 local Troop = setmetatable({}, Actor)
 Troop.__index = Troop
+local TroopsData = require("data.troops")
 
 function Troop.new(troopType, id)
     local self = Actor.new(id, "troop")
@@ -15,6 +16,30 @@ function Troop.new(troopType, id)
     
     self.formation = nil
     self.squad = nil
+    
+    -- Load definition from data
+    local data = TroopsData[troopType]
+    if data then
+        -- Apply Stats
+        if data.stats then
+            for k, v in pairs(data.stats) do
+                self.stats[k] = v
+            end
+        end
+        
+        -- Apply Custom Slots (if defined)
+        if data.slots then
+            self.availableSlots = data.slots
+        end
+        
+        -- Apply Starting Equipment
+        if data.equipment then
+            for slot, itemId in pairs(data.equipment) do
+                -- Direct assignment for initialization
+                self.equipment[slot] = itemId
+            end
+        end
+    end
     
     return self
 end

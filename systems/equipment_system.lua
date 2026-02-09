@@ -3,11 +3,24 @@
 
 local EquipmentSystem = {}
 
-local SLOTS = {"head", "body", "hands", "feet", "mainHand", "offHand"}
-
 function EquipmentSystem.equip(actor, itemId, slot)
     if not actor.equipment then
         actor.equipment = {}
+    end
+    
+    -- Validate that the actor has this slot
+    local hasSlot = false
+    if actor.availableSlots then
+        for _, s in ipairs(actor.availableSlots) do
+            if s == slot then
+                hasSlot = true
+                break
+            end
+        end
+    end
+    
+    if not hasSlot then
+        return false -- Actor does not have this slot
     end
     
     -- Unequip previous item if any

@@ -56,7 +56,7 @@ function DecisionSystem._processAI(unit, context)
         local bestPriority = -1
         
         -- Iterate through all skills the actor knows
-        for skillId, _ in pairs(unit.actor.skills or {}) do
+        for skillId, _ in pairs(unit.skills or {}) do
             local skillData = Skills[skillId]
             
             if skillData then

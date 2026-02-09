@@ -107,6 +107,8 @@ function GameInitializer._createStarterParties(map)
     banditParty:addActor(banditLeader)
     banditParty:addActor(Troop.new("bandit"))
     banditParty:addActor(Troop.new("bandit"))
+    banditParty:addActor(Troop.new("bandit"))
+
     
     map:addParty(banditParty)
 end

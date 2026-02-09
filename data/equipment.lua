@@ -7,7 +7,17 @@ return {
         name = "Iron Sword",
         slot = "mainHand",
         type = "weapon",
-        stats = {damage = 10}
+        stats = {damage = 10},
+        grantsSkill = "slash"
+    },
+
+    ["javelin"] = {
+        id = "javelin",
+        name = "Javelin",
+        slot = "rangedWeapon",
+        type = "javelin",
+        stats = {damage = 10},
+        grantsSkill = "throw_javelin"
     },
     
     ["leather_armor"] = {

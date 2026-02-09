@@ -53,7 +53,7 @@ function ExecutionSystem._executeMove(unit, intent, grid)
         -- Calculate Cooldown
         -- Formula: 120 * (1 + random_variance) / battle_speed
         -- Result is in TICKS.
-        local battleSpeed = unit.actor.stats.battle_speed or 10
+        local battleSpeed = unit.stats.battle_speed or 10
         local variance = (math.random() - 0.5) * 0.2 -- +/- 10%
         local cooldownTicks = (120 * (1 + variance)) / battleSpeed
         
@@ -69,7 +69,7 @@ function ExecutionSystem._executeSkill(unit, intent, context)
     if targetUnit and skillData then
         -- 1. Calculate Damage
         -- Base damage comes from Strength (melee) or Intelligence (magic - placeholder)
-        local baseStat = unit.actor.stats.strength or 10
+        local baseStat = unit.stats.strength or 10
         local multiplier = skillData.damageMultiplier or 1.0
         
         local damage = math.floor(baseStat * multiplier)

@@ -5,6 +5,7 @@
 local BattleUnit = {}
 BattleUnit.__index = BattleUnit
 local Skills = require("data.skills")
+local EquipmentData = require("data.equipment")
 
 function BattleUnit.new(actor, gridX, gridY, team)
     local self = {
@@ -22,8 +23,10 @@ function BattleUnit.new(actor, gridX, gridY, team)
         visualY = 0,
         
         -- Combat State
-        hp = actor.stats.health,
-        maxHp = actor.stats.health,
+        stats = {},         -- Derived stats (Base + Equipment)
+        skills = {},        -- Available skills (Learned + Granted)
+        hp = 0,
+        maxHp = 0,
         
         -- Action State
         intent = nil,       -- { type="MOVE", target={x,y} } or { type="SKILL", id="slash", target=unitId }
@@ -34,13 +37,44 @@ function BattleUnit.new(actor, gridX, gridY, team)
     
     setmetatable(self, BattleUnit)
     
-    -- Initialize charges for skills that have limits
+    -- 1. Copy Base Stats
+    if actor.stats then
+        for k, v in pairs(actor.stats) do self.stats[k] = v end
+    end
+    
+    -- 2. Copy Learned Skills
     if actor.skills then
-        for skillId, _ in pairs(actor.skills) do
-            local skillData = Skills[skillId]
-            if skillData and skillData.maxCharges then
-                self.charges[skillId] = skillData.maxCharges
+        for k, v in pairs(actor.skills) do self.skills[k] = v end
+    end
+    
+    -- 3. Apply Equipment Bonuses & Granted Skills
+    if actor.equipment then
+        for slot, itemId in pairs(actor.equipment) do
+            local item = EquipmentData[itemId]
+            if item then
+                -- Add Stats
+                if item.stats then
+                    for stat, val in pairs(item.stats) do
+                        self.stats[stat] = (self.stats[stat] or 0) + val
+                    end
+                end
+                -- Grant Skill
+                if item.grantsSkill then
+                    self.skills[item.grantsSkill] = {level = 1, source = "item"}
+                end
             end
+        end
+    end
+    
+    -- 4. Finalize HP
+    self.maxHp = self.stats.health or 100
+    self.hp = self.maxHp
+    
+    -- Initialize charges for skills that have limits
+    for skillId, _ in pairs(self.skills) do
+        local skillData = Skills[skillId]
+        if skillData and skillData.maxCharges then
+            self.charges[skillId] = skillData.maxCharges
         end
     end
     

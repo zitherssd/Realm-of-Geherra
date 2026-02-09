@@ -12,7 +12,8 @@ function Actor.new(id, actorType)
     self.stats = {
         health = 100,
         strength = 10,
-        defense = 5,
+        attack = 10,
+        defense = 10,
         speed = 10,        -- World map speed
         battle_speed = 10  -- Combat action speed (baseline 10)
     }
@@ -20,6 +21,10 @@ function Actor.new(id, actorType)
     self.level = 1
     self.experience = 0
     
+    -- Default Humanoid Slots
+    self.availableSlots = {
+        "head", "body", "hands", "feet", "mainHand", "offHand", "rangedWeapon"
+    }
     self.inventory = {}
     self.equipment = {}
     self.skills = {
