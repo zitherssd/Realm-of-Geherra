@@ -14,32 +14,50 @@ local GameContext = require("game.game_context")
 
 local BattleState = {}
 
-function BattleState.enter()
+function BattleState.enter(params)
+    params = params or {}
+    local enemyParty = params.enemyParty
+    
     -- Initialize battle with 30x13 grid, 42px cells
     local grid = BattleGrid.new(30, 13, 42)
     BattleContext.init(grid)
     
     -- Convert Player Party to BattleUnits
     local playerParty = GameContext.data.playerParty
-    if playerParty then
-        -- For now, just add the leader as a test unit
-        local leaderId = playerParty.leaderId
-        -- In real impl, fetch actual Actor object from GameContext or Registry
-        local mockActor = { id = leaderId, stats = { health = 100, strength = 15 } } 
+    if playerParty and playerParty.actors then
+        local startX = 3
+        local startY = 3
         
-        local pUnit = BattleUnit.new(mockActor, 5, 6, "player")
-        pUnit:snapToGrid(grid.cellSize)
-        BattleContext.addUnit(pUnit)
-        
-        -- Auto-select player unit
-        BattleContext.data.selectedUnitId = pUnit.id
+        for i, actor in ipairs(playerParty.actors) do
+            -- Simple formation logic: stack vertically
+            local x = startX + math.floor((i-1)/5)
+            local y = startY + ((i-1) % 5) * 2
+            
+            local unit = BattleUnit.new(actor, x, y, "player")
+            unit:snapToGrid(grid.cellSize)
+            BattleContext.addUnit(unit)
+            
+            -- Auto-select the first player unit (usually leader)
+            if i == 1 then
+                BattleContext.data.selectedUnitId = unit.id
+            end
+        end
     end
     
-    -- Add a dummy enemy
-    local enemyActor = { id = "bandit_1", stats = { health = 50, strength = 8 } }
-    local eUnit = BattleUnit.new(enemyActor, 15, 6, "enemy")
-    eUnit:snapToGrid(grid.cellSize)
-    BattleContext.addUnit(eUnit)
+    -- Convert Enemy Party to BattleUnits
+    if enemyParty and enemyParty.actors then
+        local startX = 26
+        local startY = 3
+        
+        for i, actor in ipairs(enemyParty.actors) do
+            local x = startX - math.floor((i-1)/5)
+            local y = startY + ((i-1) % 5) * 2
+            
+            local unit = BattleUnit.new(actor, x, y, "enemy")
+            unit:snapToGrid(grid.cellSize)
+            BattleContext.addUnit(unit)
+        end
+    end
 end
 
 function BattleState.exit()

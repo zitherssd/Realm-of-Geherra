@@ -29,13 +29,14 @@ function GameInitializer.initNewGame(options)
     -- Create player party
     local playerParty = Party.new("party_player", options.playerName or "Wanderer", "player_1")
     playerParty:setPosition(512, 512)
-    playerParty:addMember("player_1")
+    playerParty:addActor(player)
+    playerParty:addActor(Troop.new("companion_1", "companion"))
     GameContext.data.playerParty = playerParty
     
     -- Create initial world map
     local map = Map.new("realm_of_geherra", "Realm of Geherra")
     map:loadVisualMap("assets/map/visual_map.png")
-    map:setBounds(0, 0, 1024, 1024)
+    map:setBounds(0, 0, 1660, 1174)
     GameContext.data.currentMap = map
     
     -- Add player party to map
@@ -103,9 +104,9 @@ function GameInitializer._createStarterParties(map)
     banditParty.faction = "bandits"
     
     -- Add members
-    banditParty:addMember(banditLeader.id)
-    banditParty:addMember(Troop.new("bandit_1", "bandit").id)
-    banditParty:addMember(Troop.new("bandit_2", "bandit").id)
+    banditParty:addActor(banditLeader)
+    banditParty:addActor(Troop.new("bandit_1", "bandit"))
+    banditParty:addActor(Troop.new("bandit_2", "bandit"))
     
     map:addParty(banditParty)
 end

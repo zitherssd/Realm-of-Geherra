@@ -8,8 +8,8 @@ function Map.new(id, name)
     local self = {
         id = id,
         name = name or "Map",
-        width = 1024,
-        height = 1024,
+        width = 1660,
+        height = 1174,
         parties = {},
         tiles = {},
         objects = {},

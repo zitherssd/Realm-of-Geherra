@@ -11,7 +11,7 @@ function Party.new(id, name, leaderId)
         
         -- Party composition
         leaderId = leaderId,  -- Reference to leader actor
-        memberIds = {},       -- List of actor IDs in the party
+        actors = {},          -- List of actor entities in the party
         
         -- Party state
         x = 0,
@@ -47,26 +47,26 @@ function Party:getPosition()
     return self.x, self.y
 end
 
--- Add a member to the party
-function Party:addMember(actorId)
-    table.insert(self.memberIds, actorId)
+-- Add an actor to the party
+function Party:addActor(actor)
+    table.insert(self.actors, actor)
     
     -- If this is the first member, make them leader
     if self.leaderId == nil then
-        self.leaderId = actorId
+        self.leaderId = actor.id
     end
 end
 
--- Remove a member from the party
-function Party:removeMember(actorId)
-    for i, id in ipairs(self.memberIds) do
-        if id == actorId then
-            table.remove(self.memberIds, i)
+-- Remove an actor from the party
+function Party:removeActor(actor)
+    for i, a in ipairs(self.actors) do
+        if a == actor then
+            table.remove(self.actors, i)
             
             -- If removed actor was leader, assign new leader
-            if self.leaderId == actorId then
-                if #self.memberIds > 0 then
-                    self.leaderId = self.memberIds[1]
+            if self.leaderId == actor.id then
+                if #self.actors > 0 then
+                    self.leaderId = self.actors[1].id
                 else
                     self.leaderId = nil
                 end
@@ -77,20 +77,20 @@ function Party:removeMember(actorId)
     return false
 end
 
--- Get all member IDs
-function Party:getMembers()
-    return self.memberIds
+-- Get all actors
+function Party:getActors()
+    return self.actors
 end
 
 -- Get member count
-function Party:getMemberCount()
-    return #self.memberIds
+function Party:getActorCount()
+    return #self.actors
 end
 
 -- Check if an actor is in this party
-function Party:hasMember(actorId)
-    for _, id in ipairs(self.memberIds) do
-        if id == actorId then
+function Party:hasActor(actor)
+    for _, a in ipairs(self.actors) do
+        if a == actor then
             return true
         end
     end

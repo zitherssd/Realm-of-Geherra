@@ -6,17 +6,17 @@ local PartySystem = {}
 local GameContext = require("game.game_context")
 
 -- Add an actor to a party
-function PartySystem.addMemberToParty(party, actor)
+function PartySystem.addActor(party, actor)
     if not party or not actor then return false end
     
     -- Check if actor is already in party
-    for _, memberId in ipairs(party.memberIds) do
-        if memberId == actor.id then
+    for _, a in ipairs(party.actors) do
+        if a == actor then
             return false  -- Already in party
         end
     end
     
-    table.insert(party.memberIds, actor.id)
+    table.insert(party.actors, actor)
     return true
 end
 
@@ -24,14 +24,14 @@ end
 function PartySystem.removeFromParty(party, actorId)
     if not party then return false end
     
-    for i, memberId in ipairs(party.memberIds) do
-        if memberId == actorId then
-            table.remove(party.memberIds, i)
+    for i, actor in ipairs(party.actors) do
+        if actor.id == actorId then
+            table.remove(party.actors, i)
             
             -- If removed actor was leader, assign new leader
             if party.leaderId == actorId then
-                if #party.memberIds > 0 then
-                    party.leaderId = party.memberIds[1]
+                if #party.actors > 0 then
+                    party.leaderId = party.actors[1].id
                 else
                     party.leaderId = nil
                 end
@@ -43,28 +43,23 @@ function PartySystem.removeFromParty(party, actorId)
 end
 
 -- Get party members (returns actual actor objects from game context)
-function PartySystem.getMembers(party)
+function PartySystem.getActors(party)
     if not party then return {} end
     
-    local members = {}
-    for _, actorId in ipairs(party.memberIds) do
-        -- In a full implementation, you'd look up actors from a registry
-        -- For now, we return the IDs; caller can look up from context
-        table.insert(members, actorId)
-    end
-    return members
+    -- Return the list of actors directly
+    return party.actors
 end
 
 -- Calculate party's average movement speed
 function PartySystem.getPartySpeed(party)
-    if not party or #party.memberIds == 0 then return 100 end
+    if not party or #party.actors == 0 then return 100 end
     
     local totalSpeed = 0
     local count = 0
     
     -- This is a simplified calculation
     -- In a full implementation, you'd aggregate from actual actor stats
-    for _, actorId in ipairs(party.memberIds) do
+    for _, actor in ipairs(party.actors) do
         -- Base speed per member (would come from actor stats in real implementation)
         totalSpeed = totalSpeed + 100
         count = count + 1
@@ -79,14 +74,14 @@ end
 
 -- Calculate party's detection visibility (how easily they're spotted)
 function PartySystem.getPartyVisibility(party)
-    if not party or #party.memberIds == 0 then return 100 end
+    if not party or #party.actors == 0 then return 100 end
     
     -- Visibility is based on:
     -- - Party size (more people = more visible)
     -- - Equipment and units (armor glints, formations, etc.)
     -- - Stealth skills of members
     
-    local baseVisibility = 100 * (#party.memberIds / 10)  -- Scale by party size
+    local baseVisibility = 100 * (#party.actors / 10)  -- Scale by party size
     local visibility = baseVisibility * (party.visibilityModifier or 1.0)
     
     return visibility
@@ -94,12 +89,12 @@ end
 
 -- Calculate party's military strength rating
 function PartySystem.getPartyStrength(party)
-    if not party or #party.memberIds == 0 then return 0 end
+    if not party or #party.actors == 0 then return 0 end
     
     local totalStrength = 0
     
     -- This would aggregate stats from all party members in a real implementation
-    for _, actorId in ipairs(party.memberIds) do
+    for _, actor in ipairs(party.actors) do
         totalStrength = totalStrength + 50  -- Placeholder value
     end
     
@@ -123,7 +118,7 @@ end
 
 -- Check if party can undertake travel based on member status
 function PartySystem.canTravel(party)
-    if not party or #party.memberIds == 0 then return false end
+    if not party or #party.actors == 0 then return false end
     
     -- In a full implementation, would check:
     -- - All members are conscious/not wounded
@@ -137,8 +132,8 @@ end
 function PartySystem.setLeader(party, actorId)
     if not party then return false end
     
-    for _, memberId in ipairs(party.memberIds) do
-        if memberId == actorId then
+    for _, actor in ipairs(party.actors) do
+        if actor.id == actorId then
             party.leaderId = actorId
             return true
         end

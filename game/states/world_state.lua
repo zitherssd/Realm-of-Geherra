@@ -159,7 +159,7 @@ function WorldState.draw()
     local playerParty = GameContext.data.playerParty
     if playerParty then
         love.graphics.printf(
-            string.format("Party: %.0f, %.0f (%d members)", playerParty.x, playerParty.y, playerParty:getMemberCount()),
+            string.format("Party: %.0f, %.0f (%d members)", playerParty.x, playerParty.y, playerParty:getActorCount()),
             10, 30, love.graphics.getWidth() - 20, "left"
         )
     end
