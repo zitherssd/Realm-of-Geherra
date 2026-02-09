@@ -3,6 +3,7 @@
 -- Executed once per battle tick (20Hz)
 
 local DecisionSystem = {}
+local Skills = require("data.skills")
 
 function DecisionSystem.update(context)
     local units = context.data.unitList
@@ -50,11 +51,41 @@ function DecisionSystem._processAI(unit, context)
     end
 
     if nearestTarget then
-        -- If adjacent, attack (placeholder for skill logic)
-        if minDist <= 2.5 then -- sqrt(2) is diagonal (~1.41), so <= 2.5 covers adjacency safely
+        -- AI Logic: Select best available skill from actor's known skills
+        local bestSkillId = nil
+        local bestPriority = -1
+        
+        -- Iterate through all skills the actor knows
+        for skillId, _ in pairs(unit.actor.skills or {}) do
+            local skillData = Skills[skillId]
+            
+            if skillData then
+                local rangeSq = skillData.range * skillData.range
+                local onCooldown = (unit.cooldowns[skillId] or 0) > 0
+                local hasCharges = true
+                
+                -- Check charges if the skill has a limit
+                if skillData.maxCharges then
+                    hasCharges = (unit.charges[skillId] or 0) > 0
+                end
+                
+                -- Check if usable (in range and off cooldown)
+                if not onCooldown and hasCharges and minDist <= rangeSq then
+                    -- Priority: Prefer higher damage multiplier
+                    local priority = skillData.damageMultiplier or 0
+                    
+                    if priority > bestPriority then
+                        bestPriority = priority
+                        bestSkillId = skillId
+                    end
+                end
+            end
+        end
+        
+        if bestSkillId then
             unit.intent = {
                 type = "SKILL",
-                skillId = "slash",
+                skillId = bestSkillId,
                 targetUnitId = nearestTarget.id
             }
         else

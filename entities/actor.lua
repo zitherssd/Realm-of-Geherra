@@ -22,7 +22,9 @@ function Actor.new(id, actorType)
     
     self.inventory = {}
     self.equipment = {}
-    self.skills = {}
+    self.skills = {
+        ["slash"] = {learned = true} -- Default basic attack
+    }
     self.factions = {}
     
     self.velocity = {x = 0, y = 0}

@@ -9,7 +9,8 @@ return {
         description = "Basic melee attack",
         damageMultiplier = 1.0,
         cooldown = 0.5,
-        cost = 0
+        cost = 0,
+        range = 1.5,
     },
     
     ["fireball"] = {
@@ -42,5 +43,16 @@ return {
         stun = true,
         cooldown = 2.0,
         cost = 0
+    },
+
+    ["javelin_throw"] = {
+        id = "javelin_throw",
+        name = "Javelin Throw",
+        type = "ranged",
+        description = "Throw a javelin (Limited uses)",
+        damageMultiplier = 2.0,
+        range = 5.0,
+        cooldown = 1.0,
+        maxCharges = 2, -- Only usable 2 times per battle
     }
 }

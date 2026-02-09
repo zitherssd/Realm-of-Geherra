@@ -2,6 +2,7 @@
 -- Resolves intents, updates logical positions, applies damage
 
 local ExecutionSystem = {}
+local Skills = require("data.skills")
 
 function ExecutionSystem.update(context)
     local units = context.data.unitList
@@ -61,21 +62,34 @@ function ExecutionSystem._executeMove(unit, intent, grid)
 end
 
 function ExecutionSystem._executeSkill(unit, intent, context)
+    local skillId = intent.skillId
+    local skillData = Skills[skillId]
     local targetUnit = context.data.units[intent.targetUnitId]
     
-    if targetUnit then
-        -- Calculate Damage (Placeholder)
-        local damage = 10
-        if unit.actor.stats and unit.actor.stats.strength then
-            damage = unit.actor.stats.strength
-        end
+    if targetUnit and skillData then
+        -- 1. Calculate Damage
+        -- Base damage comes from Strength (melee) or Intelligence (magic - placeholder)
+        local baseStat = unit.actor.stats.strength or 10
+        local multiplier = skillData.damageMultiplier or 1.0
         
+        local damage = math.floor(baseStat * multiplier)
+        
+        -- Apply Damage
         targetUnit.hp = math.max(0, targetUnit.hp - damage)
         
-        -- Set Cooldown
-        unit.globalCooldown = 20 -- Placeholder: 1 second (20 ticks)
+        -- 2. Set Cooldowns (Convert seconds to ticks: 20 ticks/sec)
+        local cdTicks = (skillData.cooldown or 1.0) * 20
+        unit.cooldowns[skillId] = cdTicks
+
+        -- 3. Consume Charge (if applicable)
+        if skillData.maxCharges then
+            unit.charges[skillId] = (unit.charges[skillId] or 0) - 1
+        end
         
-        print(unit.id .. " hit " .. targetUnit.id .. " for " .. damage .. " damage.")
+        -- Apply a Global Cooldown (GCD) so they can't move immediately after attacking
+        unit.globalCooldown = 20 -- 1 second GCD
+        
+        print(string.format("%s used %s on %s for %d damage.", unit.id, skillData.name, targetUnit.id, damage))
     end
 end
 

@@ -4,6 +4,7 @@
 
 local BattleUnit = {}
 BattleUnit.__index = BattleUnit
+local Skills = require("data.skills")
 
 function BattleUnit.new(actor, gridX, gridY, team)
     local self = {
@@ -27,10 +28,22 @@ function BattleUnit.new(actor, gridX, gridY, team)
         -- Action State
         intent = nil,       -- { type="MOVE", target={x,y} } or { type="SKILL", id="slash", target=unitId }
         cooldowns = {},     -- Map of skill_id -> time_remaining (seconds)
+        charges = {},       -- Map of skill_id -> remaining_uses
         globalCooldown = 0  -- GCD timer
     }
     
     setmetatable(self, BattleUnit)
+    
+    -- Initialize charges for skills that have limits
+    if actor.skills then
+        for skillId, _ in pairs(actor.skills) do
+            local skillData = Skills[skillId]
+            if skillData and skillData.maxCharges then
+                self.charges[skillId] = skillData.maxCharges
+            end
+        end
+    end
+    
     return self
 end
 
