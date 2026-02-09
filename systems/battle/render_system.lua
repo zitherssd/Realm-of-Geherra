@@ -19,11 +19,9 @@ function RenderSystem.update(dt, context)
         if math.abs(dx) < 1 and math.abs(dy) < 1 then
             unit.visualX = targetX
             unit.visualY = targetY
-            unit.isMoving = false
         else
             unit.visualX = unit.visualX + dx * LERP_SPEED * dt
             unit.visualY = unit.visualY + dy * LERP_SPEED * dt
-            unit.isMoving = true
         end
     end
 end

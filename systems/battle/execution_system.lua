@@ -3,18 +3,18 @@
 
 local ExecutionSystem = {}
 
-function ExecutionSystem.update(dt, context)
+function ExecutionSystem.update(context)
     local units = context.data.unitList
     local grid = context.data.grid
 
     -- 1. Decrement Cooldowns
     for _, unit in ipairs(units) do
         if unit.globalCooldown > 0 then
-            unit.globalCooldown = unit.globalCooldown - dt
+            unit.globalCooldown = unit.globalCooldown - 1
         end
         for skillId, cd in pairs(unit.cooldowns) do
             if cd > 0 then
-                unit.cooldowns[skillId] = cd - dt
+                unit.cooldowns[skillId] = cd - 1
             end
         end
     end
@@ -49,11 +49,14 @@ function ExecutionSystem._executeMove(unit, intent, grid)
         unit.x = tx
         unit.y = ty
         
-        -- Set moving flag (Render system will handle visual lerp)
-        unit.isMoving = true
+        -- Calculate Cooldown
+        -- Formula: 120 * (1 + random_variance) / battle_speed
+        -- Result is in TICKS.
+        local battleSpeed = unit.actor.stats.battle_speed or 10
+        local variance = (math.random() - 0.5) * 0.2 -- +/- 10%
+        local cooldownTicks = (120 * (1 + variance)) / battleSpeed
         
-        -- Small GCD to prevent instant teleporting across map
-        unit.globalCooldown = 0.2
+        unit.globalCooldown = cooldownTicks
     end
 end
 
@@ -70,7 +73,7 @@ function ExecutionSystem._executeSkill(unit, intent, context)
         targetUnit.hp = math.max(0, targetUnit.hp - damage)
         
         -- Set Cooldown
-        unit.globalCooldown = 1.0
+        unit.globalCooldown = 20 -- Placeholder: 1 second (20 ticks)
         
         print(unit.id .. " hit " .. targetUnit.id .. " for " .. damage .. " damage.")
     end

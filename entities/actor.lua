@@ -13,7 +13,8 @@ function Actor.new(id, actorType)
         health = 100,
         strength = 10,
         defense = 5,
-        speed = 10
+        speed = 10,        -- World map speed
+        battle_speed = 10  -- Combat action speed (baseline 10)
     }
     
     self.level = 1

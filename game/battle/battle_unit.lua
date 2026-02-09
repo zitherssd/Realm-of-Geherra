@@ -27,10 +27,7 @@ function BattleUnit.new(actor, gridX, gridY, team)
         -- Action State
         intent = nil,       -- { type="MOVE", target={x,y} } or { type="SKILL", id="slash", target=unitId }
         cooldowns = {},     -- Map of skill_id -> time_remaining (seconds)
-        globalCooldown = 0, -- GCD timer
-        
-        -- Status Effects
-        isMoving = false
+        globalCooldown = 0  -- GCD timer
     }
     
     setmetatable(self, BattleUnit)
@@ -39,7 +36,7 @@ end
 
 -- Helper to check if unit can act
 function BattleUnit:canAct()
-    return self.hp > 0 and self.globalCooldown <= 0 and not self.isMoving
+    return self.hp > 0 and self.globalCooldown <= 0
 end
 
 -- Sync visual position immediately to grid (teleport)

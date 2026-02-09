@@ -4,7 +4,7 @@
 
 local DecisionSystem = {}
 
-function DecisionSystem.update(dt, context)
+function DecisionSystem.update(context)
     local units = context.data.unitList
     local grid = context.data.grid
     local playerCommand = context.data.playerCommand
@@ -12,7 +12,7 @@ function DecisionSystem.update(dt, context)
     for _, unit in ipairs(units) do
         if unit:canAct() and unit.intent == nil then
             
-            if unit.team == "player" then
+            if unit.id == context.data.selectedUnitId then
                 -- Player Logic: Check for command
                 if playerCommand and playerCommand.unitId == unit.id then
                     unit.intent = {
@@ -23,8 +23,8 @@ function DecisionSystem.update(dt, context)
                     context.data.playerCommand = nil
                 end
                 
-            elseif unit.team == "enemy" then
-                -- AI Logic: Simple Aggro
+            else
+                -- AI Logic: Simple Aggro (for Enemies AND Allies)
                 DecisionSystem._processAI(unit, context)
             end
         end
@@ -32,6 +32,7 @@ function DecisionSystem.update(dt, context)
 end
 
 function DecisionSystem._processAI(unit, context)
+    local grid = context.data.grid
     -- Find nearest hostile
     local nearestTarget = nil
     local minDist = math.huge
@@ -50,7 +51,7 @@ function DecisionSystem._processAI(unit, context)
 
     if nearestTarget then
         -- If adjacent, attack (placeholder for skill logic)
-        if minDist <= 2 then -- sqrt(2) is diagonal, so <= 2 covers adjacency
+        if minDist <= 2.5 then -- sqrt(2) is diagonal (~1.41), so <= 2.5 covers adjacency safely
             unit.intent = {
                 type = "SKILL",
                 skillId = "slash",
@@ -58,8 +59,28 @@ function DecisionSystem._processAI(unit, context)
             }
         else
             -- Move towards target
-            -- Very dumb pathfinding: just move one step closer
-            -- In real impl, use A* here or in a pathfinding utility
+            local neighbors = grid:getNeighbors(unit.x, unit.y)
+            local bestMove = nil
+            local bestDist = minDist
+
+            for _, cell in ipairs(neighbors) do
+                if grid:isFree(cell.x, cell.y) then
+                    local dx = cell.x - nearestTarget.x
+                    local dy = cell.y - nearestTarget.y
+                    local d = dx*dx + dy*dy
+                    if d < bestDist then
+                        bestDist = d
+                        bestMove = cell
+                    end
+                end
+            end
+
+            if bestMove then
+                unit.intent = {
+                    type = "MOVE",
+                    target = {x = bestMove.x, y = bestMove.y}
+                }
+            end
         end
     end
 end

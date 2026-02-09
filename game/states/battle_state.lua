@@ -72,29 +72,45 @@ function BattleState.update(dt)
     if BattleContext.data.paused then return end
     
     -- 1. Input Handling
-    if Input.isMousePressed() then
-        local mx, my = Input.getMousePosition()
-        local grid = BattleContext.data.grid
-        local gx, gy = grid:worldToGrid(mx, my)
-        
-        if grid:inBounds(gx, gy) and BattleContext.data.selectedUnitId then
+    local playerUnit = BattleContext.data.units[BattleContext.data.selectedUnitId]
+    
+    -- Only accept input if the player unit is ready to act
+    if playerUnit and playerUnit:canAct() then
+        local dx, dy = 0, 0
+        if Input.isKeyDown("w") or Input.isKeyDown("up") then dy = -1 end
+        if Input.isKeyDown("s") or Input.isKeyDown("down") then dy = 1 end
+        if Input.isKeyDown("a") or Input.isKeyDown("left") then dx = -1 end
+        if Input.isKeyDown("d") or Input.isKeyDown("right") then dx = 1 end
+
+        if (dx ~= 0 or dy ~= 0) then
+            -- Calculate target grid position
+            local tx, ty = playerUnit.x + dx, playerUnit.y + dy
+            
             -- Issue Move Command
             BattleContext.data.playerCommand = {
                 type = "MOVE",
-                target = {x = gx, y = gy},
-                unitId = BattleContext.data.selectedUnitId
+                target = {x = tx, y = ty},
+                unitId = playerUnit.id
             }
         end
     end
 
     -- 2. Tick Loop
-    BattleContext.data.accumulator = BattleContext.data.accumulator + dt
+    local waitingForInput = false
     
-    local loops = 0
-    while BattleContext.data.accumulator >= TICK_RATE and loops < MAX_FRAME_SKIP do
-        BattleState._tick()
-        BattleContext.data.accumulator = BattleContext.data.accumulator - TICK_RATE
-        loops = loops + 1
+    -- Pause simulation if player can act but hasn't issued a command
+    if playerUnit and playerUnit:canAct() and not BattleContext.data.playerCommand then
+        waitingForInput = true
+    end
+    
+    if not waitingForInput then
+        BattleContext.data.accumulator = BattleContext.data.accumulator + dt
+        local loops = 0
+        while BattleContext.data.accumulator >= TICK_RATE and loops < MAX_FRAME_SKIP do
+            BattleState._tick()
+            BattleContext.data.accumulator = BattleContext.data.accumulator - TICK_RATE
+            loops = loops + 1
+        end
     end
 
     -- 3. Render System (Visual Interpolation)
@@ -105,10 +121,10 @@ function BattleState._tick()
     BattleContext.data.tick = BattleContext.data.tick + 1
     
     -- 1. Decision System: Every tick, units decide what they want to do
-    DecisionSystem.update(TICK_RATE, BattleContext)
+    DecisionSystem.update(BattleContext)
     
     -- 2. Execution System: Resolve intents and update state
-    ExecutionSystem.update(TICK_RATE, BattleContext)
+    ExecutionSystem.update(BattleContext)
 end
 
 function BattleState.draw()
@@ -118,6 +134,12 @@ function BattleState.draw()
     
     love.graphics.setColor(1, 1, 1)
     love.graphics.print("Battle Tick: " .. tostring(BattleContext.data.tick), 10, 10)
+    
+    local playerUnit = BattleContext.data.units[BattleContext.data.selectedUnitId]
+    if playerUnit and playerUnit:canAct() and not BattleContext.data.playerCommand then
+        love.graphics.setColor(1, 1, 0)
+        love.graphics.print("Waiting for Input...", 10, 30)
+    end
 end
 
 return BattleState
