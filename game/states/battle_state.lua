@@ -6,6 +6,7 @@ local Input = require("core.input")
 local BattleContext = require("game.battle.battle_context")
 local BattleGrid = require("game.battle.battle_grid")
 local BattleUnit = require("game.battle.battle_unit")
+local Skills = require("data.skills")
 local BattleState = {}
 
 -- Systems
@@ -71,10 +72,28 @@ end
 function BattleState.update(dt)
     if BattleContext.data.paused then return end
     
+    -- Update Input Cooldown
+    if BattleContext.data.inputCooldown > 0 then
+        BattleContext.data.inputCooldown = BattleContext.data.inputCooldown - dt
+    end
+
     -- 1. Input Handling
     local playerUnit = BattleContext.data.units[BattleContext.data.selectedUnitId]
     
-    -- Only accept input if the player unit is ready to act
+    -- Tab: Cycle Skills
+    if Input.isKeyDown("tab") and BattleContext.data.inputCooldown <= 0 then
+        BattleContext.data.selectedSkillIndex = BattleContext.data.selectedSkillIndex + 1
+        if playerUnit and playerUnit.skillList then
+            if BattleContext.data.selectedSkillIndex > #playerUnit.skillList then
+                BattleContext.data.selectedSkillIndex = 1
+            end
+        else
+            BattleContext.data.selectedSkillIndex = 1
+        end
+        BattleContext.data.inputCooldown = 0.2
+    end
+
+    -- Movement (Requires Unit to be Ready)
     if playerUnit and playerUnit:canAct() then
         local dx, dy = 0, 0
         if Input.isKeyDown("w") or Input.isKeyDown("up") then dy = -1 end
@@ -92,6 +111,46 @@ function BattleState.update(dt)
                 target = {x = tx, y = ty},
                 unitId = playerUnit.id
             }
+        end
+    end
+
+    -- Space: Auto-Attack Nearest (Can be done even if on cooldown)
+    if playerUnit and Input.isKeyDown("space") and BattleContext.data.inputCooldown <= 0 then
+        if playerUnit.skillList and #playerUnit.skillList > 0 then
+            local skillId = playerUnit.skillList[BattleContext.data.selectedSkillIndex]
+            local skillData = Skills[skillId]
+            
+            if skillData then
+                -- Find best target (nearest enemy in range)
+                local bestTarget = nil
+                local minDist = math.huge
+                local rangeSq = (skillData.range or 1.5) * (skillData.range or 1.5)
+                
+                for _, other in ipairs(BattleContext.data.unitList) do
+                    if other.team ~= playerUnit.team and other.hp > 0 then
+                        local tdx = playerUnit.x - other.x
+                        local tdy = playerUnit.y - other.y
+                        local dist = tdx*tdx + tdy*tdy
+                        
+                        if dist <= rangeSq and dist < minDist then
+                            minDist = dist
+                            bestTarget = other
+                        end
+                    end
+                end
+                
+                if bestTarget then
+                    BattleContext.data.playerCommand = {
+                        type = "SKILL",
+                        skillId = skillId,
+                        targetUnitId = bestTarget.id,
+                        unitId = playerUnit.id
+                    }
+                    BattleContext.data.inputCooldown = 0.2
+                else
+                    print("No targets in range!")
+                end
+            end
         end
     end
 
@@ -125,6 +184,9 @@ function BattleState._tick()
     
     -- 2. Execution System: Resolve intents and update state
     ExecutionSystem.update(BattleContext)
+    
+    -- 3. Cleanup dead units
+    BattleContext.removeDeadUnits()
 end
 
 function BattleState.draw()
@@ -139,6 +201,43 @@ function BattleState.draw()
     if playerUnit and playerUnit:canAct() and not BattleContext.data.playerCommand then
         love.graphics.setColor(1, 1, 0)
         love.graphics.print("Waiting for Input...", 10, 30)
+    end
+
+    -- Draw Player Skills UI
+    if playerUnit and playerUnit.skillList then
+        local screenW = love.graphics.getWidth()
+        local uiX = screenW - 220
+        local uiY = 20
+        
+        -- Background
+        love.graphics.setColor(0, 0, 0, 0.7)
+        love.graphics.rectangle("fill", uiX, uiY, 200, #playerUnit.skillList * 40 + 10)
+        
+        for i, skillId in ipairs(playerUnit.skillList) do
+            local skill = Skills[skillId]
+            local y = uiY + 10 + (i-1)*40
+            
+            -- Highlight selected
+            if i == BattleContext.data.selectedSkillIndex then
+                love.graphics.setColor(1, 1, 0, 0.3)
+                love.graphics.rectangle("fill", uiX + 5, y, 190, 35)
+            end
+            
+            -- Text
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.print(skill.name, uiX + 10, y + 5)
+            
+            -- Cooldown / Charges
+            local cd = playerUnit.cooldowns[skillId] or 0
+            if cd > 0 then
+                love.graphics.setColor(1, 0, 0, 1)
+                love.graphics.print(string.format("%.1fs", cd/20), uiX + 150, y + 5)
+            elseif playerUnit.charges[skillId] then
+                love.graphics.setColor(0, 1, 1, 1)
+                local max = skill.maxCharges or "?"
+                love.graphics.print(string.format("%s/%s", tostring(playerUnit.charges[skillId]), tostring(max)), uiX + 150, y + 5)
+            end
+        end
     end
 end
 

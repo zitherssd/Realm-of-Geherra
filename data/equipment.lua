@@ -17,7 +17,7 @@ return {
         slot = "rangedWeapon",
         type = "javelin",
         stats = {damage = 10},
-        grantsSkill = "throw_javelin"
+        grantsSkill = "javelin_throw"
     },
     
     ["leather_armor"] = {

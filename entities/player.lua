@@ -11,6 +11,7 @@ function Player.new(id, name)
     
     self.name = name or "Player"
     self:addTag("player")
+    self.sprite = "assets/sprites/units/commander.png"
     
     return self
 end

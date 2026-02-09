@@ -34,6 +34,7 @@ function Actor.new(id, actorType)
     
     self.velocity = {x = 0, y = 0}
     self.ai = {state = "idle"}
+    self.sprite = "assets/sprites/units/imp.png"
     
     return self
 end

@@ -32,6 +32,20 @@ function BattleUnit.new(actor, gridX, gridY, team)
         intent = nil,       -- { type="MOVE", target={x,y} } or { type="SKILL", id="slash", target=unitId }
         cooldowns = {},     -- Map of skill_id -> time_remaining (seconds)
         charges = {},       -- Map of skill_id -> remaining_uses
+        currentCast = nil,  -- { skillId, targetUnitId, remaining }
+        skillList = {},     -- Ordered list of skill IDs for UI
+        
+        -- Visual Effects State
+        visualEffects = {
+            shakeTime = 0,
+            flashTime = 0,
+            flashColor = {1, 1, 1}, -- {r, g, b}
+            flashIntensity = 0,
+            lungeTime = 0,
+            lungeDuration = 0,
+            lungeX = 0,
+            lungeY = 0
+        },
         globalCooldown = 0  -- GCD timer
     }
     
@@ -71,12 +85,15 @@ function BattleUnit.new(actor, gridX, gridY, team)
     self.hp = self.maxHp
     
     -- Initialize charges for skills that have limits
+    self.skillList = {}
     for skillId, _ in pairs(self.skills) do
+        table.insert(self.skillList, skillId)
         local skillData = Skills[skillId]
         if skillData and skillData.maxCharges then
             self.charges[skillId] = skillData.maxCharges
         end
     end
+    table.sort(self.skillList)
     
     return self
 end

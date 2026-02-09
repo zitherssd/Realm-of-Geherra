@@ -39,6 +39,15 @@ function Troop.new(troopType, id)
                 self.equipment[slot] = itemId
             end
         end
+        
+        -- Apply Sprite
+        if data.sprite then
+            if type(data.sprite) == "table" then
+                self.sprite = data.sprite[math.random(#data.sprite)]
+            else
+                self.sprite = data.sprite
+            end
+        end
     end
     
     return self

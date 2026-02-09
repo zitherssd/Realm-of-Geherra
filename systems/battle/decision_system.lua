@@ -18,7 +18,9 @@ function DecisionSystem.update(context)
                 if playerCommand and playerCommand.unitId == unit.id then
                     unit.intent = {
                         type = playerCommand.type,
-                        target = playerCommand.target
+                        target = playerCommand.target,
+                        skillId = playerCommand.skillId,
+                        targetUnitId = playerCommand.targetUnitId
                     }
                     -- Consume command after assignment
                     context.data.playerCommand = nil

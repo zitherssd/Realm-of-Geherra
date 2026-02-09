@@ -8,7 +8,8 @@ return {
         type = "melee",
         description = "Basic melee attack",
         damageMultiplier = 1.0,
-        cooldown = 0.5,
+        windup = 10,
+        cooldown = 50,
         cost = 0,
         range = 1.5,
     },
@@ -20,7 +21,8 @@ return {
         description = "Launch a fireball at the enemy",
         damageMultiplier = 1.5,
         area = true,
-        cooldown = 2.0,
+        windup = 120,
+        cooldown = 40,
         cost = 30
     },
     
@@ -30,7 +32,8 @@ return {
         type = "spell",
         description = "Restore health",
         healing = 50,
-        cooldown = 3.0,
+        windup = 60,
+        cooldown = 60,
         cost = 20
     },
     
@@ -41,7 +44,7 @@ return {
         description = "Bash with shield, stun enemy",
         damageMultiplier = 0.8,
         stun = true,
-        cooldown = 2.0,
+        cooldown = 40,
         cost = 0
     },
 
@@ -51,8 +54,9 @@ return {
         type = "ranged",
         description = "Throw a javelin (Limited uses)",
         damageMultiplier = 2.0,
-        range = 5.0,
-        cooldown = 1.0,
+        range = 6.0,
+        windup = 45,
+        cooldown = 20,
         maxCharges = 2, -- Only usable 2 times per battle
     }
 }

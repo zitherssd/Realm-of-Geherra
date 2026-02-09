@@ -37,6 +37,8 @@ function BattleContext.init(grid)
     BattleContext.data.outcome = nil
     BattleContext.data.tick = 0
     BattleContext.data.accumulator = 0
+    BattleContext.data.selectedSkillIndex = 1
+    BattleContext.data.inputCooldown = 0
 end
 
 function BattleContext.addUnit(battleUnit)
@@ -47,6 +49,22 @@ function BattleContext.addUnit(battleUnit)
     -- Register initial position on grid
     if BattleContext.data.grid then
         BattleContext.data.grid:setOccupant(battleUnit.x, battleUnit.y, battleUnit.id)
+    end
+end
+
+function BattleContext.removeDeadUnits()
+    local units = BattleContext.data.unitList
+    local grid = BattleContext.data.grid
+    
+    for i = #units, 1, -1 do
+        local unit = units[i]
+        if unit.hp <= 0 then
+            if grid then
+                grid:setOccupant(unit.x, unit.y, nil)
+            end
+            BattleContext.data.units[unit.id] = nil
+            table.remove(units, i)
+        end
     end
 end
 

@@ -23,7 +23,7 @@ function GameInitializer.initNewGame(options)
     GameContext.data.playtime = 0
     
     -- Create player character
-    local player = Player.new("player_1", options.playerName or "Wanderer")
+    local player = Troop.new("player")
     GameContext.setPlayer(player)
     
     -- Create player party
@@ -31,6 +31,8 @@ function GameInitializer.initNewGame(options)
     playerParty:setPosition(512, 512)
     playerParty:addActor(player)
     playerParty:addActor(Troop.new("companion"))
+    playerParty:addActor(Troop.new("war_dog"))
+
     GameContext.data.playerParty = playerParty
     
     -- Create initial world map
