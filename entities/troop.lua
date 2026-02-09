@@ -5,13 +5,13 @@ local Actor = require("entities.actor")
 local Troop = setmetatable({}, Actor)
 Troop.__index = Troop
 
-function Troop.new(id, troopType)
+function Troop.new(troopType, id)
     local self = Actor.new(id, "troop")
     setmetatable(self, Troop)
     
     self.troopType = troopType or "soldier"
-    self.addTag(self, "troop")
-    self.addTag(self, troopType)
+    self:addTag("troop")
+    self:addTag(self.troopType)
     
     self.formation = nil
     self.squad = nil

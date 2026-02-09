@@ -16,8 +16,8 @@ function Item.new(id, itemType)
     self.value = 0
     self.quantity = 1
     
-    self.addTag(self, "item")
-    self.addTag(self, itemType)
+    self:addTag("item")
+    self:addTag(itemType)
     
     return self
 end

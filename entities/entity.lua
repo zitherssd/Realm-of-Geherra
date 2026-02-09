@@ -6,7 +6,7 @@ Entity.__index = Entity
 
 function Entity.new(id, entityType)
     local self = setmetatable({}, Entity)
-    self.id = id
+    self.id = id or (tostring(os.time()) .. "-" .. tostring(math.random(10000, 99999)))
     self.type = entityType or "entity"
     self.tags = {}
     self.data = {}

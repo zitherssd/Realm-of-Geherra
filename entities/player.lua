@@ -10,7 +10,7 @@ function Player.new(id, name)
     setmetatable(self, Player)
     
     self.name = name or "Player"
-    self.addTag(self, "player")
+    self:addTag("player")
     
     return self
 end

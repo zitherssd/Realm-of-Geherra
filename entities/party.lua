@@ -4,9 +4,9 @@
 local Party = {}
 Party.__index = Party
 
-function Party.new(id, name, leaderId)
+function Party.new(name, leaderId, id)
     local self = {
-        id = id,
+        id = id or (tostring(os.time()) .. "-" .. tostring(math.random(10000, 99999))),
         name = name or "Party",
         
         -- Party composition

@@ -10,7 +10,7 @@ function Mount.new(id, mountType)
     setmetatable(self, Mount)
     
     self.mountType = mountType or "horse"
-    self.addTag(self, "mount")
+    self:addTag("mount")
     
     self.rider = nil
     self.stats = {

@@ -10,7 +10,7 @@ function NPC.new(id, name)
     setmetatable(self, NPC)
     
     self.name = name or "NPC"
-    self.addTag(self, "npc")
+    self:addTag("npc")
     
     self.dialogue = nil
     self.quests = {}

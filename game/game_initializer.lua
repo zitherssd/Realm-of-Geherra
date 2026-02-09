@@ -27,10 +27,10 @@ function GameInitializer.initNewGame(options)
     GameContext.setPlayer(player)
     
     -- Create player party
-    local playerParty = Party.new("party_player", options.playerName or "Wanderer", "player_1")
+    local playerParty = Party.new(options.playerName or "Wanderer", player.id, "party_player")
     playerParty:setPosition(512, 512)
     playerParty:addActor(player)
-    playerParty:addActor(Troop.new("companion_1", "companion"))
+    playerParty:addActor(Troop.new("companion"))
     GameContext.data.playerParty = playerParty
     
     -- Create initial world map
@@ -97,16 +97,16 @@ end
 -- Create initial parties for a new game
 function GameInitializer._createStarterParties(map)
     -- Create a bandit party
-    local banditLeader = Troop.new("bandit_leader_1", "bandit")
+    local banditLeader = Troop.new("bandit")
     
-    local banditParty = Party.new("party_bandits_1", "Forest Bandits", banditLeader.id)
+    local banditParty = Party.new("Forest Bandits", banditLeader.id)
     banditParty:setPosition(350, 350) -- Near Ironhold
     banditParty.faction = "bandits"
     
     -- Add members
     banditParty:addActor(banditLeader)
-    banditParty:addActor(Troop.new("bandit_1", "bandit"))
-    banditParty:addActor(Troop.new("bandit_2", "bandit"))
+    banditParty:addActor(Troop.new("bandit"))
+    banditParty:addActor(Troop.new("bandit"))
     
     map:addParty(banditParty)
 end

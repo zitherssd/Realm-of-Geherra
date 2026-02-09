@@ -1,5 +1,6 @@
 -- systems/battle/decision_system.lua
 -- Determines intents for AI and processes Player commands
+-- Executed once per battle tick (20Hz)
 
 local DecisionSystem = {}
 
