@@ -20,7 +20,11 @@ BattleContext.data = {
     selectedUnitId = nil,
     
     -- State
-    outcome = nil        -- nil, "win", "loss", "flee"
+    outcome = nil,       -- nil, "win", "loss", "flee"
+
+    -- Tick System
+    tick = 0,
+    accumulator = 0
 }
 
 function BattleContext.init(grid)
@@ -31,6 +35,8 @@ function BattleContext.init(grid)
     BattleContext.data.playerCommand = nil
     BattleContext.data.selectedUnitId = nil
     BattleContext.data.outcome = nil
+    BattleContext.data.tick = 0
+    BattleContext.data.accumulator = 0
 end
 
 function BattleContext.addUnit(battleUnit)

@@ -1,18 +1,22 @@
 -- game/states/battle_state.lua
 -- Battle/combat state
+-- Manages the battle loop with a fixed timestep (tick system)
 
 local Input = require("core.input")
 local BattleContext = require("game.battle.battle_context")
 local BattleGrid = require("game.battle.battle_grid")
 local BattleUnit = require("game.battle.battle_unit")
+local BattleState = {}
 
+-- Systems
 local DecisionSystem = require("systems.battle.decision_system")
 local ExecutionSystem = require("systems.battle.execution_system")
 local RenderSystem = require("systems.battle.render_system")
 
 local GameContext = require("game.game_context")
-
-local BattleState = {}
+-- Constants
+local TICK_RATE = 1 / 20 -- 20 ticks per second
+local MAX_FRAME_SKIP = 5
 
 function BattleState.enter(params)
     params = params or {}
@@ -83,10 +87,28 @@ function BattleState.update(dt)
         end
     end
 
-    -- 2. Systems Loop
-    DecisionSystem.update(dt, BattleContext)
-    ExecutionSystem.update(dt, BattleContext)
+    -- 2. Tick Loop
+    BattleContext.data.accumulator = BattleContext.data.accumulator + dt
+    
+    local loops = 0
+    while BattleContext.data.accumulator >= TICK_RATE and loops < MAX_FRAME_SKIP do
+        BattleState._tick()
+        BattleContext.data.accumulator = BattleContext.data.accumulator - TICK_RATE
+        loops = loops + 1
+    end
+
+    -- 3. Render System (Visual Interpolation)
     RenderSystem.update(dt, BattleContext)
+end
+
+function BattleState._tick()
+    BattleContext.data.tick = BattleContext.data.tick + 1
+    
+    -- 1. Decision System: Every tick, units decide what they want to do
+    DecisionSystem.update(TICK_RATE, BattleContext)
+    
+    -- 2. Execution System: Resolve intents and update state
+    ExecutionSystem.update(TICK_RATE, BattleContext)
 end
 
 function BattleState.draw()
@@ -95,7 +117,7 @@ function BattleState.draw()
     RenderSystem.draw(BattleContext)
     
     love.graphics.setColor(1, 1, 1)
-    love.graphics.print("Battle State - Click to Move", 10, 10)
+    love.graphics.print("Battle Tick: " .. tostring(BattleContext.data.tick), 10, 10)
 end
 
 return BattleState
