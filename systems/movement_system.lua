@@ -1,34 +1,21 @@
 -- systems/movement_system.lua
---
--- System for handling party movement on the world map.
-
-local Math = require("util.math")
+-- Handle actor position, velocity, and pathfinding
 
 local MovementSystem = {}
 
-function MovementSystem.update_party(party, dt, world)
-	if not party.velocity then
-		return
-	end
-
-	local vx, vy = party.velocity.x or 0, party.velocity.y or 0
-	if vx == 0 and vy == 0 then
-		return
-	end
-
-	local speed = party.speed or 0
-	local nx, ny = Math.normalize(vx, vy)
-	party.position.x = party.position.x + nx * speed * dt
-	party.position.y = party.position.y + ny * speed * dt
-
-	party.position.x = Math.clamp(party.position.x, 0, world.width)
-	party.position.y = Math.clamp(party.position.y, 0, world.height)
+function MovementSystem.updatePosition(actor, dt)
+    if actor.velocity then
+        actor.x = (actor.x or 0) + actor.velocity.x * dt
+        actor.y = (actor.y or 0) + actor.velocity.y * dt
+    end
 end
 
-function MovementSystem.update(parties, dt, world)
-	for _, party in ipairs(parties) do
-		MovementSystem.update_party(party, dt, world)
-	end
+function MovementSystem.setVelocity(actor, vx, vy)
+    actor.velocity = {x = vx, y = vy}
+end
+
+function MovementSystem.stop(actor)
+    actor.velocity = {x = 0, y = 0}
 end
 
 return MovementSystem

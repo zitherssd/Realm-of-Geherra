@@ -1,3 +1,0 @@
--- core/commander.lua
---
--- Defines the commander data structure.

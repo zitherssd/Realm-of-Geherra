@@ -1,37 +1,53 @@
--- Main entry point for the game
--- This handles the Love2D callbacks and manages the game state
+-- Realm of Geherra
+-- A Love2D Mount & Blade-style RPG
 
-local Game = require('src.game')
+-- Core Framework
+local GameManager = require("core.game")
+local StateManager = require("core.state_manager")
+local EventBus = require("core.event_bus")
+local Input = require("core.input")
 
+-- Initialize
 function love.load()
-    -- Initialize the game
-    love.window.setTitle("Realms-of-Geherra")
-    love.graphics.setDefaultFilter('nearest', 'nearest')
+    -- Initialize core systems
+    GameManager.init()
+    StateManager.init()
+    EventBus.init()
+    Input.init()
     
-    Game:init()
+    -- Start in menu state
+    StateManager.push("menu")
 end
 
 function love.update(dt)
-    -- Update the game state
-    Game:update(dt)
+    Input.update(dt)
+    StateManager.update(dt)
 end
 
 function love.draw()
-    -- Draw the game
-    Game:draw()
+    StateManager.draw()
 end
 
 function love.keypressed(key)
-    -- Handle key press events
-    Game:keypressed(key)
+    Input.keypressed(key)
+end
+
+function love.keyreleased(key)
+    Input.keyreleased(key)
 end
 
 function love.mousepressed(x, y, button)
-    -- Handle mouse press events
-    Game:mousepressed(x, y, button)
+    Input.mousepressed(x, y, button)
 end
 
 function love.mousereleased(x, y, button)
-    -- Handle mouse release events
-    Game:mousereleased(x, y, button)
+    Input.mousereleased(x, y, button)
+end
+
+function love.mousemoved(x, y, dx, dy)
+    Input.mousemoved(x, y, dx, dy)
+end
+
+function love.wheelmoved(x, y)
+    Input.wheelmoved(x, y)
 end

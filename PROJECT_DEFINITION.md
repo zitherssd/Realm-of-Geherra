@@ -1,0 +1,458 @@
+# 🛡️ Love2D Mount & Blade–Style RPG Architecture
+
+*A structural, system-oriented architecture for building a Mount & Blade–style RPG using **LÖVE (Love2D)**.*
+
+---
+
+## 📘 Purpose of This Document
+
+This document defines the **project structure**, **architectural philosophy**, and **strict system boundaries** for the game.
+
+It is intended to serve as:
+
+* A **long-term technical reference**
+* A **set of hard constraints** for implementation
+* A **clear instruction set for an AI agent** (or human developer) to extend the project incrementally **without architectural drift**
+
+No section of this document describes concrete gameplay implementations. It describes *where things belong* and *why*.
+
+---
+
+## 🎯 High-Level Goals
+
+* Scale to **large battles, parties, and AI-driven NPCs**
+* Support **data-driven content** and future modding
+* Maintain a clean separation between **data, logic, and presentation**
+* Remain flexible for long-term iteration, refactoring, and experimentation
+
+---
+
+## 🧠 Core Design Principles
+
+1. **Systems operate on data, not objects with behavior**
+2. **Entities are primarily data containers**
+3. **UI never mutates game state directly**
+4. **Quests, encounters, and progression are data-driven**
+5. **Dependencies only flow downward**
+
+These principles are non-negotiable.
+
+---
+
+## 📁 Root Project Structure
+
+```
+project/
+│
+├─ main.lua
+├─ conf.lua
+│
+├─ core/
+├─ game/
+├─ systems/
+├─ entities/
+├─ world/
+├─ quests/
+├─ ui/
+├─ data/
+├─ assets/
+├─ utils/
+└─ debug/
+```
+
+---
+
+## 🧠 core/ — Engine & Framework Glue
+
+**Purpose:** Provide engine-agnostic foundations. No gameplay logic is permitted here.
+
+```
+core/
+├─ game.lua            -- Main lifecycle coordination
+├─ state_manager.lua   -- Push/pop/swap game states
+├─ event_bus.lua       -- Decoupled event dispatch
+├─ input.lua           -- Abstracted input layer
+├─ time.lua            -- Time scaling & pausing
+└─ save.lua            -- Save/load infrastructure
+```
+
+**Rules:**
+
+* Must not reference gameplay concepts (combat, quests, items, factions)
+* Must be reusable across entirely different games
+
+---
+
+## 🎲 game/ — High-Level Game Flow
+
+**Purpose:** Define *what mode the game is currently in*.
+
+```
+game/
+├─ states/
+│  ├─ menu_state.lua
+│  ├─ world_state.lua
+│  ├─ battle_state.lua
+│  ├─ dialogue_state.lua
+│  └─ pause_state.lua
+│
+├─ battle/
+│  ├─ battle_context.lua     -- Battle-specific blackboard
+│  ├─ battle_grid.lua        -- Tactical grid data
+│  └─ battle_unit.lua        -- Battle entity wrapper
+│
+├─ game_context.lua          -- Shared blackboard
+└─ game_initializer.lua      -- New game setup and initialization
+```
+
+### game_context.lua
+
+Acts as a **shared blackboard** containing:
+
+* Player party
+* Current world / map
+* Active quests
+* Global flags
+* Difficulty or rulesets
+
+This is the *only* globally shared mutable state in the game.
+
+### game_initializer.lua
+
+Handles initialization of a new game:
+
+* Creates and configures the player character
+* Initializes the world map
+* Places initial settlements and NPCs
+* Sets up starting quests and global state
+
+Called when transitioning from the main menu to world state.
+
+---
+
+## ⚙️ systems/ — Game Logic Modules
+
+**Purpose:** Implement game rules and mechanics. Systems never render UI.
+
+```
+systems/
+├─ battle/
+│  ├─ decision_system.lua    -- AI & Player intent processing
+│  ├─ execution_system.lua   -- Action resolution & state updates
+│  └─ render_system.lua      -- Battle visualization
+│
+├─ movement_system.lua
+├─ party_system.lua
+├─ combat_system.lua
+├─ ai_system.lua
+├─ animation_system.lua
+├─ skill_system.lua
+├─ inventory_system.lua
+├─ equipment_system.lua
+├─ progression_system.lua
+├─ faction_system.lua
+├─ reputation_system.lua
+├─ quest_system.lua
+└─ dialogue_system.lua
+```
+
+### Battle System Flow
+
+The tactical battle mode operates on a strict loop managed by `battle_state.lua`:
+
+1.  **Input:** Player inputs are captured and stored as commands in `BattleContext`.
+2.  **Decision System:**
+    *   Converts Player commands into Unit Intents.
+    *   Runs AI logic to generate Enemy Intents.
+3.  **Execution System:** Resolves all Intents, updates grid positions, applies damage, and manages cooldowns.
+4.  **Render System:** Visualizes the state, interpolating (lerping) unit positions for smooth movement.
+
+### party_system.lua
+
+**Responsibilities:**
+
+* Manage party membership and leadership
+* Handle party-level movement and travel
+* Aggregate party stats (speed, visibility, strength)
+* Interface with encounter, world, and combat systems
+
+**Must not:**
+
+* Control individual actor behavior
+* Contain combat resolution logic
+
+### quest_system.lua
+
+**Responsibilities:**
+
+* Track quest states (inactive, active, completed, failed)
+* Evaluate objectives and conditions
+* Emit quest-related events
+* Interface with dialogue and world systems
+
+**Must not:**
+
+* Render UI
+* Contain hardcoded narrative or story logic
+
+---
+
+## 🧍 entities/ — Persistent Actors and Objects
+
+**Purpose:** Define *what exists* independently of systems.
+
+```
+entities/
+├─ entity.lua          -- Base entity schema
+├─ actor.lua           -- Living, acting entities
+├─ player.lua          -- Player-controlled actor
+├─ npc.lua             -- AI- or dialogue-driven actor
+├─ troop.lua           -- Mass-produced combat actor
+├─ mount.lua           -- Actor-attached entity
+├─ item.lua            -- Inventory and equipment entities
+└─ party.lua           -- Persistent group of actors
+```
+
+### Entity Design Guidelines
+
+* Entities have **identity and persistence**
+* Entities store **data only** (stats, tags, references)
+* Entities never contain gameplay logic
+* Entities are manipulated exclusively by systems
+
+### Actor Specialization
+
+An **actor** represents any living being capable of action. Player characters, NPCs, and troops are all actors differentiated by **data, tags, and control source**, not by unique logic.
+
+### Party Structure
+
+A **party** represents a **persistent group of actors** traveling and acting together on the world map.
+
+Parties are entities because they:
+
+* Have identity and long-term persistence
+* Are referenced by quests, encounters, factions, and the world
+* Maintain shared state over time
+
+A party typically contains:
+
+* A list of member actor IDs
+* A leader (actor reference)
+* Inventory and shared resources
+* Movement speed modifiers
+* Current world location
+* Faction alignment
+* Morale and supply tracking
+
+Parties do **not**:
+
+* Replace individual actors
+* Contain combat or AI logic
+* Act independently of systems
+
+In battles, parties are **resolved into individual actors or formations** by combat and encounter systems.
+
+---
+
+## 🌍 world/ — Spatial Context & Locations
+
+**Purpose:** Define spatial structure, travel, and world context.
+
+```
+world/
+├─ world.lua
+├─ map.lua
+├─ camera.lua           -- Camera system for viewport management
+├─ node.lua             -- Travel nodes / regions
+├─ settlement.lua       -- Persistent world locations
+├─ encounter.lua
+└─ scene_loader.lua
+```
+
+### Camera System
+
+Manages the viewport and player tracking:
+
+* Follows the player with smooth lerp interpolation
+* Constrains camera to map bounds
+* Provides world-to-screen coordinate conversion
+* Supports zoom and panning
+
+### Map
+
+Enhanced with visual rendering:
+
+* Displays map background image (assets/map/visual_map.png)
+* Renders settlements and their locations
+* Displays parties and actors on the map
+
+### Settlements and Locations
+
+Settlements are **persistent world-scoped objects**, not actors.
+
+They:
+
+* Have identity and long-term state
+* Are referenced by quests, factions, and systems
+* Define context rather than moment-to-moment action
+
+They do **not**:
+
+* Act independently
+* Participate directly in combat or AI systems
+
+Settlements belong to the **world layer**, not the entity layer.
+
+---
+
+## 📜 quests/ — Narrative Structure & Objectives
+
+**Purpose:** Define quest structure without embedding gameplay logic.
+
+```
+quests/
+├─ quest.lua           -- Quest data schema
+├─ objective.lua       -- Objective definitions
+├─ condition.lua       -- Reusable conditions
+├─ reward.lua          -- Reward definitions
+└─ quest_registry.lua
+```
+
+### Quest Design Rules
+
+* Quests are **pure data plus conditions**
+* No quest contains executable gameplay logic
+* Systems interpret quest data and emit events
+
+Quest data may include:
+
+* Metadata (title, description, giver)
+* Objectives (kill, deliver, talk, travel)
+* Conditions (time, faction, reputation)
+* Rewards (items, gold, reputation, unlocks)
+
+---
+
+## 🖥️ ui/ — Presentation Layer
+
+**Purpose:** Display information and collect player intent.
+
+```
+ui/
+├─ ui_manager.lua
+├─ screens/
+│  ├─ main_menu.lua
+│  ├─ inventory_screen.lua
+│  ├─ character_screen.lua
+│  ├─ party_screen.lua
+│  ├─ quest_log_screen.lua
+│  └─ dialogue_screen.lua
+│
+└─ widgets/
+   ├─ button.lua
+   ├─ panel.lua
+   ├─ list.lua
+   └─ tooltip.lua
+```
+
+**Rules:**
+
+* UI requests data from systems
+* UI emits intent events
+* UI never mutates game state directly
+
+---
+
+## 📦 data/ — Game Content Definitions
+
+**Purpose:** Store all tunable and authorable content.
+
+```
+data/
+├─ items.lua
+├─ skills.lua
+├─ troops.lua
+├─ factions.lua
+├─ encounters.lua
+├─ equipment.lua
+├─ quests.lua
+├─ dialogue.lua
+└─ progression.lua
+```
+
+All content must be editable without modifying system logic.
+
+---
+
+## 🧰 utils/ — Shared Utilities
+
+```
+utils/
+├─ math.lua
+├─ table.lua
+├─ string.lua
+├─ timer.lua
+└─ serializer.lua
+```
+
+---
+
+## 🐞 debug/ — Development Tools
+
+```
+debug/
+├─ console.lua
+├─ inspector.lua
+├─ profiler.lua
+└─ draw.lua
+```
+
+Used only in development builds.
+
+---
+
+## 🔁 Dependency Direction (MANDATORY)
+
+```
+core
+ ↓
+game
+ ↓
+systems
+ ↓
+entities
+ ↓
+world / quests
+ ↓
+ui
+```
+
+Upward imports are strictly forbidden.
+
+---
+
+## 🤖 Instructions for AI Agents
+
+When extending the project:
+
+1. **Do not collapse or merge folders**
+2. **Do not add gameplay logic to UI or entities**
+3. **Prefer data definitions over code**
+4. **Emit events instead of direct cross-system calls**
+5. **Respect system and layer boundaries strictly**
+
+If a feature does not clearly belong to an existing system, **create a new system**.
+
+---
+
+## ✅ Outcome
+
+This architecture is designed to support:
+
+* Large-scale battles and parties
+* Dynamic, data-driven quests
+* Faction politics and reputation
+* Emergent gameplay
+* Long-term expansion and maintainability
+
+This document is the **authoritative structural reference** for the project.

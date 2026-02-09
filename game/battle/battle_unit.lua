@@ -1,0 +1,51 @@
+-- game/battle/battle_unit.lua
+-- Transient wrapper for an Actor during combat
+-- Holds grid position, visual position, and current intent
+
+local BattleUnit = {}
+BattleUnit.__index = BattleUnit
+
+function BattleUnit.new(actor, gridX, gridY, team)
+    local self = {
+        -- Persistent Data Reference
+        actor = actor,
+        id = actor.id,
+        
+        -- Logical State (Grid)
+        x = gridX,
+        y = gridY,
+        team = team or "neutral", -- "player", "enemy", "ally"
+        
+        -- Visual State (Pixels)
+        visualX = 0, 
+        visualY = 0,
+        
+        -- Combat State
+        hp = actor.stats.health,
+        maxHp = actor.stats.health,
+        
+        -- Action State
+        intent = nil,       -- { type="MOVE", target={x,y} } or { type="SKILL", id="slash", target=unitId }
+        cooldowns = {},     -- Map of skill_id -> time_remaining (seconds)
+        globalCooldown = 0, -- GCD timer
+        
+        -- Status Effects
+        isMoving = false
+    }
+    
+    setmetatable(self, BattleUnit)
+    return self
+end
+
+-- Helper to check if unit can act
+function BattleUnit:canAct()
+    return self.hp > 0 and self.globalCooldown <= 0 and not self.isMoving
+end
+
+-- Sync visual position immediately to grid (teleport)
+function BattleUnit:snapToGrid(cellSize)
+    self.visualX = (self.x - 1) * cellSize + (cellSize / 2)
+    self.visualY = (self.y - 1) * cellSize + (cellSize / 2)
+end
+
+return BattleUnit
