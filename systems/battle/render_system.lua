@@ -63,11 +63,45 @@ function RenderSystem.update(dt, context)
             end
         end
     end
+    
+    -- Update Camera
+    local camera = context.data.camera
+    local selectedUnitId = context.data.selectedUnitId
+    local unit = context.data.units[selectedUnitId]
+    
+    if camera and unit then
+        local screenW = love.graphics.getWidth()
+        local screenH = love.graphics.getHeight()
+        
+        -- Target is unit position centered on screen
+        local targetX = unit.visualX - screenW / 2
+        local targetY = unit.visualY - screenH / 2
+        
+        -- Lerp camera
+        local camSpeed = 5.0
+        camera.x = camera.x + (targetX - camera.x) * camSpeed * dt
+        camera.y = camera.y + (targetY - camera.y) * camSpeed * dt
+    end
 end
 
 function RenderSystem.draw(context)
     local grid = context.data.grid
     if not grid then return end
+    
+    local camera = context.data.camera
+    love.graphics.push()
+    if camera then
+        local screenW = love.graphics.getWidth()
+        local screenH = love.graphics.getHeight()
+        local zoom = camera.zoom or 1.0
+        
+        -- Scale around screen center
+        love.graphics.translate(screenW / 2, screenH / 2)
+        love.graphics.scale(zoom)
+        love.graphics.translate(-screenW / 2, -screenH / 2)
+        
+        love.graphics.translate(-math.floor(camera.x), -math.floor(camera.y))
+    end
     
     -- 1. Draw Grid
     love.graphics.setLineWidth(1)
@@ -168,6 +202,8 @@ function RenderSystem.draw(context)
             end
         end
     end
+    
+    love.graphics.pop()
 end
 
 return RenderSystem

@@ -24,7 +24,10 @@ BattleContext.data = {
 
     -- Tick System
     tick = 0,
-    accumulator = 0
+    accumulator = 0,
+    
+    -- Camera
+    camera = {x = 0, y = 0, zoom = 1.3}
 }
 
 function BattleContext.init(grid)
@@ -39,6 +42,7 @@ function BattleContext.init(grid)
     BattleContext.data.accumulator = 0
     BattleContext.data.selectedSkillIndex = 1
     BattleContext.data.inputCooldown = 0
+    BattleContext.data.camera = {x = 0, y = 0, zoom = 1.3}
 end
 
 function BattleContext.addUnit(battleUnit)
