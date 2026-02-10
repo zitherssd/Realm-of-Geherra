@@ -37,20 +37,7 @@ end
 function DecisionSystem._processAI(unit, context)
     local grid = context.data.grid
     -- Find nearest hostile
-    local nearestTarget = nil
-    local minDist = math.huge
-
-    for _, other in ipairs(context.data.unitList) do
-        if other.team ~= unit.team and other.hp > 0 then
-            local dx = unit.x - other.x
-            local dy = unit.y - other.y
-            local dist = dx*dx + dy*dy
-            if dist < minDist then
-                minDist = dist
-                nearestTarget = other
-            end
-        end
-    end
+    local nearestTarget, minDist = context.findNearestHostile(unit)
 
     if nearestTarget then
         -- AI Logic: Select best available skill from actor's known skills

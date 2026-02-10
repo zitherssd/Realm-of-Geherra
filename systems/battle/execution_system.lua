@@ -22,9 +22,13 @@ function ExecutionSystem.update(context)
         
         -- Handle Casting / Windup
         if unit.currentCast then
-            unit.currentCast.remaining = unit.currentCast.remaining - 1
-            if unit.currentCast.remaining <= 0 then
-                ExecutionSystem._completeCast(unit, context)
+            if unit.hp <= 0 then
+                unit.currentCast = nil
+            else
+                unit.currentCast.remaining = unit.currentCast.remaining - 1
+                if unit.currentCast.remaining <= 0 then
+                    ExecutionSystem._completeCast(unit, context)
+                end
             end
         end
     end
@@ -32,18 +36,23 @@ function ExecutionSystem.update(context)
     -- 2. Resolve Intents
     for _, unit in ipairs(units) do
         if unit.intent then
-            local intent = unit.intent
-            
-            if intent.type == "MOVE" then
-                ExecutionSystem._executeMove(unit, intent, grid)
-            elseif intent.type == "SKILL" then
-                ExecutionSystem._initiateSkill(unit, intent, context)
+            if unit.hp > 0 then
+                local intent = unit.intent
+                
+                if intent.type == "MOVE" then
+                    ExecutionSystem._executeMove(unit, intent, grid)
+                elseif intent.type == "SKILL" then
+                    ExecutionSystem._initiateSkill(unit, intent, context)
+                end
             end
             
             -- Clear intent after processing
             unit.intent = nil
         end
     end
+    
+    -- 3. Update Projectiles
+    ExecutionSystem._updateProjectiles(context)
 end
 
 function ExecutionSystem._executeMove(unit, intent, grid)
@@ -128,9 +137,30 @@ end
 
 function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, context)
     local skillData = Skills[skillId]
+    if not skillData then return end
+    local grid = context.data.grid
+
     local targetUnit = context.data.units[targetUnitId]
+    -- 1. Validate Target (Alive and in Range)
+    local isValid = false
+    local range = skillData.range or 1.5
+    local rangeSq = range * range
     
-    if targetUnit and skillData then
+    if targetUnit and targetUnit.hp > 0 then
+        local dx = targetUnit.x - unit.x
+        local dy = targetUnit.y - unit.y
+        local distSq = dx*dx + dy*dy
+        if distSq <= rangeSq + 0.01 then
+            isValid = true
+        end
+    end
+    
+    -- 2. Retarget if invalid
+    if not isValid then
+        targetUnit = context.findNearestHostile(unit, range)
+    end
+    
+    if targetUnit then
         -- Visual: Lunge Animation
         -- Calculate direction vector
         local dx = targetUnit.x - unit.x
@@ -144,20 +174,31 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, contex
             unit.visualEffects.lungeDuration = 0.2
         end
 
-        -- 1. Resolve Attack (Hit/Miss + Damage)
-        local result = CombatSystem.resolveAttack(unit, targetUnit, skillData)
-        
-        if result.hit then
-            -- HIT: Apply Damage & Visuals
-            if result.defeated then
-                context.data.grid:setOccupant(targetUnit.x, targetUnit.y, nil)
-            end
+        -- 1. Handle Projectile vs Instant Hit
+        if skillData.projectile then
+            -- Spawn Projectile
+            local startX, startY = grid:gridToWorld(unit.x, unit.y)
             
-            if context.addFloatingText then
-                context.addFloatingText(targetUnit.visualX, targetUnit.visualY, tostring(result.damage), {1, 0.2, 0.2, 1})
-            end
+            local proj = {
+                x = startX,
+                y = startY,
+                visualX = startX,
+                visualY = startY,
+                startX = startX,
+                startY = startY,
+                targetUnitId = targetUnit.id,
+                attackerUnit = unit,
+                skillId = skillId,
+                speed = skillData.projectile.speed or 10,
+                sprite = skillData.projectile.sprite,
+                arc = skillData.projectile.arc or 0,
+                progress = 0 -- 0.0 to 1.0 (approximate for arc)
+            }
             
+            context.addProjectile(proj)
         else
+            -- Instant Hit
+            ExecutionSystem._resolveHit(unit, targetUnit, skillData, context)
         end
         
         -- 2. Set Cooldowns (Value is in ticks)
@@ -171,6 +212,69 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, contex
         
         -- Apply a Global Cooldown (GCD) so they can't move immediately after attacking
         unit.globalCooldown = cdTicks
+    end
+end
+
+function ExecutionSystem._resolveHit(attacker, target, skillData, context)
+    -- Resolve Attack (Hit/Miss + Damage)
+    local result = CombatSystem.resolveAttack(attacker, target, skillData)
+    
+    if result.hit then
+        -- HIT: Apply Damage & Visuals
+        if result.defeated then
+            context.data.grid:setOccupant(target.x, target.y, nil)
+        end
+        
+        if context.addFloatingText then
+            context.addFloatingText(target.visualX, target.visualY, tostring(result.damage), {1, 0.2, 0.2, 1})
+        end
+    else
+        -- BLOCK/MISS
+        if context.addFloatingText then
+            context.addFloatingText(target.visualX, target.visualY, "BLOCK", {0.8, 0.8, 0.8, 1})
+        end
+    end
+end
+
+function ExecutionSystem._updateProjectiles(context)
+    local projectiles = context.data.projectiles
+    if not projectiles then return end
+    
+    local grid = context.data.grid
+    
+    for i = #projectiles, 1, -1 do
+        local proj = projectiles[i]
+        local target = context.data.units[proj.targetUnitId]
+        
+        if target and target.hp > 0 then
+            -- Move towards target's visual center (or grid center)
+            local tx, ty = grid:gridToWorld(target.x, target.y)
+            
+            local dx = tx - proj.x
+            local dy = ty - proj.y
+            local dist = math.sqrt(dx*dx + dy*dy)
+            
+            if dist <= proj.speed then
+                -- Impact!
+                proj.x = tx
+                proj.y = ty
+                ExecutionSystem._resolveHit(proj.attackerUnit, target, Skills[proj.skillId], context)
+                table.remove(projectiles, i)
+            else
+                -- Move
+                local moveX = (dx / dist) * proj.speed
+                local moveY = (dy / dist) * proj.speed
+                proj.x = proj.x + moveX
+                proj.y = proj.y + moveY
+                
+                -- Update progress for Arc calculation (simple approximation based on distance)
+                local totalDist = math.sqrt((tx - proj.startX)^2 + (ty - proj.startY)^2)
+                proj.progress = 1.0 - (dist / totalDist)
+            end
+        else
+            -- Target dead or gone, remove projectile
+            table.remove(projectiles, i)
+        end
     end
 end
 

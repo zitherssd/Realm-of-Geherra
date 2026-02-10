@@ -54,9 +54,14 @@ return {
         type = "ranged",
         description = "Throw a javelin (Limited uses)",
         damageMultiplier = 2.0,
-        range = 6.0,
+        range = 8.5,
         windup = 45,
         cooldown = 20,
         maxCharges = 2, -- Only usable 2 times per battle
+        projectile = {
+            sprite = "assets/sprites/projectiles/spear.png",
+            speed = 10,
+            arc = 30
+        }
     }
 }

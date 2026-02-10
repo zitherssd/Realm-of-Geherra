@@ -64,6 +64,18 @@ function RenderSystem.update(dt, context)
         end
     end
     
+    -- Update Projectiles (Visual Interpolation)
+    local projectiles = context.data.projectiles
+    if projectiles then
+        local PROJ_LERP = 15.0 -- Fast lerp for projectiles
+        for _, proj in ipairs(projectiles) do
+            local dx = proj.x - proj.visualX
+            local dy = proj.y - proj.visualY
+            proj.visualX = proj.visualX + dx * PROJ_LERP * dt
+            proj.visualY = proj.visualY + dy * PROJ_LERP * dt
+        end
+    end
+    
     -- Update Camera
     local camera = context.data.camera
     local selectedUnitId = context.data.selectedUnitId
@@ -211,7 +223,62 @@ function RenderSystem.draw(context)
         end
     end
     
-    -- 3. Draw Floating Texts
+    -- 3. Draw Projectiles
+    local projectiles = context.data.projectiles
+    if projectiles then
+        for _, proj in ipairs(projectiles) do
+            local sprite = getImage(proj.sprite)
+            if sprite then
+                -- Recalculate progress based on visual position for smooth arc
+                local target = context.data.units[proj.targetUnitId]
+                local visualProgress = proj.progress or 0
+                if target then
+                    local tx, ty = grid:gridToWorld(target.x, target.y)
+                    local totalDist = math.sqrt((tx - proj.startX)^2 + (ty - proj.startY)^2)
+                    local currentDist = math.sqrt((tx - proj.visualX)^2 + (ty - proj.visualY)^2)
+                    if totalDist > 0 then
+                        visualProgress = 1.0 - (currentDist / totalDist)
+                    end
+                end
+
+                -- Calculate Arc Offset
+                local arcOffset = 0
+                local rotation = 0
+                
+                if proj.arc and proj.arc > 0 then
+                    -- Parabola: 4 * height * x * (1-x)
+                    arcOffset = -4 * proj.arc * proj.progress * (1 - proj.progress)
+                    arcOffset = -4 * proj.arc * visualProgress * (1 - visualProgress)
+                end
+                
+                -- Calculate Rotation
+                local target = context.data.units[proj.targetUnitId]
+                if target then
+                    local tx, ty = grid:gridToWorld(target.x, target.y)
+                    local dx = tx - proj.startX
+                    local dy_linear = ty - proj.startY
+                    local dy_arc = 0
+                    if proj.arc and proj.arc > 0 then
+                        dy_arc = -4 * proj.arc * (1 - 2 * proj.progress)
+                        dy_arc = -4 * proj.arc * (1 - 2 * visualProgress)
+                    end
+                    rotation = math.atan2(dy_linear + dy_arc, dx)
+                end
+                
+                local drawX = proj.x
+                local drawY = proj.y + arcOffset
+                local drawX = proj.visualX
+                local drawY = proj.visualY + arcOffset
+                
+                -- Draw centered
+                local w, h = sprite:getDimensions()
+                love.graphics.setColor(1, 1, 1, 1)
+                love.graphics.draw(sprite, drawX, drawY, rotation, 1, 1, w/2, h/2)
+            end
+        end
+    end
+    
+    -- 4. Draw Floating Texts
     local texts = context.data.floatingTexts
     if texts then
         for _, txt in ipairs(texts) do

@@ -28,7 +28,8 @@ BattleContext.data = {
     
     -- Camera
     camera = {x = 0, y = 0, zoom = 1.3},
-    floatingTexts = {}
+    floatingTexts = {},
+    projectiles = {}
 }
 
 function BattleContext.init(grid)
@@ -45,6 +46,7 @@ function BattleContext.init(grid)
     BattleContext.data.inputCooldown = 0
     BattleContext.data.camera = {x = 0, y = 0, zoom = 1.3}
     BattleContext.data.floatingTexts = {}
+    BattleContext.data.projectiles = {}
 end
 
 function BattleContext.addUnit(battleUnit)
@@ -84,6 +86,30 @@ function BattleContext.addFloatingText(x, y, text, color)
         duration = 1.0,
         offsetY = 0
     })
+end
+
+function BattleContext.addProjectile(proj)
+    table.insert(BattleContext.data.projectiles, proj)
+end
+
+function BattleContext.findNearestHostile(unit, maxRange)
+    local nearestTarget = nil
+    local minDist = math.huge
+    local maxRangeSq = maxRange and (maxRange * maxRange) or math.huge
+
+    for _, other in ipairs(BattleContext.data.unitList) do
+        if other.team ~= unit.team and other.hp > 0 then
+            local dx = unit.x - other.x
+            local dy = unit.y - other.y
+            local distSq = dx*dx + dy*dy
+            
+            if distSq <= maxRangeSq + 0.01 and distSq < minDist then
+                minDist = distSq
+                nearestTarget = other
+            end
+        end
+    end
+    return nearestTarget, minDist
 end
 
 return BattleContext
