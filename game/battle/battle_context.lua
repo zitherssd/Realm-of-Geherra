@@ -27,7 +27,8 @@ BattleContext.data = {
     accumulator = 0,
     
     -- Camera
-    camera = {x = 0, y = 0, zoom = 1.3}
+    camera = {x = 0, y = 0, zoom = 1.3},
+    floatingTexts = {}
 }
 
 function BattleContext.init(grid)
@@ -43,6 +44,7 @@ function BattleContext.init(grid)
     BattleContext.data.selectedSkillIndex = 1
     BattleContext.data.inputCooldown = 0
     BattleContext.data.camera = {x = 0, y = 0, zoom = 1.3}
+    BattleContext.data.floatingTexts = {}
 end
 
 function BattleContext.addUnit(battleUnit)
@@ -70,6 +72,18 @@ function BattleContext.removeDeadUnits()
             table.remove(units, i)
         end
     end
+end
+
+function BattleContext.addFloatingText(x, y, text, color)
+    table.insert(BattleContext.data.floatingTexts, {
+        x = x,
+        y = y,
+        text = text,
+        color = color or {1, 1, 1, 1},
+        time = 0,
+        duration = 1.0,
+        offsetY = 0
+    })
 end
 
 return BattleContext

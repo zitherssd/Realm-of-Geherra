@@ -82,6 +82,20 @@ function RenderSystem.update(dt, context)
         camera.x = camera.x + (targetX - camera.x) * camSpeed * dt
         camera.y = camera.y + (targetY - camera.y) * camSpeed * dt
     end
+    
+    -- Update Floating Texts
+    local texts = context.data.floatingTexts
+    if texts then
+        for i = #texts, 1, -1 do
+            local txt = texts[i]
+            txt.time = txt.time + dt
+            txt.offsetY = txt.offsetY - (30 * dt) -- Float up 30px/sec
+            
+            if txt.time >= txt.duration then
+                table.remove(texts, i)
+            end
+        end
+    end
 end
 
 function RenderSystem.draw(context)
@@ -200,6 +214,16 @@ function RenderSystem.draw(context)
                 love.graphics.setColor(1, 1, 1, 1)
                 love.graphics.circle("line", drawX, drawY, grid.cellSize * 0.4)
             end
+        end
+    end
+    
+    -- 3. Draw Floating Texts
+    local texts = context.data.floatingTexts
+    if texts then
+        for _, txt in ipairs(texts) do
+            local alpha = 1.0 - (txt.time / txt.duration)
+            love.graphics.setColor(txt.color[1], txt.color[2], txt.color[3], alpha)
+            love.graphics.print(txt.text, txt.x - 5, txt.y + txt.offsetY - 20, 0, 0.7, 0.7)
         end
     end
     

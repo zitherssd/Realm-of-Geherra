@@ -134,9 +134,11 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, contex
                 context.data.grid:setOccupant(targetUnit.x, targetUnit.y, nil)
             end
             
-            print(string.format("%s used %s on %s for %d damage.", unit.id, skillData.name, targetUnit.id, result.damage))
+            if context.addFloatingText then
+                context.addFloatingText(targetUnit.visualX, targetUnit.visualY, tostring(result.damage), {1, 0.2, 0.2, 1})
+            end
+            
         else
-            print(string.format("%s used %s on %s but it was BLOCKED!", unit.id, skillData.name, targetUnit.id))
         end
         
         -- 2. Set Cooldowns (Value is in ticks)
