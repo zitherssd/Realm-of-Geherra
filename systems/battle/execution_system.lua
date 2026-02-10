@@ -51,6 +51,13 @@ function ExecutionSystem._executeMove(unit, intent, grid)
     
     -- Validate move
     if grid:inBounds(tx, ty) and grid:isFree(tx, ty) then
+        -- Update facing
+        if tx > unit.x then
+            unit.facing = -1 -- Face Right
+        elseif tx < unit.x then
+            unit.facing = 1 -- Face Left
+        end
+
         -- Update Grid Occupancy
         grid:setOccupant(unit.x, unit.y, nil)
         grid:setOccupant(tx, ty, unit.id)
@@ -73,6 +80,18 @@ end
 function ExecutionSystem._initiateSkill(unit, intent, context)
     local skillId = intent.skillId
     local skillData = Skills[skillId]
+    
+    -- Update facing towards target
+    if intent.targetUnitId then
+        local target = context.data.units[intent.targetUnitId]
+        if target then
+            if target.x > unit.x then
+                unit.facing = -1 -- Face Right
+            elseif target.x < unit.x then
+                unit.facing = 1 -- Face Left
+            end
+        end
+    end
     
     if skillData then
         local windup = skillData.windup or 0

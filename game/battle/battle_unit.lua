@@ -17,6 +17,7 @@ function BattleUnit.new(actor, gridX, gridY, team)
         x = gridX,
         y = gridY,
         team = team or "neutral", -- "player", "enemy", "ally"
+        facing = 1, -- 1 = Left (Default), -1 = Right (Flipped)
         
         -- Visual State (Pixels)
         visualX = 0, 
@@ -50,6 +51,11 @@ function BattleUnit.new(actor, gridX, gridY, team)
     }
     
     setmetatable(self, BattleUnit)
+    
+    -- Set initial facing based on team
+    if self.team == "player" then
+        self.facing = -1 -- Player units start facing Right
+    end
     
     -- 1. Copy Base Stats
     if actor.stats then

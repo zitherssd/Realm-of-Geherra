@@ -179,7 +179,7 @@ function RenderSystem.draw(context)
                 local w, h = sprite:getDimensions()
                 -- Scale to fit 80% of cell
                 local scale = (grid.cellSize * 0.8) / math.max(w, h)
-                love.graphics.draw(sprite, drawX, drawY, 0, scale, scale, w/2, h/2)
+                love.graphics.draw(sprite, drawX, drawY, 0, scale * (unit.facing or 1), scale, w/2, h/2)
                 
                 love.graphics.setShader() -- Reset shader
             else
@@ -208,12 +208,6 @@ function RenderSystem.draw(context)
             local hpPercent = math.max(0, unit.hp / math.max(1, unit.maxHp))
             love.graphics.setColor(0.2, 0.8, 0.2, 1)
             love.graphics.rectangle("fill", barX, barY, barWidth * hpPercent, barHeight)
-            
-            -- Selection Highlight
-            if context.data.selectedUnitId == unit.id then
-                love.graphics.setColor(1, 1, 1, 1)
-                love.graphics.circle("line", drawX, drawY, grid.cellSize * 0.4)
-            end
         end
     end
     
