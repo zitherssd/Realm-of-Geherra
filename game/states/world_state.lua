@@ -58,6 +58,12 @@ function WorldState.update(dt)
     local playerParty = GameContext.data.playerParty
     if not playerParty or not WorldState.currentMap then return end
     
+    -- Open Inventory
+    if Input.isKeyDown("i") then
+        StateManager.push("inventory")
+        return
+    end
+    
     -- Handle player movement input
     local moveX, moveY = 0, 0
     
@@ -172,7 +178,7 @@ function WorldState.draw()
     -- Draw UI overlay (HUD, info, etc.)
     if WorldState.font then love.graphics.setFont(WorldState.font) end
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.print("World View - WASD to move", 10, 10)
+    love.graphics.print("World View - WASD to move, [I] Inventory", 10, 10)
 
     -- Draw location interaction hint
     if WorldState.nearbyLocation then

@@ -15,6 +15,7 @@ function StateManager.init()
     states.pause = require("game.states.pause_state")
     states.battle_end = require("game.states.battle_end_state")
     states.location = require("game.states.location_state")
+    states.inventory = require("game.states.inventory_state")
 end
 
 function StateManager.push(stateName, ...)

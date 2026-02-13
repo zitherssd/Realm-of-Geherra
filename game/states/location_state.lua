@@ -4,9 +4,9 @@
 local LocationState = {}
 
 local StateManager = require("core.state_manager")
+local UIManager = require("ui.ui_manager")
 local LocationScreen = require("ui.screens.location_screen")
 
-LocationState.screen = nil
 LocationState.location = nil
 
 function LocationState.enter(params)
@@ -20,27 +20,30 @@ function LocationState.enter(params)
     end
     
     -- Initialize the UI Screen
-    LocationState.screen = LocationScreen.new(LocationState.location, function()
+    local screen = LocationScreen.new(LocationState.location, function()
         -- On Leave callback
         StateManager.pop()
     end)
+    
+    UIManager.registerScreen("location", screen)
+    UIManager.showScreen("location")
 end
 
 function LocationState.exit()
-    LocationState.screen = nil
+    UIManager.hideScreen()
     LocationState.location = nil
 end
 
 function LocationState.update(dt)
-    if LocationState.screen then
-        LocationState.screen:update(dt)
-    end
+    UIManager.update(dt)
 end
 
 function LocationState.draw()
-    if LocationState.screen then
-        LocationState.screen:draw()
-    end
+    UIManager.draw()
+end
+
+function LocationState.mousepressed(x, y, button)
+    UIManager.mousepressed(x, y, button)
 end
 
 return LocationState

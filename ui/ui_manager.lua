@@ -15,18 +15,18 @@ function UIManager.registerScreen(screenId, screen)
     screens[screenId] = screen
 end
 
-function UIManager.showScreen(screenId)
+function UIManager.showScreen(screenId, ...)
     if screens[screenId] then
         activeScreen = screens[screenId]
         if activeScreen.show then
-            activeScreen.show()
+            activeScreen:show(...)
         end
     end
 end
 
 function UIManager.hideScreen()
     if activeScreen and activeScreen.hide then
-        activeScreen.hide()
+        activeScreen:hide()
     end
     activeScreen = nil
 end
@@ -37,13 +37,25 @@ end
 
 function UIManager.update(dt)
     if activeScreen and activeScreen.update then
-        activeScreen.update(dt)
+        activeScreen:update(dt)
     end
 end
 
 function UIManager.draw()
     if activeScreen and activeScreen.draw then
-        activeScreen.draw()
+        activeScreen:draw()
+    end
+end
+
+function UIManager.mousepressed(x, y, button)
+    if activeScreen and activeScreen.mousepressed then
+        activeScreen:mousepressed(x, y, button)
+    end
+end
+
+function UIManager.mousereleased(x, y, button)
+    if activeScreen and activeScreen.mousereleased then
+        activeScreen:mousereleased(x, y, button)
     end
 end
 

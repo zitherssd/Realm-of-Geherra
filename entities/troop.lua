@@ -33,6 +33,13 @@ function Troop.new(troopType, id)
             self.availableSlots = data.slots
         end
         
+        -- Apply Explicit Tags
+        if data.tags then
+            for _, tag in ipairs(data.tags) do
+                self:addTag(tag)
+            end
+        end
+        
         -- Apply Starting Equipment
         if data.equipment then
             for slot, itemId in pairs(data.equipment) do

@@ -99,6 +99,7 @@ return {
         id = "war_dog",
         name = "War Dog",
         type = "beast",
+        tags = {"companion"},
         sprite = "assets/sprites/units/dog.png",
         slots = {"body"}, -- Can only wear body armor/collar
         stats = {
@@ -114,7 +115,8 @@ return {
     ["companion"] = {
         id = "companion",
         name = "Companion",
-        type = "soldier",
+        type = "companion",
+        tags = {"companion"}, -- Explicitly tag for UI filtering
         sprite = "assets/sprites/units/heavyinfantry.png",
         stats = {
             health = 60,

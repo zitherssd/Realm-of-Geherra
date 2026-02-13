@@ -23,7 +23,7 @@ function Actor.new(id, actorType)
     
     -- Default Humanoid Slots
     self.availableSlots = {
-        "head", "body", "hands", "feet", "mainHand", "offHand", "rangedWeapon"
+        "mainHand", "offHand", "rangedWeapon", "head", "body", "hands", "feet"
     }
     self.inventory = {}
     self.equipment = {}

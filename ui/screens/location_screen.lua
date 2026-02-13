@@ -2,11 +2,13 @@
 -- Screen displayed when entering a location
 
 local LocationScreen = {}
+LocationScreen.__index = LocationScreen
+
 local Button = require("ui.widgets.button")
 local StateManager = require("core.state_manager")
 
 function LocationScreen.new(location, onLeave)
-    local self = setmetatable({}, { __index = LocationScreen })
+    local self = setmetatable({}, LocationScreen)
     self.location = location
     self.onLeave = onLeave
     
@@ -71,6 +73,14 @@ function LocationScreen.new(location, onLeave)
     self.leaveBtn = Button.new("Leave " .. location.name, startX, self.height - 80, 200, 50, onLeave)
     
     return self
+end
+
+function LocationScreen:show()
+    -- Called when screen becomes active
+end
+
+function LocationScreen:hide()
+    -- Called when screen is hidden
 end
 
 function LocationScreen:update(dt)

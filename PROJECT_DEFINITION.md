@@ -95,6 +95,8 @@ game/
 │  ├─ battle_state.lua
 │  ├─ dialogue_state.lua
 │  └─ pause_state.lua
+│  ├─ battle_end_state.lua
+│  └─ location_state.lua
 │
 ├─ battle/
 │  ├─ battle_context.lua     -- Battle-specific blackboard
@@ -154,6 +156,10 @@ systems/
 ├─ reputation_system.lua
 ├─ quest_system.lua
 └─ dialogue_system.lua
+├─ loot_system.lua       -- Handles loot generation and distribution
+└─ trade_system.lua      -- Handles buying/selling logic
+├─ loot_system.lua       -- Handles loot generation and distribution
+└─ trade_system.lua      -- Handles buying/selling logic
 ```
 
 ### Battle System Flow

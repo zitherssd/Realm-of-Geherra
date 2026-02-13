@@ -4,10 +4,9 @@
 local BattleEndState = {}
 
 local StateManager = require("core.state_manager")
+local UIManager = require("ui.ui_manager")
 local BattleEndScreen = require("ui.screens.battle_end_screen")
 local LootScreen = require("ui.screens.loot_screen")
-
-BattleEndState.screen = nil
 
 function BattleEndState.enter(params)
     params = params or {}
@@ -21,38 +20,37 @@ function BattleEndState.enter(params)
     }
     
     -- Initialize the UI Screen with a callback for the continue button
-    BattleEndState.screen = BattleEndScreen.new(results, function()
+    local screen = BattleEndScreen.new(results, function()
         -- If there is loot, go to loot screen, otherwise world
         if #results.loot > 0 then
-            BattleEndState.screen = LootScreen.new(results.loot, function()
+            local lootScreen = LootScreen.new(results.loot, function()
                 StateManager.swap("world")
             end)
+            UIManager.registerScreen("loot", lootScreen)
+            UIManager.showScreen("loot")
         else
             StateManager.swap("world")
         end
     end)
+    
+    UIManager.registerScreen("battle_end", screen)
+    UIManager.showScreen("battle_end")
 end
 
 function BattleEndState.exit()
-    BattleEndState.screen = nil
+    UIManager.hideScreen()
 end
 
 function BattleEndState.update(dt)
-    if BattleEndState.screen then
-        BattleEndState.screen:update(dt)
-    end
+    UIManager.update(dt)
 end
 
 function BattleEndState.draw()
-    if BattleEndState.screen then
-        BattleEndState.screen:draw()
-    end
+    UIManager.draw()
 end
 
 function BattleEndState.mousepressed(x, y, button)
-    if BattleEndState.screen then
-        BattleEndState.screen:mousepressed(x, y, button)
-    end
+    UIManager.mousepressed(x, y, button)
 end
 
 return BattleEndState
