@@ -7,7 +7,7 @@ function World.new()
     local self = {
         maps = {},
         currentMap = nil,
-        settlements = {},
+        locations = {},
         encounters = {},
         time = 0
     }

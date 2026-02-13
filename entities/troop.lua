@@ -20,6 +20,7 @@ function Troop.new(troopType, id)
     -- Load definition from data
     local data = TroopsData[troopType]
     if data then
+        self.name = data.name
         -- Apply Stats
         if data.stats then
             for k, v in pairs(data.stats) do

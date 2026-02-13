@@ -8,7 +8,7 @@ local GameContext = require("game.game_context")
 local Player = require("entities.player")
 local Party = require("entities.party")
 local Map = require("world.map")
-local Settlement = require("world.settlement")
+local Location = require("world.location")
 local Troop = require("entities.troop")
 
 -- Initialize a new game with starting conditions
@@ -30,6 +30,9 @@ function GameInitializer.initNewGame(options)
     local playerParty = Party.new(options.playerName or "Wanderer", player.id, "party_player")
     playerParty:setPosition(512, 512)
     playerParty:addActor(player)
+    playerParty:addActor(Troop.new("bandit"))
+    playerParty:addActor(Troop.new("bandit"))
+    playerParty:addActor(Troop.new("bandit"))
     playerParty:addActor(Troop.new("companion"))
     playerParty:addActor(Troop.new("war_dog"))
 
@@ -44,8 +47,8 @@ function GameInitializer.initNewGame(options)
     -- Add player party to map
     map:addParty(playerParty)
     
-    -- Create starter settlements
-    GameInitializer._createStarterSettlements(map)
+    -- Create starter locations
+    GameInitializer._createStarterLocations(map)
     
     -- Create starter parties
     GameInitializer._createStarterParties(map)
@@ -57,43 +60,50 @@ function GameInitializer.initNewGame(options)
     return true
 end
 
--- Create initial settlements for a new game
-function GameInitializer._createStarterSettlements(map)
-    -- Ironhold - Human settlement (starting point)
-    local ironhold = Settlement.new("settlement_ironhold", "Ironhold")
+-- Create initial locations for a new game
+function GameInitializer._createStarterLocations(map)
+    -- Ironhold - Human location (starting point)
+    local ironhold = Location.new("settlement_ironhold", "Ironhold")
     ironhold:setPosition(300, 300)
     ironhold.faction = "human"
     ironhold.type = "castle"
     ironhold.population = 5000
     ironhold.prosperity = 75
-    map:addSettlement(ironhold)
     
-    -- Darkwood - Elven settlement
-    local darkwood = Settlement.new("settlement_darkwood", "Darkwood")
+    -- Add a test NPC to Ironhold
+    local elder = Troop.new("elder")
+    elder.name = "Aris"
+    elder.dialogueId = "elder_greeting"
+    ironhold:addNPC(elder)
+    
+    map:addLocation(ironhold)
+    
+    -- Darkwood - Elven location
+    local darkwood = Location.new("settlement_darkwood", "Darkwood")
     darkwood:setPosition(700, 400)
     darkwood.faction = "elf"
     darkwood.type = "town"
     darkwood.population = 3500
     darkwood.prosperity = 60
-    map:addSettlement(darkwood)
+    map:addLocation(darkwood)
     
-    -- Stonedeep - Dwarven settlement
-    local stonedeep = Settlement.new("settlement_stonedeep", "Stonedeep")
+    -- Stonedeep - Dwarven location
+    local stonedeep = Location.new("settlement_stonedeep", "Stonedeep")
     stonedeep:setPosition(450, 750)
     stonedeep.faction = "dwarf"
     stonedeep.type = "fortress"
     stonedeep.population = 4000
     stonedeep.prosperity = 80
-    map:addSettlement(stonedeep)
+    map:addLocation(stonedeep)
     
-    -- Shadowmere - Neutral/Independent settlement
-    local shadowmere = Settlement.new("settlement_shadowmere", "Shadowmere")
+    -- Shadowmere - Neutral/Independent location
+    local shadowmere = Location.new("settlement_shadowmere", "Shadowmere")
     shadowmere:setPosition(200, 600)
     shadowmere.faction = nil
     shadowmere.type = "village"
     shadowmere.population = 800
     shadowmere.prosperity = 40
-    map:addSettlement(shadowmere)
+    map:addLocation(shadowmere)
 end
 
 -- Create initial parties for a new game

@@ -19,6 +19,10 @@ return {
             mainHand = "iron_sword",
             rangedWeapon = "javelin",
             body = "leather_armor"
+        },
+        loot = {
+            {id = "gold_coin", chance = 1.0, min = 10, max = 50},
+            {id = "health_potion", chance = 0.2, min = 1, max = 1}
         }
     },
     
@@ -41,6 +45,10 @@ return {
         equipment = {
             mainHand = "iron_sword",
             rangedWeapon = "javelin"
+        },
+        loot = {
+            {id = "gold_coin", chance = 0.6, min = 1, max = 15},
+            {id = "iron_sword", chance = 0.1, min = 1, max = 1}
         }
     },
     
@@ -58,6 +66,9 @@ return {
         equipment = {
             mainHand = "iron_sword",
             body = "leather_armor"
+        },
+        loot = {
+            {id = "gold_coin", chance = 0.3, min = 1, max = 5}
         }
     },
     
@@ -77,6 +88,10 @@ return {
             mainHand = "iron_sword",
             body = "leather_armor",
             head = "helmet"
+        },
+        loot = {
+            {id = "gold_coin", chance = 0.8, min = 20, max = 100},
+            {id = "helmet", chance = 0.1, min = 1, max = 1}
         }
     },
     
@@ -101,6 +116,23 @@ return {
         name = "Companion",
         type = "soldier",
         sprite = "assets/sprites/units/heavyinfantry.png",
+        stats = {
+            health = 60,
+            strength = 11,
+            defense = 6,
+            speed = 7
+        },
+        equipment = {
+            mainHand = "iron_sword",
+            body = "leather_armor"
+        }
+    },
+
+    ["elder"] = {
+        id = "elder",
+        name = "Elder",
+        type = "elder",
+        sprite = "assets/sprites/units/elder.png",
         stats = {
             health = 60,
             strength = 11,

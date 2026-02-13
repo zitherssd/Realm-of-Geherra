@@ -12,7 +12,9 @@ local WorldState = {
     camera = nil,
     currentMap = nil,
     playerPartySpeed = 200,  -- pixels per second
-    nearbyParty = nil        -- The party currently in interaction range
+    nearbyParty = nil,       -- The party currently in interaction range
+    nearbyLocation = nil,    -- The location currently in interaction range
+    font = nil
 }
 
 function WorldState.enter()
@@ -36,14 +38,19 @@ function WorldState.enter()
     if playerParty then
         WorldState.camera.x = playerParty.x
         WorldState.camera.y = playerParty.y
+        WorldState.nearbyLocation = nil
         WorldState.nearbyParty = nil
     end
+    
+    -- Initialize UI font
+    WorldState.font = love.graphics.newFont(14)
 end
 
 function WorldState.exit()
     -- Cleanup world state
     WorldState.camera = nil
     WorldState.currentMap = nil
+    WorldState.nearbyLocation = nil
     WorldState.nearbyParty = nil
 end
 
@@ -88,9 +95,26 @@ function WorldState.update(dt)
     -- Update camera to follow party
     WorldState.camera:update(dt, playerParty)
 
+    local interactionRadius = 30
+
+    -- Check for locations
+    WorldState.nearbyLocation = nil
+    for _, location in ipairs(WorldState.currentMap.locations) do
+        local dx = location.x - playerParty.x
+        local dy = location.y - playerParty.y
+        local dist = math.sqrt(dx*dx + dy*dy)
+        
+        if dist < interactionRadius then
+            WorldState.nearbyLocation = location
+            if Input.isKeyDown("return") or Input.isKeyDown("kpenter") then
+                StateManager.push("location", { location = location })
+                return -- Stop update
+            end
+        end
+    end
+
     -- Check for collisions/interactions with other parties
     WorldState.nearbyParty = nil
-    local interactionRadius = 30
 
     for _, otherParty in ipairs(WorldState.currentMap.parties) do
         if otherParty.id ~= playerParty.id then
@@ -136,8 +160,8 @@ function WorldState.draw()
     -- Draw map
     WorldState.currentMap:drawMap()
     
-    -- Draw settlements
-    WorldState.currentMap:drawSettlements()
+    -- Draw locations
+    WorldState.currentMap:drawLocations()
     
     -- Draw parties
     WorldState.currentMap:drawParties()
@@ -146,8 +170,16 @@ function WorldState.draw()
     WorldState.camera:unapply()
     
     -- Draw UI overlay (HUD, info, etc.)
+    if WorldState.font then love.graphics.setFont(WorldState.font) end
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.print("World View - WASD to move", 10, 10)
+
+    -- Draw location interaction hint
+    if WorldState.nearbyLocation then
+        love.graphics.setColor(1, 1, 0, 1)
+        love.graphics.printf("Press ENTER to enter " .. WorldState.nearbyLocation.name, 
+            0, love.graphics.getHeight() - 130, love.graphics.getWidth(), "center")
+    end
 
     -- Draw interaction hint
     if WorldState.nearbyParty and WorldState.nearbyParty.faction ~= "bandits" then

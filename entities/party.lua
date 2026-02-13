@@ -99,6 +99,13 @@ end
 
 -- Add items to party inventory
 function Party:addToInventory(item)
+    -- Try to stack with existing items first
+    for _, existing in ipairs(self.inventory) do
+        if existing.id == item.id then
+            existing:addToStack(item.quantity)
+            return
+        end
+    end
     table.insert(self.inventory, item)
 end
 

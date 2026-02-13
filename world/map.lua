@@ -13,7 +13,7 @@ function Map.new(id, name)
         parties = {},
         tiles = {},
         objects = {},
-        settlements = {},
+        locations = {},
         visuals = {
             image = nil,
             tileSize = 32
@@ -41,14 +41,14 @@ function Map:setBounds(minX, minY, maxX, maxY)
     self.maxY = maxY or self.height
 end
 
--- Add settlement to the map
-function Map:addSettlement(settlement)
-    table.insert(self.settlements, settlement)
+-- Add location to the map
+function Map:addLocation(location)
+    table.insert(self.locations, location)
 end
 
--- Get all settlements
-function Map:getSettlements()
-    return self.settlements
+-- Get all locations
+function Map:getLocations()
+    return self.locations
 end
 
 -- Add party to the map
@@ -84,16 +84,16 @@ function Map:drawMap()
     end
 end
 
--- Draw settlements on the map
-function Map:drawSettlements()
-    for _, settlement in ipairs(self.settlements) do
-        -- Draw settlement icon/marker
+-- Draw locations on the map
+function Map:drawLocations()
+    for _, location in ipairs(self.locations) do
+        -- Draw location icon/marker
         love.graphics.setColor(1, 0.8, 0.2, 1)  -- Gold color
-        love.graphics.circle("fill", settlement.x, settlement.y, 12)
+        love.graphics.circle("fill", location.x, location.y, 12)
         
-        -- Draw settlement name (optional, for debug/clarity)
+        -- Draw location name (optional, for debug/clarity)
         love.graphics.setColor(0, 0, 0, 1)
-        love.graphics.printf(settlement.name, settlement.x - 40, settlement.y - 25, 80, "center")
+        love.graphics.printf(location.name, location.x - 40, location.y - 25, 80, "center")
     end
 end
 

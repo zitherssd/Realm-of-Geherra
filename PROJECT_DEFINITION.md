@@ -264,7 +264,7 @@ world/
 ├─ map.lua
 ├─ camera.lua           -- Camera system for viewport management
 ├─ node.lua             -- Travel nodes / regions
-├─ settlement.lua       -- Persistent world locations
+├─ location.lua         -- Persistent world locations
 ├─ encounter.lua
 └─ scene_loader.lua
 ```

@@ -2,24 +2,25 @@
 -- UI Tooltip widget
 
 local Tooltip = {}
+Tooltip.__index = Tooltip
 
-function Tooltip.new(text, x, y)
-    local self = {
-        text = text or "",
-        x = x or 0,
-        y = y or 0,
-        visible = false,
-        maxWidth = 200
-    }
+function Tooltip.new(maxWidth)
+    local self = setmetatable({}, Tooltip)
+    self.text = ""
+    self.x = 0
+    self.y = 0
+    self.visible = false
+    self.maxWidth = maxWidth or 250
+    self.font = love.graphics.getFont()
     return self
 end
 
-function Tooltip:show()
-    self.visible = true
+function Tooltip:update(dt)
+    -- No update logic needed yet, but required by interface
 end
 
-function Tooltip:hide()
-    self.visible = false
+function Tooltip:setText(text)
+    self.text = text
 end
 
 function Tooltip:setPosition(x, y)
@@ -27,17 +28,31 @@ function Tooltip:setPosition(x, y)
     self.y = y
 end
 
+function Tooltip:show() self.visible = true end
+function Tooltip:hide() self.visible = false end
+
 function Tooltip:draw()
-    if not self.visible then return end
+    if not self.visible or self.text == "" then return end
     
-    love.graphics.setColor(0.1, 0.1, 0.1, 0.9)
-    love.graphics.rectangle("fill", self.x, self.y, self.maxWidth, 40)
+    local padding = 10
+    local width, wrapped = self.font:getWrap(self.text, self.maxWidth - padding * 2)
+    local height = #wrapped * self.font:getHeight() + padding * 2
     
-    love.graphics.setColor(0.8, 0.8, 0.8)
-    love.graphics.rectangle("line", self.x, self.y, self.maxWidth, 40)
+    -- Clamp to screen bounds
+    local sx, sy = self.x + 15, self.y + 15 -- Offset from cursor
+    local sw, sh = love.graphics.getDimensions()
     
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.printf(self.text, self.x + 5, self.y + 5, self.maxWidth - 10, "left")
+    if sx + self.maxWidth > sw then sx = sw - self.maxWidth - 5 end
+    if sy + height > sh then sy = sh - height - 5 end
+    
+    love.graphics.setColor(0.1, 0.1, 0.1, 0.95)
+    love.graphics.rectangle("fill", sx, sy, self.maxWidth, height)
+    
+    love.graphics.setColor(0.6, 0.6, 0.6, 1)
+    love.graphics.rectangle("line", sx, sy, self.maxWidth, height)
+    
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.printf(self.text, sx + padding, sy + padding, self.maxWidth - padding * 2, "left")
 end
 
 return Tooltip

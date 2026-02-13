@@ -1,47 +1,62 @@
 -- ui/widgets/button.lua
--- UI Button widget
+-- Simple button widget
 
 local Button = {}
+Button.__index = Button
 
-function Button.new(x, y, width, height, text)
-    local self = {
-        x = x,
-        y = y,
-        width = width,
-        height = height,
-        text = text or "Button",
-        hovered = false,
-        pressed = false,
-        callback = nil
-    }
+function Button.new(text, x, y, w, h, callback)
+    local self = setmetatable({}, Button)
+    self.text = text or "Button"
+    self.x = x or 0
+    self.y = y or 0
+    self.w = w or 100
+    self.h = h or 40
+    self.callback = callback
+    
+    self.state = "idle" -- idle, hover, active
+    self.wasDown = false
     return self
 end
 
-function Button:setCallback(callback)
-    self.callback = callback
-end
-
-function Button:update(mx, my)
-    self.hovered = mx >= self.x and mx < self.x + self.width and
-                    my >= self.y and my < self.y + self.height
-end
-
-function Button:click()
-    if self.hovered and self.callback then
-        self.callback()
+function Button:update(dt)
+    local mx, my = love.mouse.getPosition()
+    local isDown = love.mouse.isDown(1)
+    
+    -- Check hover
+    local hot = mx >= self.x and mx <= self.x + self.w and
+                my >= self.y and my <= self.y + self.h
+    
+    if hot then
+        if isDown then
+            self.state = "active"
+            self.wasDown = true
+        else
+            if self.wasDown and self.state == "active" then
+                -- Clicked (released while hot)
+                if self.callback then self.callback() end
+            end
+            self.state = "hover"
+            self.wasDown = false
+        end
+    else
+        self.state = "idle"
+        self.wasDown = false
     end
 end
 
 function Button:draw()
-    if self.hovered then
-        love.graphics.setColor(0.3, 0.3, 0.3)
-    else
-        love.graphics.setColor(0.2, 0.2, 0.2)
-    end
-    love.graphics.rectangle("fill", self.x, self.y, self.width, self.height)
+    local color = (self.state == "active") and {0.3, 0.3, 0.3, 1} or (self.state == "hover") and {0.4, 0.4, 0.4, 1} or {0.2, 0.2, 0.2, 1}
+    love.graphics.setColor(unpack(color))
+    love.graphics.rectangle("fill", self.x, self.y, self.w, self.h)
     
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.printf(self.text, self.x, self.y + self.height / 2 - 8, self.width, "center")
+    -- Border
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.rectangle("line", self.x, self.y, self.w, self.h)
+    
+    -- Text
+    local font = love.graphics.getFont()
+    local textH = font:getHeight()
+    love.graphics.printf(self.text, self.x, self.y + (self.h - textH) / 2, self.w, "center")
 end
 
 return Button

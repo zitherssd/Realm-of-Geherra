@@ -6,7 +6,9 @@ local Input = require("core.input")
 local BattleContext = require("game.battle.battle_context")
 local BattleGrid = require("game.battle.battle_grid")
 local BattleUnit = require("game.battle.battle_unit")
+local StateManager = require("core.state_manager")
 local Skills = require("data.skills")
+local LootGeneratorSystem = require("systems.loot_generator_system")
 local BattleState = {}
 
 -- Systems
@@ -22,6 +24,7 @@ local MAX_FRAME_SKIP = 5
 function BattleState.enter(params)
     params = params or {}
     local enemyParty = params.enemyParty
+    BattleState.enemyParty = enemyParty
     
     -- Initialize battle with 30x13 grid, 42px cells
     local grid = BattleGrid.new(30, 13, 42)
@@ -67,6 +70,7 @@ end
 
 function BattleState.exit()
     -- Cleanup battle state
+    BattleState.enemyParty = nil
 end
 
 function BattleState.update(dt)
@@ -172,6 +176,54 @@ function BattleState.update(dt)
 
     -- 3. Render System (Visual Interpolation)
     RenderSystem.update(dt, BattleContext)
+    
+    -- 4. Check Battle End Condition
+    BattleState.checkBattleEnd()
+end
+
+function BattleState.checkBattleEnd()
+    local playerAlive = false
+    local enemyAlive = false
+    
+    -- Check living units
+    for id, unit in pairs(BattleContext.data.units) do
+        if unit.hp > 0 then
+            if unit.team == "player" then playerAlive = true end
+            if unit.team == "enemy" then enemyAlive = true end
+        end
+    end
+    
+    -- Collect casualties from Context
+    local playerCasualties = {}
+    local enemyCasualties = {}
+    local generatedLoot = {}
+    
+    for _, unit in ipairs(BattleContext.data.casualties) do
+        local name = unit.name or (unit.actor and unit.actor.name) or "Unknown Unit"
+        if unit.team == "player" then
+            table.insert(playerCasualties, name)
+        elseif unit.team == "enemy" then
+            table.insert(enemyCasualties, name)
+            
+            -- Generate Loot
+            if unit.actor and unit.actor.troopType then
+                LootGeneratorSystem.generateFromTroop(unit.actor.troopType, generatedLoot)
+            end
+        end
+    end
+    
+    if not playerAlive or not enemyAlive then
+        if playerAlive and BattleState.enemyParty and GameContext.data.currentMap then
+            GameContext.data.currentMap:removeParty(BattleState.enemyParty.id)
+        end
+
+        StateManager.swap("battle_end", {
+            victory = playerAlive,
+            playerCasualties = playerCasualties,
+            enemyCasualties = enemyCasualties,
+            loot = playerAlive and generatedLoot or {}
+        })
+    end
 end
 
 function BattleState._tick()
@@ -182,6 +234,9 @@ function BattleState._tick()
     
     -- 2. Execution System: Resolve intents and update state
     ExecutionSystem.update(BattleContext)
+    
+    -- 3. Cleanup: Move dead units to casualties list
+    BattleContext.removeDeadUnits()
 end
 
 function BattleState.draw()

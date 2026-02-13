@@ -29,7 +29,8 @@ BattleContext.data = {
     -- Camera
     camera = {x = 0, y = 0, zoom = 1.3},
     floatingTexts = {},
-    projectiles = {}
+    projectiles = {},
+    casualties = {}    -- List of BattleUnit
 }
 
 function BattleContext.init(grid)
@@ -47,6 +48,7 @@ function BattleContext.init(grid)
     BattleContext.data.camera = {x = 0, y = 0, zoom = 1.3}
     BattleContext.data.floatingTexts = {}
     BattleContext.data.projectiles = {}
+    BattleContext.data.casualties = {}
 end
 
 function BattleContext.addUnit(battleUnit)
@@ -67,6 +69,7 @@ function BattleContext.removeDeadUnits()
     for i = #units, 1, -1 do
         local unit = units[i]
         if unit.hp <= 0 then
+            table.insert(BattleContext.data.casualties, unit)
             if grid then
                 grid:setOccupant(unit.x, unit.y, nil)
             end

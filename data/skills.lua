@@ -9,7 +9,7 @@ return {
         description = "Basic melee attack",
         damageMultiplier = 1.0,
         windup = 10,
-        cooldown = 50,
+        cooldown = 10,
         cost = 0,
         range = 1.5,
     },
