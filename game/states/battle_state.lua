@@ -217,11 +217,15 @@ function BattleState.checkBattleEnd()
             GameContext.data.currentMap:removeParty(BattleState.enemyParty.id)
         end
 
+        -- Calculate favor gained (Base 5 + 1 per enemy casualty)
+        local favorGained = playerAlive and (5 + #enemyCasualties) or 0
+
         StateManager.swap("battle_end", {
             victory = playerAlive,
             playerCasualties = playerCasualties,
             enemyCasualties = enemyCasualties,
-            loot = playerAlive and generatedLoot or {}
+            loot = playerAlive and generatedLoot or {},
+            favor = favorGained
         })
     end
 end

@@ -6,6 +6,9 @@ LocationScreen.__index = LocationScreen
 
 local Button = require("ui.widgets.button")
 local StateManager = require("core.state_manager")
+local Troop = require("entities.troop")
+local GameContext = require("game.game_context")
+local PartySystem = require("systems.party_system")
 
 function LocationScreen.new(location, onLeave)
     local self = setmetatable({}, LocationScreen)
@@ -67,12 +70,51 @@ function LocationScreen.new(location, onLeave)
         table.insert(self.buttons, Button.new("Request Audience", startX, optionsY, btnWidth, 50, function() end))
     elseif location.type == "village" then
         table.insert(self.buttons, Button.new("Buy Supplies", startX, optionsY, btnWidth, 50, function() end))
+        table.insert(self.buttons, Button.new("Recruit Volunteers", startX, optionsY + 60, btnWidth, 50, function()
+            self:recruitVolunteers()
+        end))
     end
     
     -- 3. Leave Button
     self.leaveBtn = Button.new("Leave " .. location.name, startX, self.height - 80, 200, 50, onLeave)
     
     return self
+end
+
+function LocationScreen:recruitVolunteers()
+    local roll = math.random()
+    local count = 0
+    local text = ""
+    
+    -- 40% chance for 0, 50% chance for 2, 10% chance for 3
+    if roll < 0.4 then
+        count = 0
+        text = "You boast and try to impress the villagers, but they seem uninterested in your tales."
+    elseif roll < 0.9 then
+        count = 2
+        text = "You boast and try to impress. Your words strike a chord! 2 villagers step forward to join you."
+    else
+        count = 3
+        text = "You boast and try to impress. The crowd cheers! 3 eager volunteers pledge their swords to you."
+    end
+    
+    if count > 0 then
+        local playerParty = GameContext.data.playerParty
+        for i = 1, count do
+            -- Defaulting to "soldier" for now
+            local newUnit = Troop.new("soldier")
+            PartySystem.addActor(playerParty, newUnit)
+        end
+    end
+    
+    StateManager.push("dialogue", {
+        dialogueTree = {
+            speaker = "Recruitment",
+            lines = {
+                { text = text, options = {{ text = "Continue", next = "end" }} }
+            }
+        }
+    })
 end
 
 function LocationScreen:show()

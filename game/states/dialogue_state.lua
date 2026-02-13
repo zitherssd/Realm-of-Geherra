@@ -12,9 +12,12 @@ function DialogueState.enter(params)
     params = params or {}
     local target = params.target -- The entity/party we are talking to
     
-    local dialogueId = params.dialogueId
-    if dialogueId and DialogueData[dialogueId] then
-        local dialogueTree = DialogueData[dialogueId]
+    local dialogueTree = params.dialogueTree
+    if not dialogueTree and params.dialogueId then
+        dialogueTree = DialogueData[params.dialogueId]
+    end
+    
+    if dialogueTree then
         
         -- Create screen with a callback for choices
         local screen = DialogueScreen.new(dialogueTree, function(choice)
@@ -34,7 +37,7 @@ function DialogueState.enter(params)
         UIManager.registerScreen("dialogue", screen)
         UIManager.showScreen("dialogue")
     else
-        print("Error: Dialogue ID not found: " .. tostring(dialogueId))
+        print("Error: Dialogue ID not found or invalid tree")
         StateManager.pop()
     end
 end

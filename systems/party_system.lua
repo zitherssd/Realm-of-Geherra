@@ -147,4 +147,21 @@ function PartySystem.getLeader(party)
     return party.leaderId
 end
 
+-- Recruit an actor into the party, spending favor
+function PartySystem.recruitActor(party, actor, favorCost)
+    if not party or not actor then return false, "Invalid arguments" end
+    
+    local currentFavor = GameContext.data.favor or 0
+    if currentFavor < favorCost then
+        return false, "Not enough favor"
+    end
+    
+    if PartySystem.addActor(party, actor) then
+        GameContext.data.favor = currentFavor - favorCost
+        return true
+    else
+        return false, "Party full or actor already in party"
+    end
+end
+
 return PartySystem
