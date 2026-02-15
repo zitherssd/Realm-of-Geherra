@@ -17,13 +17,24 @@ function LocationScreen.new(location, onLeave)
     self.height = love.graphics.getHeight()
     self.smallFont = love.graphics.newFont(12)
     
-    self.buttons = {}
-    
     -- Load background image based on location type
     local bgPath = "assets/locations/" .. location.type .. ".png"
     if love.filesystem.getInfo(bgPath) then
         self.backgroundImage = love.graphics.newImage(bgPath)
     end
+    
+    local startX = 50
+    -- 3. Leave Button
+    self.leaveBtn = Button.new("Leave " .. location.name, startX, self.height - 80, 200, 50, onLeave)
+    
+    self:refreshButtons()
+    
+    return self
+end
+
+function LocationScreen:refreshButtons()
+    self.buttons = {}
+    local location = self.location
     
     -- 1. Create NPC Buttons
     local startY = 150
@@ -72,20 +83,23 @@ function LocationScreen.new(location, onLeave)
         table.insert(self.buttons, Button.new("Train Troops", startX, optionsY + 60, btnWidth, 50, function() end))
     elseif location.type == "village" then
         table.insert(self.buttons, Button.new("Buy Supplies", startX, optionsY, btnWidth, 50, function() end))
-        table.insert(self.buttons, Button.new("Recruit Volunteers", startX, optionsY + 60, btnWidth, 50, function()
-            local resultText = LocationActions.recruitVolunteers(location)
-            self:showPopup(resultText)
-        end))
+        
+        local cooldown = LocationActions.getRecruitCooldown(location)
+        if cooldown > 0 then
+            local btn = Button.new("Recruit (" .. math.ceil(cooldown) .. "d)", startX, optionsY + 60, btnWidth, 50, function() end)
+            btn.disabled = true
+            table.insert(self.buttons, btn)
+        else
+            table.insert(self.buttons, Button.new("Recruit Volunteers", startX, optionsY + 60, btnWidth, 50, function()
+                local resultText = LocationActions.recruitVolunteers(location)
+                self:showPopup(resultText)
+            end))
+        end
     elseif location.type == "ruins" then
         table.insert(self.buttons, Button.new("Explore Ruin", startX, optionsY, btnWidth, 50, function()
             LocationActions.exploreRuin(location)
         end))
     end
-    
-    -- 3. Leave Button
-    self.leaveBtn = Button.new("Leave " .. location.name, startX, self.height - 80, 200, 50, onLeave)
-    
-    return self
 end
 
 function LocationScreen:showPopup(text)
@@ -93,6 +107,7 @@ function LocationScreen:showPopup(text)
         text = text,
         okBtn = Button.new("OK", self.width/2 - 50, self.height/2 + 40, 100, 40, function()
             self.popup = nil
+            self:refreshButtons()
         end)
     }
 end

@@ -9,6 +9,7 @@ local StateManager = require("core.state_manager")
 local Party = require("entities.party")
 local Troop = require("entities.troop")
 local RecruitmentSystem = require("systems.recruitment_system")
+local TimeSystem = require("systems.time_system")
 
 function LocationActions.exploreRuin(location)
     local enemyParty = Party.new("Ruin Guardians", nil)
@@ -35,9 +36,22 @@ function LocationActions.rest(location)
     })
 end
 
+function LocationActions.getRecruitCooldown(location)
+    local currentDay = TimeSystem.getDay()
+    local lastRecruit = location.lastRecruitDay or -100
+    return math.max(0, (lastRecruit + 5) - currentDay)
+end
+
 function LocationActions.recruitVolunteers(location)
+    local currentDay = TimeSystem.getDay()
+    
+    if LocationActions.getRecruitCooldown(location) > 0 then
+        return "The village has no more volunteers for now. Come back later."
+    end
+
     local playerParty = GameContext.data.playerParty
     local text, count = RecruitmentSystem.recruit(location, playerParty)
+    location.lastRecruitDay = currentDay
     return text
 end
 

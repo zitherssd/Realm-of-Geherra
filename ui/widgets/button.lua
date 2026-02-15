@@ -15,10 +15,12 @@ function Button.new(text, x, y, w, h, callback)
     
     self.state = "idle" -- idle, hover, active
     self.wasDown = false
+    self.disabled = false
     return self
 end
 
 function Button:update(dt)
+    if self.disabled then return end
     local mx, my = love.mouse.getPosition()
     local isDown = love.mouse.isDown(1)
     
@@ -45,7 +47,13 @@ function Button:update(dt)
 end
 
 function Button:draw()
-    local color = (self.state == "active") and {0.3, 0.3, 0.3, 1} or (self.state == "hover") and {0.4, 0.4, 0.4, 1} or {0.2, 0.2, 0.2, 1}
+    local color
+    if self.disabled then
+        color = {0.1, 0.1, 0.1, 1}
+    else
+        color = (self.state == "active") and {0.3, 0.3, 0.3, 1} or (self.state == "hover") and {0.4, 0.4, 0.4, 1} or {0.2, 0.2, 0.2, 1}
+    end
+    
     love.graphics.setColor(unpack(color))
     love.graphics.rectangle("fill", self.x, self.y, self.w, self.h)
     
@@ -55,6 +63,11 @@ function Button:draw()
     
     -- Text
     local font = love.graphics.getFont()
+    if self.disabled then
+        love.graphics.setColor(0.5, 0.5, 0.5, 1)
+    else
+        love.graphics.setColor(1, 1, 1, 1)
+    end
     local textH = font:getHeight()
     love.graphics.printf(self.text, self.x, self.y + (self.h - textH) / 2, self.w, "center")
 end
