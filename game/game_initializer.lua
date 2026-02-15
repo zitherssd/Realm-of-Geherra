@@ -63,10 +63,10 @@ end
 
 -- Create initial locations for a new game
 function GameInitializer._createStarterLocations(map)
-    -- Ironhold - Human location (starting point)
+    -- Ironhold - Menari location (starting point)
     local ironhold = Location.new("settlement_ironhold", "Ironhold")
     ironhold:setPosition(300, 300)
-    ironhold.faction = "human"
+    ironhold.faction = "menari"
     ironhold.type = "castle"
     ironhold.population = 5000
     ironhold.prosperity = 75
@@ -79,20 +79,20 @@ function GameInitializer._createStarterLocations(map)
     
     map:addLocation(ironhold)
     
-    -- Darkwood - Elven location
+    -- Darkwood - Dacian location
     local darkwood = Location.new("settlement_darkwood", "Darkwood")
     darkwood:setPosition(700, 400)
-    darkwood.faction = "elf"
+    darkwood.faction = "dacians"
     darkwood.type = "town"
     darkwood.population = 3500
     darkwood.prosperity = 60
     map:addLocation(darkwood)
     
-    -- Stonedeep - Dwarven location
+    -- Stonedeep - Hyperborean location
     local stonedeep = Location.new("settlement_stonedeep", "Stonedeep")
     stonedeep:setPosition(450, 750)
-    stonedeep.faction = "dwarf"
-    stonedeep.type = "fortress"
+    stonedeep.faction = "hyperboreans"
+    stonedeep.type = "castle"
     stonedeep.population = 4000
     stonedeep.prosperity = 80
     map:addLocation(stonedeep)
@@ -100,7 +100,7 @@ function GameInitializer._createStarterLocations(map)
     -- Shadowmere - Neutral/Independent location
     local shadowmere = Location.new("settlement_shadowmere", "Shadowmere")
     shadowmere:setPosition(200, 600)
-    shadowmere.faction = nil
+    shadowmere.faction = "neutral"
     shadowmere.type = "village"
     shadowmere.population = 800
     shadowmere.prosperity = 40

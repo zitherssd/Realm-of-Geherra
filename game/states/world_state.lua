@@ -7,6 +7,7 @@ local MovementSystem = require("systems.movement_system")
 local FactionSystem = require("systems.faction_system")
 local StateManager = require("core.state_manager")
 local Camera = require("world.camera")
+local TimeSystem = require("systems.time_system")
 
 local WorldState = {
     camera = nil,
@@ -14,7 +15,8 @@ local WorldState = {
     playerPartySpeed = 200,  -- pixels per second
     nearbyParty = nil,       -- The party currently in interaction range
     nearbyLocation = nil,    -- The location currently in interaction range
-    font = nil
+    font = nil,
+    interactionCooldowns = {}
 }
 
 function WorldState.enter()
@@ -44,6 +46,7 @@ function WorldState.enter()
     
     -- Initialize UI font
     WorldState.font = love.graphics.newFont(14)
+    WorldState.interactionCooldowns = {}
 end
 
 function WorldState.exit()
@@ -58,13 +61,21 @@ function WorldState.update(dt)
     local playerParty = GameContext.data.playerParty
     if not playerParty or not WorldState.currentMap then return end
     
+    -- Update interaction cooldowns
+    for id, timer in pairs(WorldState.interactionCooldowns) do
+        WorldState.interactionCooldowns[id] = timer - dt
+        if WorldState.interactionCooldowns[id] <= 0 then
+            WorldState.interactionCooldowns[id] = nil
+        end
+    end
+    
     -- Open Inventory
     if Input.isKeyDown("i") then
         StateManager.push("inventory")
         return
     end
     
-    -- Handle player movement input
+    -- Handle player movement and time progression
     local moveX, moveY = 0, 0
     
     if Input.isKeyDown("up") or Input.isKeyDown("w") then
@@ -78,6 +89,18 @@ function WorldState.update(dt)
     end
     if Input.isKeyDown("right") or Input.isKeyDown("d") then
         moveX = moveX + 1
+    end
+    
+    -- Check if player is waiting (Spacebar)
+    local isWaiting = Input.isKeyDown("space")
+    local isMoving = (moveX ~= 0 or moveY ~= 0)
+    
+    -- Only advance time if moving or waiting
+    if isMoving or isWaiting then
+        TimeSystem.setPaused(false)
+        TimeSystem.update(dt)
+    else
+        TimeSystem.setPaused(true)
     end
     
     -- Normalize diagonal movement
@@ -137,9 +160,14 @@ function WorldState.update(dt)
                 local isHostile = (otherParty.faction == "bandits")
 
                 if isHostile then
-                    -- Force interaction immediately
-                    StateManager.push("dialogue", {dialogueId = "bandit_start", target = otherParty})
-                    return -- Stop update to prevent multiple triggers
+                    -- Check cooldown to prevent immediate re-trigger
+                    if not WorldState.interactionCooldowns[otherParty.id] then
+                        -- Set cooldown (3 seconds) so player has time to move away after leaving dialogue
+                        WorldState.interactionCooldowns[otherParty.id] = 2.0
+                        -- Force interaction immediately
+                        StateManager.push("dialogue", {dialogueId = "bandit_start", target = otherParty})
+                        return -- Stop update to prevent multiple triggers
+                    end
                 elseif Input.isKeyDown("return") or Input.isKeyDown("kpenter") then
                     -- Player initiated interaction
                     StateManager.push("dialogue", {dialogueId = "elder_greeting", target = otherParty}) -- Default to elder for now
@@ -175,8 +203,26 @@ function WorldState.draw()
     -- Unapply camera transformation
     WorldState.camera:unapply()
     
+    -- Apply Night Tint
+    local r, g, b, a = TimeSystem.getNightTint()
+    if a > 0 then
+        love.graphics.setColor(r, g, b, a)
+        love.graphics.rectangle("fill", 0, 0, love.graphics.getWidth(), love.graphics.getHeight())
+    end
+
     -- Draw UI overlay (HUD, info, etc.)
     if WorldState.font then love.graphics.setFont(WorldState.font) end
+    
+    -- Draw Time HUD
+    love.graphics.setColor(1, 1, 1, 1)
+    local day = TimeSystem.getDay()
+    local period = TimeSystem.getPeriodName()
+    local hour = math.floor(TimeSystem.getHour())
+    local minute = math.floor((TimeSystem.getHour() - hour) * 60)
+    local timeStr = string.format("Day %d | %s | %02d:%02d", day, period, hour, minute)
+    local textWidth = WorldState.font:getWidth(timeStr)
+    love.graphics.print(timeStr, love.graphics.getWidth() - textWidth - 20, 20)
+
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.print("World View - WASD to move, [I] Inventory", 10, 10)
 

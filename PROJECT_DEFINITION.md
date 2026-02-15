@@ -155,11 +155,12 @@ systems/
 ├─ faction_system.lua
 ├─ reputation_system.lua
 ├─ quest_system.lua
-└─ dialogue_system.lua
+├─ dialogue_system.lua
 ├─ loot_system.lua       -- Handles loot generation and distribution
-└─ trade_system.lua      -- Handles buying/selling logic
+├─ trade_system.lua      -- Handles buying/selling logic
 ├─ loot_system.lua       -- Handles loot generation and distribution
-└─ trade_system.lua      -- Handles buying/selling logic
+├─ trade_system.lua      -- Handles buying/selling logic
+├─ time_system.lua       -- Manages day/night cycle and time flow
 ```
 
 ### Battle System Flow
@@ -200,6 +201,20 @@ The tactical battle mode operates on a strict loop managed by `battle_state.lua`
 
 * Render UI
 * Contain hardcoded narrative or story logic
+
+### time_system.lua
+
+**Responsibilities:**
+
+* Manage global game time (days, hours, minutes)
+* Define time periods (e.g., "Highsun", "Stilldark")
+* Calculate environmental effects like night tint
+* Pause/Resume time flow
+
+**Must not:**
+
+* Render UI directly
+* Store state locally (must use `GameContext`)
 
 ---
 
@@ -446,6 +461,7 @@ When extending the project:
 3. **Prefer data definitions over code**
 4. **Emit events instead of direct cross-system calls**
 5. **Respect system and layer boundaries strictly**
+6. **Update this document** whenever meaningful architectural changes, new systems, or data flows are introduced.
 
 If a feature does not clearly belong to an existing system, **create a new system**.
 

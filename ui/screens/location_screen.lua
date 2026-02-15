@@ -6,9 +6,7 @@ LocationScreen.__index = LocationScreen
 
 local Button = require("ui.widgets.button")
 local StateManager = require("core.state_manager")
-local Troop = require("entities.troop")
-local GameContext = require("game.game_context")
-local PartySystem = require("systems.party_system")
+local LocationActions = require("systems.location_actions")
 
 function LocationScreen.new(location, onLeave)
     local self = setmetatable({}, LocationScreen)
@@ -66,12 +64,21 @@ function LocationScreen.new(location, onLeave)
     if location.type == "town" then
         table.insert(self.buttons, Button.new("Visit Tavern", startX, optionsY, btnWidth, 50, function() end))
         table.insert(self.buttons, Button.new("Trade Goods", startX, optionsY + 60, btnWidth, 50, function() end))
+        table.insert(self.buttons, Button.new("Rest", startX, optionsY + 120, btnWidth, 50, function() 
+            LocationActions.rest(location)
+        end))
     elseif location.type == "castle" then
         table.insert(self.buttons, Button.new("Request Audience", startX, optionsY, btnWidth, 50, function() end))
+        table.insert(self.buttons, Button.new("Train Troops", startX, optionsY + 60, btnWidth, 50, function() end))
     elseif location.type == "village" then
         table.insert(self.buttons, Button.new("Buy Supplies", startX, optionsY, btnWidth, 50, function() end))
         table.insert(self.buttons, Button.new("Recruit Volunteers", startX, optionsY + 60, btnWidth, 50, function()
-            self:recruitVolunteers()
+            local resultText = LocationActions.recruitVolunteers(location)
+            self:showPopup(resultText)
+        end))
+    elseif location.type == "ruins" then
+        table.insert(self.buttons, Button.new("Explore Ruin", startX, optionsY, btnWidth, 50, function()
+            LocationActions.exploreRuin(location)
         end))
     end
     
@@ -81,40 +88,13 @@ function LocationScreen.new(location, onLeave)
     return self
 end
 
-function LocationScreen:recruitVolunteers()
-    local roll = math.random()
-    local count = 0
-    local text = ""
-    
-    -- 40% chance for 0, 50% chance for 2, 10% chance for 3
-    if roll < 0.4 then
-        count = 0
-        text = "You boast and try to impress the villagers, but they seem uninterested in your tales."
-    elseif roll < 0.9 then
-        count = 2
-        text = "You boast and try to impress. Your words strike a chord! 2 villagers step forward to join you."
-    else
-        count = 3
-        text = "You boast and try to impress. The crowd cheers! 3 eager volunteers pledge their swords to you."
-    end
-    
-    if count > 0 then
-        local playerParty = GameContext.data.playerParty
-        for i = 1, count do
-            -- Defaulting to "soldier" for now
-            local newUnit = Troop.new("soldier")
-            PartySystem.addActor(playerParty, newUnit)
-        end
-    end
-    
-    StateManager.push("dialogue", {
-        dialogueTree = {
-            speaker = "Recruitment",
-            lines = {
-                { text = text, options = {{ text = "Continue", next = "end" }} }
-            }
-        }
-    })
+function LocationScreen:showPopup(text)
+    self.popup = {
+        text = text,
+        okBtn = Button.new("OK", self.width/2 - 50, self.height/2 + 40, 100, 40, function()
+            self.popup = nil
+        end)
+    }
 end
 
 function LocationScreen:show()
@@ -126,6 +106,11 @@ function LocationScreen:hide()
 end
 
 function LocationScreen:update(dt)
+    if self.popup then
+        self.popup.okBtn:update(dt)
+        return
+    end
+
     for _, btn in ipairs(self.buttons) do
         btn:update(dt)
     end
@@ -195,6 +180,22 @@ function LocationScreen:draw()
     end
     
     self.leaveBtn:draw()
+
+    -- Draw Popup Overlay
+    if self.popup then
+        love.graphics.setColor(0, 0, 0, 0.8)
+        love.graphics.rectangle("fill", 0, 0, self.width, self.height)
+        
+        local boxW, boxH = 400, 200
+        love.graphics.setColor(0.2, 0.2, 0.2, 1)
+        love.graphics.rectangle("fill", (self.width - boxW)/2, (self.height - boxH)/2, boxW, boxH)
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.rectangle("line", (self.width - boxW)/2, (self.height - boxH)/2, boxW, boxH)
+        
+        love.graphics.printf(self.popup.text, (self.width - boxW)/2 + 20, (self.height - boxH)/2 + 40, boxW - 40, "center")
+        
+        self.popup.okBtn:draw()
+    end
 end
 
 function LocationScreen:mousepressed(x, y, button)

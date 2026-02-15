@@ -40,10 +40,25 @@ function StateManager.pop()
     end
     
     table.remove(stateStack)
+
+    -- Resume the previous state if it exists
+    if #stateStack > 0 then
+        local previous = stateStack[#stateStack]
+        if previous.state.resume then
+            previous.state.resume()
+        end
+    end
 end
 
 function StateManager.swap(stateName, ...)
-    StateManager.pop()
+    -- Manually remove current state without triggering resume on the previous state
+    if #stateStack > 0 then
+        local current = stateStack[#stateStack]
+        if current.state.exit then
+            current.state.exit()
+        end
+        table.remove(stateStack)
+    end
     StateManager.push(stateName, ...)
 end
 

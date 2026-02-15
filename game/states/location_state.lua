@@ -34,6 +34,10 @@ function LocationState.exit()
     LocationState.location = nil
 end
 
+function LocationState.resume()
+    UIManager.showScreen("location")
+end
+
 function LocationState.update(dt)
     UIManager.update(dt)
 end
