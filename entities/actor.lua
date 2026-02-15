@@ -39,17 +39,4 @@ function Actor.new(id, actorType)
     return self
 end
 
-function Actor:takeDamage(amount)
-    self.stats.health = math.max(0, self.stats.health - amount)
-    return self.stats.health <= 0
-end
-
-function Actor:heal(amount)
-    self.stats.health = math.min(self.stats.health + amount, self.stats.maxHealth or 100)
-end
-
-function Actor:isAlive()
-    return self.stats.health > 0
-end
-
 return Actor

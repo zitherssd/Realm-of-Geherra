@@ -73,16 +73,16 @@ function LocationScreen:refreshButtons()
     local btnHeight = 50
     
     if location.type == "town" then
-        table.insert(self.buttons, Button.new("Visit Tavern", startX, optionsY, btnWidth, 50, function() end))
-        table.insert(self.buttons, Button.new("Trade Goods", startX, optionsY + 60, btnWidth, 50, function() end))
+        table.insert(self.buttons, Button.new("Visit Tavern", startX, optionsY, btnWidth, 50, function() LocationActions.visitTavern(location) end))
+        table.insert(self.buttons, Button.new("Trade Goods", startX, optionsY + 60, btnWidth, 50, function() LocationActions.tradeGoods(location) end))
         table.insert(self.buttons, Button.new("Rest", startX, optionsY + 120, btnWidth, 50, function() 
             LocationActions.rest(location)
         end))
     elseif location.type == "castle" then
-        table.insert(self.buttons, Button.new("Request Audience", startX, optionsY, btnWidth, 50, function() end))
-        table.insert(self.buttons, Button.new("Train Troops", startX, optionsY + 60, btnWidth, 50, function() end))
+        table.insert(self.buttons, Button.new("Request Audience", startX, optionsY, btnWidth, 50, function() LocationActions.requestAudience(location) end))
+        table.insert(self.buttons, Button.new("Train Troops", startX, optionsY + 60, btnWidth, 50, function() LocationActions.trainTroops(location) end))
     elseif location.type == "village" then
-        table.insert(self.buttons, Button.new("Buy Supplies", startX, optionsY, btnWidth, 50, function() end))
+        table.insert(self.buttons, Button.new("Buy Supplies", startX, optionsY, btnWidth, 50, function() LocationActions.buySupplies(location) end))
         
         local cooldown = LocationActions.getRecruitCooldown(location)
         if cooldown > 0 then
