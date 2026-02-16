@@ -78,48 +78,32 @@ function CombatSystem.heal(target, amount)
     end
 end
 
-function CombatSystem.resolveAttack(attacker, defender, skill, context)
+function CombatSystem.resolveAttack(attacker, defender, skill)
     -- 1. Check for Hit
     local hitChance = CombatSystem.rollAttack(attacker, defender, skill)
     local isHit = math.random(100) <= hitChance
     
     if isHit then
-        -- HIT
         local damage = CombatSystem.calculateDamage(attacker, defender, skill)
         local defeated = CombatSystem._applyBattleDamage(defender, damage)
         
         -- Visual: Damage Flash (Red)
         if defender.visualEffects then
-            defender.visualEffects.flashTime = 0.3
+            defender.visualEffects.flashTime = 0.3 -- 0.3 seconds
             defender.visualEffects.flashDuration = 0.3
             defender.visualEffects.flashColor = {0.5, 0, 0}
             defender.visualEffects.flashIntensity = 0.8
         end
         
-        -- Contextual Side Effects (from old _resolveHit)
-        if defeated then
-            context.data.grid:setOccupant(defender.x, defender.y, nil)
-        end
-        
-        if context.addFloatingText then
-            context.addFloatingText(defender.visualX, defender.visualY, tostring(damage), {1, 0.2, 0.2, 1})
-        end
-        
         return {hit = true, damage = damage, defeated = defeated}
-    else
-        -- MISS/BLOCK
-        -- Visual: Shake
-        if defender.visualEffects then
-            defender.visualEffects.shakeTime = 0.5
-        end
-        
-        -- Contextual Side Effects (from old _resolveHit)
-        if context.addFloatingText then
-            context.addFloatingText(defender.visualX, defender.visualY, "BLOCK", {0.8, 0.8, 0.8, 1})
-        end
-        
-        return {hit = false, damage = 0, defeated = false}
     end
+    
+    -- MISS/BLOCK: Visual Shake
+    if defender.visualEffects then
+        defender.visualEffects.shakeTime = 0.5 -- 0.5 seconds
+    end
+    
+    return {hit = false, damage = 0, defeated = false}
 end
 
 return CombatSystem

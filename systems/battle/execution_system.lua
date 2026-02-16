@@ -175,87 +175,107 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, contex
         end
 
         -- 1. Handle Projectile vs Instant Hit
-                if skillData.projectile then
-                    -- Spawn Projectile
-                    local startX, startY = grid:gridToWorld(unit.x, unit.y)
-                    
-                    local proj = {
-                        x = startX,
-                        y = startY,
-                        visualX = startX,
-                        visualY = startY,
-                        startX = startX,
-                        startY = startY,
-                        targetUnitId = targetUnit.id,
-                        attackerUnit = unit,
-                        skillId = skillId,
-                        speed = skillData.projectile.speed or 10,
-                        sprite = skillData.projectile.sprite,
-                        arc = skillData.projectile.arc or 0,
-                        progress = 0 -- 0.0 to 1.0 (approximate for arc)
-                    }
-                    
-                    context.addProjectile(proj)
-                else
-                    -- Instant Hit: Directly call the consolidated combat resolution
-                    CombatSystem.resolveAttack(unit, targetUnit, skillData, context)
-                end
-                
-                -- 2. Set Cooldowns (Value is in ticks)
-                local cdTicks = skillData.cooldown or 20
-                unit.cooldowns[skillId] = cdTicks
-                
-                -- 3. Consume Charge (if applicable)
-                if skillData.maxCharges then
-                    unit.charges[skillId] = (unit.charges[skillId] or 0) - 1
-                end
-                
-                -- Apply a Global Cooldown (GCD) so they can't move immediately after attacking
-                unit.globalCooldown = cdTicks
-            end
+        if skillData.projectile then
+            -- Spawn Projectile
+            local startX, startY = grid:gridToWorld(unit.x, unit.y)
+            
+            local proj = {
+                x = startX,
+                y = startY,
+                visualX = startX,
+                visualY = startY,
+                startX = startX,
+                startY = startY,
+                targetUnitId = targetUnit.id,
+                attackerUnit = unit,
+                skillId = skillId,
+                speed = skillData.projectile.speed or 10,
+                sprite = skillData.projectile.sprite,
+                arc = skillData.projectile.arc or 0,
+                progress = 0 -- 0.0 to 1.0 (approximate for arc)
+            }
+            
+            context.addProjectile(proj)
+        else
+            -- Instant Hit
+            local result = CombatSystem.resolveAttack(unit, targetUnit, skillData)
+            ExecutionSystem.applyAttackResult(result, targetUnit, context)
         end
         
-        function ExecutionSystem._updateProjectiles(context)
-            local projectiles = context.data.projectiles
-            if not projectiles then return end
-            
-            local grid = context.data.grid
-            
-            for i = #projectiles, 1, -1 do
-                local proj = projectiles[i]
-                local target = context.data.units[proj.targetUnitId]
-                
-                if target and target.hp > 0 then
-                    -- Move towards target's visual center (or grid center)
-                    local tx, ty = grid:gridToWorld(target.x, target.y)
-                    
-                    local dx = tx - proj.x
-                    local dy = ty - proj.y
-                    local dist = math.sqrt(dx*dx + dy*dy)
-                    
-                    if dist <= proj.speed then
-                        -- Impact!
-                        proj.x = tx
-                        proj.y = ty
-                        CombatSystem.resolveAttack(proj.attackerUnit, target, Skills[proj.skillId], context)
-                        table.remove(projectiles, i)
-                    else
-                        -- Move
-                        local moveX = (dx / dist) * proj.speed
-                        local moveY = (dy / dist) * proj.speed
-                        proj.x = proj.x + moveX
-                        proj.y = proj.y + moveY
-                        
-                        -- Update progress for Arc calculation (simple approximation based on distance)
-                        local totalDist = math.sqrt((tx - proj.startX)^2 + (ty - proj.startY)^2)
-                        proj.progress = 1.0 - (dist / totalDist)
-                    end
-                else
-                    -- Target dead or gone, remove projectile
-                    table.remove(projectiles, i)
-                end
-            end
+        -- 2. Set Cooldowns (Value is in ticks)
+        local cdTicks = skillData.cooldown or 20
+        unit.cooldowns[skillId] = cdTicks
+        
+        -- 3. Consume Charge (if applicable)
+        if skillData.maxCharges then
+            unit.charges[skillId] = (unit.charges[skillId] or 0) - 1
         end
         
-        return ExecutionSystem
+        -- Apply a Global Cooldown (GCD) so they can't move immediately after attacking
+        unit.globalCooldown = cdTicks
+    end
+end
+
+-- Applies the contextual side-effects of a combat result
+function ExecutionSystem.applyAttackResult(result, target, context)
+    if result.hit then
+        -- HIT: Apply Damage & Visuals
+        if result.defeated then
+            context.data.grid:setOccupant(target.x, target.y, nil)
+        end
         
+        if context.addFloatingText then
+            context.addFloatingText(target.visualX, target.visualY, tostring(result.damage), {1, 0.2, 0.2, 1})
+        end
+    else
+        -- BLOCK/MISS
+        if context.addFloatingText then
+            context.addFloatingText(target.visualX, target.visualY, "BLOCK", {0.8, 0.8, 0.8, 1})
+        end
+    end
+end
+
+function ExecutionSystem._updateProjectiles(context)
+    local projectiles = context.data.projectiles
+    if not projectiles then return end
+    
+    local grid = context.data.grid
+    
+    for i = #projectiles, 1, -1 do
+        local proj = projectiles[i]
+        local target = context.data.units[proj.targetUnitId]
+        
+        if target and target.hp > 0 then
+            -- Move towards target's visual center (or grid center)
+            local tx, ty = grid:gridToWorld(target.x, target.y)
+            
+            local dx = tx - proj.x
+            local dy = ty - proj.y
+            local dist = math.sqrt(dx*dx + dy*dy)
+            
+            if dist <= proj.speed then
+                -- Impact!
+                proj.x = tx
+                proj.y = ty
+                local result = CombatSystem.resolveAttack(proj.attackerUnit, target, Skills[proj.skillId])
+                ExecutionSystem.applyAttackResult(result, target, context)
+                table.remove(projectiles, i)
+            else
+                -- Move
+                local moveX = (dx / dist) * proj.speed
+                local moveY = (dy / dist) * proj.speed
+                proj.x = proj.x + moveX
+                proj.y = proj.y + moveY
+                
+                -- Update progress for Arc calculation (simple approximation based on distance)
+                local totalDist = math.sqrt((tx - proj.startX)^2 + (ty - proj.startY)^2)
+                proj.progress = 1.0 - (dist / totalDist)
+            end
+        else
+            -- Target dead or gone, remove projectile
+            table.remove(projectiles, i)
+        end
+    end
+end
+
+return ExecutionSystem
