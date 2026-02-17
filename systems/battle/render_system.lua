@@ -3,6 +3,19 @@
 
 local RenderSystem = {}
 
+local CELL_OFFSETS = {
+    [1] = {{0, 0}},
+    [2] = {{0.25, -0.25}, {-0.25, 0.25}},
+    [3] = {{0, -0.25}, {-0.25, 0.25}, {0.25, 0.25}},
+    [4] = {{-0.25, -0.25}, {0.25, -0.25}, {-0.25, 0.25}, {0.25, 0.25}},
+    [5] = {{0, 0}, {-0.3, -0.3}, {0.3, -0.3}, {-0.3, 0.3}, {0.3, 0.3}},
+    [6] = {{-0.15, -0.3}, {0.15, -0.3}, {-0.3, 0}, {0.3, 0}, {-0.15, 0.3}, {0.15, 0.3}},
+    [7] = {{0, 0}, {-0.3, -0.15}, {0.3, -0.15}, {-0.3, 0.15}, {0.3, 0.15}, {-0.15, -0.35}, {0.15, -0.35}},
+    [8] = {{-0.15, -0.35}, {0.15, -0.35}, {-0.35, -0.15}, {0.35, -0.15}, {-0.35, 0.15}, {0.35, 0.15}, {-0.15, 0.35}, {0.15, 0.35}},
+    [9] = {{0,0}, {-0.3, 0}, {0.3, 0}, {0, -0.3}, {0, 0.3}, {-0.3, -0.3}, {0.3, -0.3}, {-0.3, 0.3}, {0.3, 0.3}},
+    [10] = {{-0.15, -0.35}, {0.15, -0.35}, {-0.35, -0.15}, {0.35, -0.15}, {-0.35, 0.15}, {0.35, 0.15}, {-0.15, 0.35}, {0.15, 0.35}, {-0.15, 0}, {0.15, 0}}
+}
+
 local imageCache = {}
 
 -- Simple Flash Shader
@@ -34,17 +47,52 @@ function RenderSystem.update(dt, context)
     local grid = context.data.grid
     local LERP_SPEED = 10.0
 
+    -- Pre-calculate target positions for all units
+    local unitTargetPositions = {}
+    if grid then
+        for x = 1, grid.width do
+            for y = 1, grid.height do
+                local occupants = grid:getOccupants(x, y)
+                local occupantCount = #occupants
+                if occupantCount > 0 then
+                    local offsets = CELL_OFFSETS[occupantCount] or {}
+                    for i, unitId in ipairs(occupants) do
+                        local unit = context.data.units[unitId]
+                        if unit then
+                            local cellCenterX, cellCenterY = grid:gridToWorld(unit.x, unit.y)
+                            local offsetX, offsetY = 0, 0
+                            if offsets[i] then
+                                offsetX = (offsets[i][1] or 0) * grid.cellSize
+                                offsetY = (offsets[i][2] or 0) * grid.cellSize
+                            end
+                            unitTargetPositions[unit.id] = {
+                                x = cellCenterX + offsetX,
+                                y = cellCenterY + offsetY
+                            }
+                        end
+                    end
+                end
+            end
+        end
+    end
+
     for _, unit in ipairs(units) do
         -- Calculate target visual position from grid
-        local targetX, targetY = grid:gridToWorld(unit.x, unit.y)
+        local target = unitTargetPositions[unit.id]
+        if not target then
+            target = {x=0, y=0}
+            local targetX, targetY = grid:gridToWorld(unit.x, unit.y)
+            target.x = targetX
+            target.y = targetY
+        end
         
         -- Lerp visual position
-        local dx = targetX - unit.visualX
-        local dy = targetY - unit.visualY
+        local dx = target.x - unit.visualX
+        local dy = target.y - unit.visualY
         
         if math.abs(dx) < 1 and math.abs(dy) < 1 then
-            unit.visualX = targetX
-            unit.visualY = targetY
+            unit.visualX = target.x
+            unit.visualY = target.y
         else
             unit.visualX = unit.visualX + dx * LERP_SPEED * dt
             unit.visualY = unit.visualY + dy * LERP_SPEED * dt
@@ -191,7 +239,7 @@ function RenderSystem.draw(context)
                 local w, h = sprite:getDimensions()
                 -- Scale to fit 80% of cell
                 local scale = (grid.cellSize * 0.8) / math.max(w, h)
-                love.graphics.draw(sprite, drawX, drawY, 0, scale * (unit.facing or 1), scale, w/2, h/2)
+                love.graphics.draw(sprite, drawX, drawY, 0, scale * (unit.facing or 1), scale, w/2, h)
                 
                 love.graphics.setShader() -- Reset shader
             else
@@ -210,7 +258,7 @@ function RenderSystem.draw(context)
             local barWidth = grid.cellSize * 0.8
             local barHeight = 4
             local barX = drawX - barWidth / 2
-            local barY = drawY + grid.cellSize * 0.4 + 2
+            local barY = drawY + 5
             
             -- Background (Dark Red)
             love.graphics.setColor(0.3, 0, 0, 1)
