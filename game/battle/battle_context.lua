@@ -58,7 +58,7 @@ function BattleContext.addUnit(battleUnit)
     
     -- Register initial position on grid
     if BattleContext.data.grid then
-        BattleContext.data.grid:setOccupant(battleUnit.x, battleUnit.y, battleUnit.id)
+        BattleContext.data.grid:addUnit(battleUnit.x, battleUnit.y, battleUnit.id)
     end
 end
 
@@ -71,7 +71,7 @@ function BattleContext.removeDeadUnits()
         if unit.hp <= 0 then
             table.insert(BattleContext.data.casualties, unit)
             if grid then
-                grid:setOccupant(unit.x, unit.y, nil)
+                grid:removeUnit(unit.x, unit.y, unit.id)
             end
             BattleContext.data.units[unit.id] = nil
             table.remove(units, i)

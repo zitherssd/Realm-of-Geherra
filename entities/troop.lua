@@ -27,6 +27,10 @@ function Troop.new(troopType, id)
                 self.stats[k] = v
             end
         end
+
+        if data.size then
+            self.size = data.size
+        end
         
         -- Apply Custom Slots (if defined)
         if data.slots then

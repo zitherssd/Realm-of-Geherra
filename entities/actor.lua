@@ -20,6 +20,7 @@ function Actor.new(id, actorType)
     
     self.level = 1
     self.experience = 0
+    self.size = 3
     
     -- Default Humanoid Slots
     self.availableSlots = {

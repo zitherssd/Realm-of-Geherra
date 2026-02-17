@@ -46,6 +46,7 @@ return {
             mainHand = "iron_sword",
             rangedWeapon = "javelin"
         },
+        size = 2,
         loot = {
             {id = "gold_coin", chance = 0.6, min = 1, max = 15},
             {id = "iron_sword", chance = 0.1, min = 1, max = 1}
@@ -63,6 +64,7 @@ return {
             defense = 5,
             speed = 7
         },
+        size = 4,
         equipment = {
             mainHand = "iron_sword",
             body = "leather_armor"
@@ -109,6 +111,7 @@ return {
             speed = 10,
             battle_speed = 16
         },
+        size = 1,
         equipment = {}
     },
 

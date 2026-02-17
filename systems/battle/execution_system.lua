@@ -40,7 +40,7 @@ function ExecutionSystem.update(context)
                 local intent = unit.intent
                 
                 if intent.type == "MOVE" then
-                    ExecutionSystem._executeMove(unit, intent, grid)
+                    ExecutionSystem._executeMove(unit, intent, context)
                 elseif intent.type == "SKILL" then
                     ExecutionSystem._initiateSkill(unit, intent, context)
                 end
@@ -55,11 +55,12 @@ function ExecutionSystem.update(context)
     ExecutionSystem._updateProjectiles(context)
 end
 
-function ExecutionSystem._executeMove(unit, intent, grid)
+function ExecutionSystem._executeMove(unit, intent, context)
     local tx, ty = intent.target.x, intent.target.y
+    local grid = context.data.grid
     
     -- Validate move
-    if grid:inBounds(tx, ty) and grid:isFree(tx, ty) then
+    if grid:inBounds(tx, ty) and grid:hasCapacity(tx, ty, unit, context) then
         -- Update facing
         if tx > unit.x then
             unit.facing = -1 -- Face Right
@@ -68,8 +69,8 @@ function ExecutionSystem._executeMove(unit, intent, grid)
         end
 
         -- Update Grid Occupancy
-        grid:setOccupant(unit.x, unit.y, nil)
-        grid:setOccupant(tx, ty, unit.id)
+        grid:removeUnit(unit.x, unit.y, unit.id)
+        grid:addUnit(tx, ty, unit.id)
         
         -- Update Logical Position
         unit.x = tx
@@ -221,7 +222,7 @@ function ExecutionSystem.applyAttackResult(result, target, context)
     if result.hit then
         -- HIT: Apply Damage & Visuals
         if result.defeated then
-            context.data.grid:setOccupant(target.x, target.y, nil)
+            context.data.grid:removeUnit(target.x, target.y, target.id)
         end
         
         if context.addFloatingText then

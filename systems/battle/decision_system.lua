@@ -84,7 +84,7 @@ function DecisionSystem._processAI(unit, context)
             local bestDist = minDist
 
             for _, cell in ipairs(neighbors) do
-                if grid:isFree(cell.x, cell.y) then
+                if grid:hasCapacity(cell.x, cell.y, unit, context) then
                     local dx = cell.x - nearestTarget.x
                     local dy = cell.y - nearestTarget.y
                     local d = dx*dx + dy*dy

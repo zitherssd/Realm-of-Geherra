@@ -5,6 +5,8 @@
 local BattleGrid = {}
 BattleGrid.__index = BattleGrid
 
+local CELL_CAPACITY = 10
+
 function BattleGrid.new(width, height, cellSize)
     width = width or 30
     height = height or 13
@@ -15,7 +17,7 @@ function BattleGrid.new(width, height, cellSize)
         height = height,
         cellSize = cellSize,
         cells = {},      -- Static terrain data (e.g., isWall)
-        occupants = {}   -- Dynamic unit lookup [x][y] = unitId
+        occupants = {}   -- Dynamic unit lookup [x][y] = {unitId1, unitId2, ...}
     }
     
     -- Initialize grid
@@ -27,7 +29,7 @@ function BattleGrid.new(width, height, cellSize)
                 walkable = true,
                 cost = 1
             }
-            self.occupants[x][y] = nil
+            self.occupants[x][y] = {}
         end
     end
     
@@ -46,21 +48,57 @@ function BattleGrid:isWalkable(x, y)
     return self.cells[x][y].walkable
 end
 
--- Check if a cell is free (walkable + no unit)
-function BattleGrid:isFree(x, y)
-    return self:isWalkable(x, y) and self.occupants[x][y] == nil
-end
-
--- Get the unit ID at a specific location
-function BattleGrid:getOccupant(x, y)
-    if not self:inBounds(x, y) then return nil end
+function BattleGrid:getOccupants(x, y)
+    if not self:inBounds(x, y) then return {} end
     return self.occupants[x][y]
 end
 
--- Set the unit ID at a specific location
-function BattleGrid:setOccupant(x, y, unitId)
+function BattleGrid:addUnit(x, y, unitId)
     if not self:inBounds(x, y) then return end
-    self.occupants[x][y] = unitId
+    table.insert(self.occupants[x][y], unitId)
+end
+
+function BattleGrid:removeUnit(x, y, unitId)
+    if not self:inBounds(x, y) then return end
+    for i, occupantId in ipairs(self.occupants[x][y]) do
+        if occupantId == unitId then
+            table.remove(self.occupants[x][y], i)
+            return
+        end
+    end
+end
+
+function BattleGrid:getCellTotalSize(x, y, battleContext)
+    if not self:inBounds(x, y) then return 0 end
+    
+    local totalSize = 0
+    for _, unitId in ipairs(self.occupants[x][y]) do
+        local unit = battleContext.data.units[unitId]
+        if unit then
+            totalSize = totalSize + (unit.size or 3) -- Default to 3 if size is missing
+        end
+    end
+    return totalSize
+end
+
+-- Check if a cell has enough capacity for a given unit
+function BattleGrid:hasCapacity(x, y, unit, battleContext)
+    if not self:isWalkable(x, y) then
+        return false
+    end
+
+    local occupants = self:getOccupants(x, y)
+    if #occupants > 0 then
+        local firstOccupant = battleContext.data.units[occupants[1]]
+        if firstOccupant and firstOccupant.team ~= unit.team then
+            return false -- Cannot stack with enemies
+        end
+    end
+    
+    local currentSize = self:getCellTotalSize(x, y, battleContext)
+    local unitSize = unit.size or 3 -- Default to 3 if size is missing
+    
+    return currentSize + unitSize <= CELL_CAPACITY
 end
 
 -- Get valid 4-directional neighbors for pathfinding
