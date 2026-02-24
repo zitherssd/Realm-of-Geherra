@@ -13,6 +13,7 @@ function DialogueState.enter(params)
     params = params or {}
     local target = params.target -- The entity/party we are talking to
     local location = params.location
+    local options = { showFavor = params.showFavor }
 
     local dialogueTree = params.dialogueTree
     if not dialogueTree and params.dialogueId then
@@ -63,7 +64,7 @@ function DialogueState.enter(params)
                 -- Placeholder for navigation logic
                 StateManager.pop() 
             end
-        end)
+        end, options)
         
         UIManager.registerScreen("dialogue", screen)
         UIManager.showScreen("dialogue")

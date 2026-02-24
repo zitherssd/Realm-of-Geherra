@@ -161,7 +161,8 @@ function LocationActions.startRecruitmentDialogue(location)
             dialogueTree = {
                 speaker = "System",
                 lines = { { text = "The village has no more volunteers for now. Come back later.", options = {{ text = "Continue", next = "end" }} } }
-            }
+            },
+            showFavor = true
         })
         return
     end
@@ -173,14 +174,16 @@ function LocationActions.startRecruitmentDialogue(location)
             dialogueTree = {
                 speaker = "System",
                 lines = { { text = "You don't have enough favor to attract new recruits (requires " .. favorCost .. ").", options = {{ text = "Continue", next = "end" }} } }
-            }
+            },
+            showFavor = true
         })
         return
     end
 
     StateManager.push("dialogue", {
         dialogueId = "village_recruit",
-        location = location
+        location = location,
+        showFavor = true
     })
 end
 

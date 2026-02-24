@@ -187,7 +187,8 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, contex
                 visualY = startY,
                 startX = startX,
                 startY = startY,
-                targetUnitId = targetUnit.id,
+                targetGridX = targetUnit.x,
+                targetGridY = targetUnit.y,
                 attackerUnit = unit,
                 skillId = skillId,
                 speed = skillData.projectile.speed or 10,
@@ -244,37 +245,38 @@ function ExecutionSystem._updateProjectiles(context)
     
     for i = #projectiles, 1, -1 do
         local proj = projectiles[i]
-        local target = context.data.units[proj.targetUnitId]
         
-        if target and target.hp > 0 then
-            -- Move towards target's visual center (or grid center)
-            local tx, ty = grid:gridToWorld(target.x, target.y)
+        local tx, ty = grid:gridToWorld(proj.targetGridX, proj.targetGridY)
+        
+        local dx = tx - proj.x
+        local dy = ty - proj.y
+        local dist = math.sqrt(dx*dx + dy*dy)
+        
+        if dist <= proj.speed then
+            -- Impact!
+            local occupants = grid:getOccupants(proj.targetGridX, proj.targetGridY)
+            if #occupants > 0 then
+                for _, occupantId in ipairs(occupants) do
+                    local targetUnit = context.data.units[occupantId]
+                    if targetUnit and targetUnit.team ~= proj.attackerUnit.team then
+                        local result = CombatSystem.resolveAttack(proj.attackerUnit, targetUnit, Skills[proj.skillId])
+                        ExecutionSystem.applyAttackResult(result, targetUnit, context)
+                    end
+                end
+            end
+            table.remove(projectiles, i)
+        else
+            -- Move
+            local moveX = (dx / dist) * proj.speed
+            local moveY = (dy / dist) * proj.speed
+            proj.x = proj.x + moveX
+            proj.y = proj.y + moveY
             
-            local dx = tx - proj.x
-            local dy = ty - proj.y
-            local dist = math.sqrt(dx*dx + dy*dy)
-            
-            if dist <= proj.speed then
-                -- Impact!
-                proj.x = tx
-                proj.y = ty
-                local result = CombatSystem.resolveAttack(proj.attackerUnit, target, Skills[proj.skillId])
-                ExecutionSystem.applyAttackResult(result, target, context)
-                table.remove(projectiles, i)
-            else
-                -- Move
-                local moveX = (dx / dist) * proj.speed
-                local moveY = (dy / dist) * proj.speed
-                proj.x = proj.x + moveX
-                proj.y = proj.y + moveY
-                
-                -- Update progress for Arc calculation (simple approximation based on distance)
-                local totalDist = math.sqrt((tx - proj.startX)^2 + (ty - proj.startY)^2)
+            -- Update progress for Arc calculation (simple approximation based on distance)
+            local totalDist = math.sqrt((tx - proj.startX)^2 + (ty - proj.startY)^2)
+            if totalDist > 0 then
                 proj.progress = 1.0 - (dist / totalDist)
             end
-        else
-            -- Target dead or gone, remove projectile
-            table.remove(projectiles, i)
         end
     end
 end

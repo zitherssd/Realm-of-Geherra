@@ -51,6 +51,14 @@ function Troop.new(troopType, id)
                 self.equipment[slot] = itemId
             end
         end
+
+        -- Load skills from data
+        if data.skills then
+            self.skills = {} -- Clear default skills
+            for _, skillId in ipairs(data.skills) do
+                self.skills[skillId] = {learned = true}
+            end
+        end
         
         -- Apply Sprite
         if data.sprite then

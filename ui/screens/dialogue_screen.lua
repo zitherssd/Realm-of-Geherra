@@ -3,15 +3,17 @@
 
 local DialogueScreen = {}
 local Input = require("core.input")
+local GameContext = require("game.game_context")
 
 DialogueScreen.__index = DialogueScreen
 
-function DialogueScreen.new(dialogueTree, onChoice)
+function DialogueScreen.new(dialogueTree, onChoice, options)
     local self = setmetatable({}, DialogueScreen)
     
     self.dialogueTree = dialogueTree
     self.currentNode = dialogueTree and dialogueTree.lines[1] or nil
     self.onChoice = onChoice
+    self.options = options or {}
     
     self.selectedOption = 1
     self.inputCooldown = 0.2
@@ -80,6 +82,14 @@ function DialogueScreen:draw()
     love.graphics.setColor(1, 1, 1)
     love.graphics.setFont(self.textFont)
     love.graphics.printf(currentNode.text, 50, screenH - 260, screenW - 100, "left")
+
+    -- Draw favor if enabled
+    if self.options.showFavor then
+        local favor = GameContext.data.favor or 0
+        love.graphics.setColor(0.8, 0.8, 1, 1) -- A light blue/purple color
+        love.graphics.setFont(self.textFont)
+        love.graphics.printf("Favor: " .. favor, 0, screenH - 200, screenW - 50, "right")
+    end
     
     -- Draw Options
     local startY = screenH - 150

@@ -14,6 +14,18 @@ return {
         range = 1.5,
     },
     
+    ["bite"] = {
+        id = "bite",
+        name = "Bite",
+        type = "melee",
+        description = "Basic melee attack",
+        damageMultiplier = 1.0,
+        windup = 0,
+        cooldown = 12,
+        cost = 0,
+        range = 1.5,
+    },
+
     ["fireball"] = {
         id = "fireball",
         name = "Fireball",
@@ -55,12 +67,12 @@ return {
         description = "Throw a javelin (Limited uses)",
         damageMultiplier = 2.0,
         range = 8.5,
-        windup = 45,
-        cooldown = 20,
+        windup = 30,
+        cooldown = 35,
         maxCharges = 2, -- Only usable 2 times per battle
         projectile = {
             sprite = "assets/sprites/projectiles/spear.png",
-            speed = 10,
+            speed = 34,
             arc = 30
         }
     }

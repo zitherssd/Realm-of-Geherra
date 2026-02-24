@@ -112,7 +112,8 @@ return {
             battle_speed = 16
         },
         size = 1,
-        equipment = {}
+        equipment = {},
+        skills = {"bite"},
     },
 
     ["companion"] = {

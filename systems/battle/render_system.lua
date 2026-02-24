@@ -277,51 +277,57 @@ function RenderSystem.draw(context)
         for _, proj in ipairs(projectiles) do
             local sprite = getImage(proj.sprite)
             if sprite then
+                -- Get target world coordinates from grid coordinates
+                local tx, ty = grid:gridToWorld(proj.targetGridX, proj.targetGridY)
+
                 -- Recalculate progress based on visual position for smooth arc
-                local target = context.data.units[proj.targetUnitId]
                 local visualProgress = proj.progress or 0
-                if target then
-                    local tx, ty = grid:gridToWorld(target.x, target.y)
-                    local totalDist = math.sqrt((tx - proj.startX)^2 + (ty - proj.startY)^2)
+                local totalDist = math.sqrt((tx - proj.startX)^2 + (ty - proj.startY)^2)
+                if totalDist > 0 then
                     local currentDist = math.sqrt((tx - proj.visualX)^2 + (ty - proj.visualY)^2)
-                    if totalDist > 0 then
-                        visualProgress = 1.0 - (currentDist / totalDist)
-                    end
+                    visualProgress = 1.0 - (currentDist / totalDist)
                 end
 
                 -- Calculate Arc Offset
                 local arcOffset = 0
-                local rotation = 0
-                
                 if proj.arc and proj.arc > 0 then
-                    -- Parabola: 4 * height * x * (1-x)
-                    arcOffset = -4 * proj.arc * proj.progress * (1 - proj.progress)
                     arcOffset = -4 * proj.arc * visualProgress * (1 - visualProgress)
                 end
                 
                 -- Calculate Rotation
-                local target = context.data.units[proj.targetUnitId]
-                if target then
-                    local tx, ty = grid:gridToWorld(target.x, target.y)
-                    local dx = tx - proj.startX
-                    local dy_linear = ty - proj.startY
-                    local dy_arc = 0
-                    if proj.arc and proj.arc > 0 then
-                        dy_arc = -4 * proj.arc * (1 - 2 * proj.progress)
-                        dy_arc = -4 * proj.arc * (1 - 2 * visualProgress)
-                    end
-                    rotation = math.atan2(dy_linear + dy_arc, dx)
+                local dx = tx - proj.startX
+                local dy_linear = ty - proj.startY
+                local dy_arc = 0
+                if proj.arc and proj.arc > 0 then
+                    -- Derivative of the arc parabola
+                    dy_arc = -4 * proj.arc * (1 - 2 * visualProgress)
                 end
+
+                local target_angle = math.atan2(dy_linear + dy_arc, dx)
                 
-                local drawX = proj.x
-                local drawY = proj.y + arcOffset
+                local horizontal_angle = 0
+                if dx < 0 then
+                    horizontal_angle = math.pi
+                end
+
+                -- Interpolate between horizontal and target angle
+                local rotation = (horizontal_angle + target_angle) / 2
+                
+                -- Determine flip and adjust rotation
+                local sx = 1
+                if dx < 0 then
+                    sx = -1
+                    -- We must adjust the angle to compensate for the horizontal flip
+                    rotation = math.pi - rotation
+                end
+
                 local drawX = proj.visualX
                 local drawY = proj.visualY + arcOffset
                 
                 -- Draw centered
                 local w, h = sprite:getDimensions()
                 love.graphics.setColor(1, 1, 1, 1)
-                love.graphics.draw(sprite, drawX, drawY, rotation, 1, 1, w/2, h/2)
+                love.graphics.draw(sprite, drawX, drawY, rotation, sx, 1, w/2, h/2)
             end
         end
     end

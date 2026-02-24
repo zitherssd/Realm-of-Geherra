@@ -21,7 +21,7 @@ function GameInitializer.initNewGame(options)
     -- Set game options
     GameContext.data.difficulty = options.difficulty or "normal"
     GameContext.data.playtime = 0
-    GameContext.data.favor = 50
+    GameContext.data.favor = 5
     
     -- Create player character
     local player = Troop.new("player")
