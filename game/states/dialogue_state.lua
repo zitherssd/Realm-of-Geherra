@@ -7,11 +7,13 @@ local StateManager = require("core.state_manager")
 local UIManager = require("ui.ui_manager")
 local DialogueData = require("data.dialogue")
 local DialogueScreen = require("ui.screens.dialogue_screen")
+local LocationActions = require("systems.location_actions")
 
 function DialogueState.enter(params)
     params = params or {}
     local target = params.target -- The entity/party we are talking to
-    
+    local location = params.location
+
     local dialogueTree = params.dialogueTree
     if not dialogueTree and params.dialogueId then
         dialogueTree = DialogueData[params.dialogueId]
@@ -45,7 +47,15 @@ function DialogueState.enter(params)
             if choice.action == "battle" then
                 -- TRANSITION TO BATTLE
                 StateManager.swap("battle", { enemyParty = target })
-                
+            elseif choice.action == "recruit_volunteers" then
+                local resultText = LocationActions.performRecruitment(location)
+                StateManager.swap("dialogue", { -- Use swap to replace current dialogue
+                    dialogueTree = {
+                        speaker = "System",
+                        lines = { { text = resultText, options = {{ text = "Continue", next = "end" }} } }
+                    },
+                    location = location -- pass location along if needed for other actions
+                })
             elseif choice.next == "end" then
                 StateManager.pop()
                 

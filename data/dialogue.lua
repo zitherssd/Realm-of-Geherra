@@ -39,5 +39,19 @@ return {
                 }
             }
         }
+    },
+
+    ["village_recruit"] = {
+        id = "village_recruit",
+        speaker = "Village Elder",
+        lines = {
+            {
+                text = "A few able-bodied villagers look eager to join a new cause.",
+                options = {
+                    {text = "Recruit them (10 favor).", action = "recruit_volunteers"},
+                    {text = "Leave them be.", next = "end"}
+                }
+            }
+        }
     }
 }

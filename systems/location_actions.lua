@@ -139,59 +139,49 @@ end
 
 
 function LocationActions.getRecruitCooldown(location)
-
     local currentDay = TimeSystem.getDay()
-
     local lastRecruit = location.lastRecruitDay or -100
-
     return math.max(0, (lastRecruit + 5) - currentDay)
-
 end
 
-
-
-function LocationActions.recruitVolunteers(location)
-
+function LocationActions.performRecruitment(location)
     local currentDay = TimeSystem.getDay()
-
+    GameContext.data.favor = (GameContext.data.favor or 0) - 10
+    location.lastRecruitDay = currentDay
     
+    local playerParty = GameContext.data.playerParty
+    local text, count = RecruitmentSystem.recruit(location, playerParty)
+    
+    return text
+end
 
+function LocationActions.startRecruitmentDialogue(location)
     if LocationActions.getRecruitCooldown(location) > 0 then
-
-        return "The village has no more volunteers for now. Come back later."
-
+        StateManager.push("dialogue", {
+            dialogueTree = {
+                speaker = "System",
+                lines = { { text = "The village has no more volunteers for now. Come back later.", options = {{ text = "Continue", next = "end" }} } }
+            }
+        })
+        return
     end
-
-
 
     local favorCost = 10
-
     local currentFavor = GameContext.data.favor or 0
-
     if currentFavor < favorCost then
-
-        return "You don't have enough favor to attract new recruits (requires 10)."
-
+        StateManager.push("dialogue", {
+            dialogueTree = {
+                speaker = "System",
+                lines = { { text = "You don't have enough favor to attract new recruits (requires " .. favorCost .. ").", options = {{ text = "Continue", next = "end" }} } }
+            }
+        })
+        return
     end
 
-
-
-    GameContext.data.favor = currentFavor - favorCost
-
-    location.lastRecruitDay = currentDay
-
-    
-
-    local playerParty = GameContext.data.playerParty
-
-    local text, count = RecruitmentSystem.recruit(location, playerParty)
-
-    
-
-    return text
-
+    StateManager.push("dialogue", {
+        dialogueId = "village_recruit",
+        location = location
+    })
 end
-
-
 
 return LocationActions

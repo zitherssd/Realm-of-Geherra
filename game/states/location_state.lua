@@ -36,6 +36,10 @@ end
 
 function LocationState.resume()
     UIManager.showScreen("location")
+    local screen = UIManager.getActiveScreen()
+    if screen and screen.refreshButtons then
+        screen:refreshButtons()
+    end
 end
 
 function LocationState.update(dt)
