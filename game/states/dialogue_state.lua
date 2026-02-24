@@ -18,9 +18,27 @@ function DialogueState.enter(params)
     end
     
     if dialogueTree then
-        
+        local speakerName
+        if target then
+            -- Duck-typing: if it has a getLeader method, we assume it's a Party.
+            if target.getLeader then
+                local leader = target:getLeader()
+                if leader then
+                    speakerName = leader.name
+                end
+            -- Otherwise, assume it's an NPC or other entity with a name.
+            elseif target.name then
+                speakerName = target.name
+            end
+        end
+
+        -- Fallback to the hardcoded name in the dialogue file (which we removed, but is good for safety)
+        if not speakerName then
+            speakerName = dialogueTree.speaker
+        end
+
         -- Create screen with a callback for choices
-        local screen = DialogueScreen.new(dialogueTree, function(choice)
+        local screen = DialogueScreen.new(dialogueTree, speakerName, function(choice)
             if choice.action == "battle" then
                 -- TRANSITION TO BATTLE
                 StateManager.swap("battle", { enemyParty = target })

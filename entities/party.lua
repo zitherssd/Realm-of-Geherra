@@ -36,6 +36,16 @@ function Party.new(name, leaderId, id)
     return self
 end
 
+function Party:getLeader()
+    if not self.leaderId then return nil end
+    for _, actor in ipairs(self.actors) do
+        if actor.id == self.leaderId then
+            return actor
+        end
+    end
+    return nil
+end
+
 -- Set party position
 function Party:setPosition(x, y)
     self.x = x

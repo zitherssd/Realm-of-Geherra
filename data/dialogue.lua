@@ -4,7 +4,6 @@
 return {
     ["elder_greeting"] = {
         id = "elder_greeting",
-        speaker = "elder",
         lines = {
             {
                 text = "Welcome, traveler. I have a task for you.",
@@ -18,7 +17,6 @@ return {
     
     ["captain_mission"] = {
         id = "captain_mission",
-        speaker = "captain",
         lines = {
             {
                 text = "Bandits have been raiding our merchants. Will you stop them?",
@@ -32,7 +30,6 @@ return {
 
     ["bandit_start"] = {
         id = "bandit_start",
-        speaker = "Bandit Leader",
         lines = {
             {
                 text = "Well, well... looks like we caught ourselves a lost lamb. Hand over your coin or bleed!",
