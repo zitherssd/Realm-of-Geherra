@@ -32,13 +32,16 @@ function DialogueState.enter(params)
             end
         end
 
-        -- Fallback to the hardcoded name in the dialogue file (which we removed, but is good for safety)
+        -- Fallback to the hardcoded name in the dialogue file (which is good for safety)
         if not speakerName then
             speakerName = dialogueTree.speaker
         end
 
+        -- Add speaker to the dialogue tree for rendering
+        dialogueTree.speaker = speakerName
+
         -- Create screen with a callback for choices
-        local screen = DialogueScreen.new(dialogueTree, speakerName, function(choice)
+        local screen = DialogueScreen.new(dialogueTree, function(choice)
             if choice.action == "battle" then
                 -- TRANSITION TO BATTLE
                 StateManager.swap("battle", { enemyParty = target })
