@@ -57,23 +57,210 @@ function QuestSystem.init()
     EventBus.subscribe("party_killed", QuestSystem.onPartyKilled)
 end
 
+function QuestSystem._normalizeGiverRef(giverRef)
+    if type(giverRef) == "table" then
+        return {
+            id = giverRef.id,
+            name = giverRef.name
+        }
+    end
+
+    if type(giverRef) == "string" then
+        return {
+            id = nil,
+            name = giverRef
+        }
+    end
+
+    return {
+        id = nil,
+        name = nil
+    }
+end
+
+function QuestSystem._isSameGiver(quest, giverRef)
+    if not giverRef then return true end
+
+    if giverRef.id then
+        return quest.giverId == giverRef.id
+    end
+
+    if giverRef.name then
+        return quest.giverName == giverRef.name
+    end
+
+    return true
+end
+
+function QuestSystem._nextQuestInstanceId(templateId)
+    if not GameContext.data.questInstanceCounter then
+        GameContext.data.questInstanceCounter = 0
+    end
+
+    GameContext.data.questInstanceCounter = GameContext.data.questInstanceCounter + 1
+    return string.format("%s#%d", templateId, GameContext.data.questInstanceCounter)
+end
+
+function QuestSystem._nextQuestOfferId(templateId)
+    if not GameContext.data.questOfferCounter then
+        GameContext.data.questOfferCounter = 0
+    end
+
+    GameContext.data.questOfferCounter = GameContext.data.questOfferCounter + 1
+    return string.format("offer:%s#%d", templateId, GameContext.data.questOfferCounter)
+end
+
+function QuestSystem._pickRandomFromList(values)
+    if not values or #values == 0 then return nil end
+
+    if love and love.math and love.math.random then
+        return values[love.math.random(1, #values)]
+    end
+
+    return values[math.random(1, #values)]
+end
+
+function QuestSystem.findActiveQuestInstance(templateId, giverRef)
+    if not GameContext.data.activeQuests then return nil end
+
+    local normalizedGiver = QuestSystem._normalizeGiverRef(giverRef)
+    for _, quest in pairs(GameContext.data.activeQuests) do
+        if quest.templateId == templateId and QuestSystem._isSameGiver(quest, normalizedGiver) then
+            return quest
+        end
+    end
+
+    return nil
+end
+
+function QuestSystem.findCompletedQuestInstance(templateId, giverRef)
+    if not GameContext.data.completedQuests then return nil end
+
+    local normalizedGiver = QuestSystem._normalizeGiverRef(giverRef)
+    for _, quest in pairs(GameContext.data.completedQuests) do
+        if quest.templateId == templateId and QuestSystem._isSameGiver(quest, normalizedGiver) then
+            return quest
+        end
+    end
+
+    return nil
+end
+
+function QuestSystem.getDialogueQuestContext(templateId, giverRef)
+    local context = {
+        state = "inactive",
+        activeQuestInstanceId = nil,
+        completedQuestInstanceId = nil
+    }
+
+    local activeQuest = QuestSystem.findActiveQuestInstance(templateId, giverRef)
+    if activeQuest then
+        context.activeQuestInstanceId = activeQuest.instanceId
+        if activeQuest:getState() == "active" and QuestSystem._isReadyToTurnIn(activeQuest) then
+            context.state = "ready_to_turn_in"
+        else
+            context.state = activeQuest:getState()
+        end
+        return context
+    end
+
+    local completedQuest = QuestSystem.findCompletedQuestInstance(templateId, giverRef)
+    if completedQuest then
+        context.state = "completed"
+        context.completedQuestInstanceId = completedQuest.instanceId
+    end
+
+    return context
+end
+
+function QuestSystem.generateProceduralQuestOffer(giverRef, options)
+    local normalizedGiver = QuestSystem._normalizeGiverRef(giverRef)
+    local pool = {}
+
+    if options and options.questPool then
+        for _, templateId in ipairs(options.questPool) do
+            local questData = QuestsData[templateId]
+            if questData and questData.procedural then
+                local hasActive = QuestSystem.findActiveQuestInstance(templateId, normalizedGiver)
+                if not hasActive then
+                    table.insert(pool, templateId)
+                end
+            end
+        end
+    else
+        for templateId, questData in pairs(QuestsData) do
+            if questData.procedural then
+                local hasActive = QuestSystem.findActiveQuestInstance(templateId, normalizedGiver)
+                if not hasActive then
+                    if questData.repeatable or not QuestSystem.findCompletedQuestInstance(templateId, normalizedGiver) then
+                        table.insert(pool, templateId)
+                    end
+                end
+            end
+        end
+    end
+
+    local selectedTemplateId = QuestSystem._pickRandomFromList(pool)
+    if not selectedTemplateId then
+        return nil
+    end
+
+    return {
+        offerId = QuestSystem._nextQuestOfferId(selectedTemplateId),
+        templateId = selectedTemplateId,
+        giverRef = normalizedGiver,
+        source = "procedural"
+    }
+end
+
+function QuestSystem.acceptProceduralQuestOffer(offer)
+    if not offer or not offer.templateId then return nil end
+    return QuestSystem.activateQuest(offer.templateId, offer.giverRef)
+end
+
+function QuestSystem._findActiveQuestByIdOrTemplate(questIdOrTemplateId, giverRef)
+    if not GameContext.data.activeQuests then return nil end
+
+    local direct = GameContext.data.activeQuests[questIdOrTemplateId]
+    if direct then
+        return direct
+    end
+
+    return QuestSystem.findActiveQuestInstance(questIdOrTemplateId, giverRef)
+end
+
+function QuestSystem._bindSpawnedPartyToObjectives(quest, templatePartyId, runtimePartyId)
+    if not templatePartyId then return end
+
+    for _, objective in ipairs(quest.objectives) do
+        if objective.type == "kill_party" and objective.target == templatePartyId then
+            objective.target = runtimePartyId
+        end
+    end
+end
+
 -- Activates a quest by creating an instance and adding it to the global context.
-function QuestSystem.activateQuest(questId, giverName)
-    if QuestSystem.getQuestState(questId) ~= "inactive" then
-        print("QuestSystem: Attempted to activate quest that is not inactive: " .. questId)
+function QuestSystem.activateQuest(templateId, giverRef)
+    local normalizedGiver = QuestSystem._normalizeGiverRef(giverRef)
+    local existingInstance = QuestSystem.findActiveQuestInstance(templateId, normalizedGiver)
+    if existingInstance then
+        return existingInstance.instanceId
+    end
+
+    local questData = QuestsData[templateId]
+    if not questData then
+        print("QuestSystem: Could not find quest data for: " .. templateId)
         return
     end
 
-    local questData = QuestsData[questId]
-    if not questData then
-        print("QuestSystem: Could not find quest data for: " .. questId)
-        return
-    end
+    local instanceId = QuestSystem._nextQuestInstanceId(templateId)
 
     -- Create a new Quest instance
-    local newQuest = Quest.new(questId, questData.title)
+    local newQuest = Quest.new(instanceId, questData.title, templateId)
     newQuest.description = questData.description
-    newQuest.giver = giverName or questData.giver
+    newQuest.giverId = normalizedGiver.id
+    newQuest.giverName = normalizedGiver.name or questData.giver
+    newQuest.giver = newQuest.giverName
     newQuest.rewards = questData.rewards
     newQuest:setState("active")
 
@@ -90,12 +277,14 @@ function QuestSystem.activateQuest(questId, giverName)
 
     -- Add to active quests in GameContext
     if not GameContext.data.activeQuests then GameContext.data.activeQuests = {} end
-    GameContext.data.activeQuests[questId] = newQuest
+    GameContext.data.activeQuests[instanceId] = newQuest
     
     -- Handle onStart actions defined in data
     if questData.onStart then
-        QuestSystem._handleQuestAction(questData.onStart)
+        QuestSystem._handleQuestAction(questData.onStart, newQuest)
     end
+
+    return instanceId
 end
 
 -- Event handler for when a party is killed
@@ -103,7 +292,7 @@ function QuestSystem.onPartyKilled(partyId)
     print("QuestSystem: onPartyKilled event received for " .. tostring(partyId))
     if not GameContext.data.activeQuests then return end
 
-    for questId, quest in pairs(GameContext.data.activeQuests) do
+    for _, quest in pairs(GameContext.data.activeQuests) do
         if quest:getState() == "active" then
             for _, objective in ipairs(quest.objectives) do
                 if objective.type == "kill_party" then
@@ -122,7 +311,7 @@ end
 -- Checks if all objectives of a quest are met and completes it.
 function QuestSystem.checkQuestCompletion(quest)
     if quest:isCompleted() then
-        QuestSystem.completeQuest(quest.id)
+        QuestSystem.completeQuest(quest.instanceId)
     end
 end
 
@@ -143,15 +332,16 @@ function QuestSystem._isReadyToTurnIn(quest)
     return hasReportObjective
 end
 
-function QuestSystem.reportQuestToGiver(questId, npcName)
+function QuestSystem.reportQuestToGiver(questIdOrTemplateId, giverRef)
     if not GameContext.data.activeQuests then return false end
 
-    local quest = GameContext.data.activeQuests[questId]
+    local normalizedGiver = QuestSystem._normalizeGiverRef(giverRef)
+    local quest = QuestSystem._findActiveQuestByIdOrTemplate(questIdOrTemplateId, normalizedGiver)
     if not quest or quest:getState() ~= "active" then
         return false
     end
 
-    if quest.giver and npcName and quest.giver ~= npcName then
+    if not QuestSystem._isSameGiver(quest, normalizedGiver) then
         return false
     end
 
@@ -181,6 +371,10 @@ function QuestSystem.completeQuest(questId)
             playerParty:addTreasury(rewards.gold)
         end
 
+        if rewards.favor then
+            GameContext.data.favor = (GameContext.data.favor or 0) + rewards.favor
+        end
+
         _grantItemRewards(playerParty, rewards.items)
 
         if rewards.reputation and playerParty then
@@ -201,35 +395,28 @@ function QuestSystem.completeQuest(questId)
 
     -- Move from active to completed
     if not GameContext.data.completedQuests then GameContext.data.completedQuests = {} end
-    GameContext.data.completedQuests[questId] = quest
+    GameContext.data.completedQuests[quest.instanceId] = quest
     GameContext.data.activeQuests[questId] = nil
 
     print("Quest Completed: " .. quest.title)
-    EventBus.emit("quest_completed", questId)
+    EventBus.emit("quest_completed", quest.instanceId, quest.templateId)
 end
 
-function QuestSystem.getQuestState(questId)
-    if GameContext.data.completedQuests and GameContext.data.completedQuests[questId] then
-        return "completed"
-    end
-    if GameContext.data.activeQuests and GameContext.data.activeQuests[questId] then
-        local activeQuest = GameContext.data.activeQuests[questId]
-        if activeQuest:getState() == "active" and QuestSystem._isReadyToTurnIn(activeQuest) then
-            return "ready_to_turn_in"
-        end
-        return activeQuest:getState()
-    end
-    return "inactive"
+function QuestSystem.getQuestState(templateId, giverRef)
+    local context = QuestSystem.getDialogueQuestContext(templateId, giverRef)
+    return context.state
 end
 
 -- Internal handler for quest actions (spawning, etc.)
-function QuestSystem._handleQuestAction(action)
+function QuestSystem._handleQuestAction(action, quest)
     if action.type == "spawn_party" then
         local playerParty = GameContext.data.playerParty
         local map = GameContext.data.currentMap
         
         if playerParty and map then
-            local party = Party.new(action.name, nil, action.partyId)
+            local basePartyId = action.partyId or "quest_party"
+            local runtimePartyId = string.format("%s__%s", basePartyId, quest.instanceId)
+            local party = Party.new(action.name, nil, runtimePartyId)
             print(string.format("QuestSystem: Spawning quest party '%s' with ID: '%s'", party.name, party.id))
             party.faction = action.faction or "bandits"
             
@@ -242,6 +429,8 @@ function QuestSystem._handleQuestAction(action)
             party:setPosition(playerParty.x + ox, playerParty.y + oy)
             
             map:addParty(party)
+            table.insert(quest.spawnedPartyIds, party.id)
+            QuestSystem._bindSpawnedPartyToObjectives(quest, action.partyId, party.id)
         end
     end
 end

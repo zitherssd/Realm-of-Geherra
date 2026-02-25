@@ -28,7 +28,7 @@ return {
             {
                 text = "A pack of wild dogs has been attacking our livestock. We need someone to drive them off.",
                 options = {
-                    {text = "I will handle it.", action = "accept_quest", questId = "hunt_dogs", next = "elder_quest_accepted"},
+                    {text = "I will handle it.", action = "accept_procedural_quest", questPool = {"hunt_dogs"}, next = "elder_quest_accepted"},
                     {text = "Not my problem.", next = "end"}
                 }
             }

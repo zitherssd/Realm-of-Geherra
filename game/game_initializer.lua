@@ -57,6 +57,8 @@ function GameInitializer.initNewGame(options)
     -- Initialize empty quests
     GameContext.data.activeQuests = {}
     GameContext.data.completedQuests = {}
+    GameContext.data.questInstanceCounter = 0
+    GameContext.data.questOfferCounter = 0
     
     return true
 end
