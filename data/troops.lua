@@ -131,7 +131,7 @@ return {
         tags = {"companion"}, -- Explicitly tag for UI filtering
         sprite = "assets/sprites/units/heavyinfantry.png",
         stats = {
-            health = 60,
+            health = 30,
             strength = 11,
             defense = 6,
             speed = 7

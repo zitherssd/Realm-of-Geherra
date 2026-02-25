@@ -45,6 +45,9 @@ function BattleContext.init(grid)
     BattleContext.data.accumulator = 0
     BattleContext.data.selectedSkillIndex = 1
     BattleContext.data.inputCooldown = 0
+    BattleContext.data.targetingMode = false
+    BattleContext.data.targetingSkillId = nil
+    BattleContext.data.targetingCell = nil
     BattleContext.data.camera = {x = 0, y = 0, zoom = 1.3}
     BattleContext.data.floatingTexts = {}
     BattleContext.data.projectiles = {}

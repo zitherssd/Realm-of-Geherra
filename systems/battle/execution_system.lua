@@ -5,6 +5,52 @@ local ExecutionSystem = {}
 local Skills = require("data.skills")
 local CombatSystem = require("systems.combat_system")
 
+local function collectAoeCells(grid, originX, originY, aoe)
+    local cells = {{x = originX, y = originY}}
+    local extra = math.max(0, (aoe or 1) - 1)
+    if extra <= 0 then return cells end
+
+    local candidates = {}
+    for dx = -1, 1 do
+        for dy = -1, 1 do
+            if not (dx == 0 and dy == 0) then
+                local cx = originX + dx
+                local cy = originY + dy
+                if grid:inBounds(cx, cy) then
+                    table.insert(candidates, {x = cx, y = cy})
+                end
+            end
+        end
+    end
+
+    for i = #candidates, 2, -1 do
+        local j = math.random(i)
+        candidates[i], candidates[j] = candidates[j], candidates[i]
+    end
+
+    for i = 1, math.min(extra, #candidates) do
+        table.insert(cells, candidates[i])
+    end
+
+    return cells
+end
+
+function ExecutionSystem._resolveAoeAtCell(attackerUnit, skillData, targetX, targetY, context)
+    local grid = context.data.grid
+    local cells = collectAoeCells(grid, targetX, targetY, skillData.aoe or 1)
+
+    for _, cell in ipairs(cells) do
+        local occupants = grid:getOccupants(cell.x, cell.y)
+        for _, occupantId in ipairs(occupants) do
+            local targetUnit = context.data.units[occupantId]
+            if targetUnit and targetUnit.team ~= attackerUnit.team and targetUnit.hp > 0 then
+                local result = CombatSystem.resolveAttack(attackerUnit, targetUnit, skillData)
+                ExecutionSystem.applyAttackResult(result, targetUnit, context)
+            end
+        end
+    end
+end
+
 function ExecutionSystem.update(context)
     local units = context.data.unitList
     local grid = context.data.grid
@@ -92,7 +138,13 @@ function ExecutionSystem._initiateSkill(unit, intent, context)
     local skillData = Skills[skillId]
     
     -- Update facing towards target
-    if intent.targetUnitId then
+    if intent.target then
+        if intent.target.x > unit.x then
+            unit.facing = -1 -- Face Right
+        elseif intent.target.x < unit.x then
+            unit.facing = 1 -- Face Left
+        end
+    elseif intent.targetUnitId then
         local target = context.data.units[intent.targetUnitId]
         if target then
             if target.x > unit.x then
@@ -110,6 +162,7 @@ function ExecutionSystem._initiateSkill(unit, intent, context)
             -- Start Windup
             unit.currentCast = {
                 skillId = skillId,
+                target = intent.target,
                 targetUnitId = intent.targetUnitId,
                 remaining = windup
             }
@@ -124,7 +177,7 @@ function ExecutionSystem._initiateSkill(unit, intent, context)
             
         else
             -- Instant Cast
-            ExecutionSystem._executeSkillEffect(unit, skillId, intent.targetUnitId, context)
+            ExecutionSystem._executeSkillEffect(unit, skillId, intent.targetUnitId, intent.target, context)
         end
     end
 end
@@ -132,40 +185,75 @@ end
 function ExecutionSystem._completeCast(unit, context)
     if not unit.currentCast then return end
     
-    ExecutionSystem._executeSkillEffect(unit, unit.currentCast.skillId, unit.currentCast.targetUnitId, context)
+    ExecutionSystem._executeSkillEffect(unit, unit.currentCast.skillId, unit.currentCast.targetUnitId, unit.currentCast.target, context)
     unit.currentCast = nil
 end
 
-function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, context)
+function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, targetCell, context)
     local skillData = Skills[skillId]
     if not skillData then return end
     local grid = context.data.grid
 
     local targetUnit = context.data.units[targetUnitId]
-    -- 1. Validate Target (Alive and in Range)
-    local isValid = false
     local range = skillData.range or 1.5
     local rangeSq = range * range
-    
-    if targetUnit and targetUnit.hp > 0 then
-        local dx = targetUnit.x - unit.x
-        local dy = targetUnit.y - unit.y
-        local distSq = dx*dx + dy*dy
-        if distSq <= rangeSq + 0.01 then
-            isValid = true
+
+    local isTargetedAoe = skillData.type == "aoe" and skillData.targeted == true
+    local castTargetX = nil
+    local castTargetY = nil
+
+    if isTargetedAoe then
+        if targetCell and targetCell.x and targetCell.y and grid:inBounds(targetCell.x, targetCell.y) then
+            castTargetX = targetCell.x
+            castTargetY = targetCell.y
+        elseif targetUnit and targetUnit.hp > 0 then
+            castTargetX = targetUnit.x
+            castTargetY = targetUnit.y
+        end
+
+        if castTargetX and castTargetY then
+            local dx = castTargetX - unit.x
+            local dy = castTargetY - unit.y
+            local distSq = dx * dx + dy * dy
+            if distSq > rangeSq + 0.01 then
+                local fallback = context.findNearestHostile(unit, range)
+                if fallback then
+                    castTargetX = fallback.x
+                    castTargetY = fallback.y
+                    targetUnit = fallback
+                else
+                    castTargetX = nil
+                    castTargetY = nil
+                end
+            end
+        end
+    else
+        local isValid = false
+
+        if targetUnit and targetUnit.hp > 0 then
+            local dx = targetUnit.x - unit.x
+            local dy = targetUnit.y - unit.y
+            local distSq = dx*dx + dy*dy
+            if distSq <= rangeSq + 0.01 then
+                isValid = true
+            end
+        end
+
+        if not isValid then
+            targetUnit = context.findNearestHostile(unit, range)
+        end
+
+        if targetUnit then
+            castTargetX = targetUnit.x
+            castTargetY = targetUnit.y
         end
     end
-    
-    -- 2. Retarget if invalid
-    if not isValid then
-        targetUnit = context.findNearestHostile(unit, range)
-    end
-    
-    if targetUnit then
+
+    if castTargetX and castTargetY then
         -- Visual: Lunge Animation
         -- Calculate direction vector
-        local dx = targetUnit.x - unit.x
-        local dy = targetUnit.y - unit.y
+        local dx = castTargetX - unit.x
+        local dy = castTargetY - unit.y
         local dist = math.sqrt(dx*dx + dy*dy)
         
         if dist > 0 then
@@ -187,8 +275,8 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, contex
                 visualY = startY,
                 startX = startX,
                 startY = startY,
-                targetGridX = targetUnit.x,
-                targetGridY = targetUnit.y,
+                targetGridX = castTargetX,
+                targetGridY = castTargetY,
                 attackerUnit = unit,
                 skillId = skillId,
                 speed = skillData.projectile.speed or 10,
@@ -199,9 +287,13 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, contex
             
             context.addProjectile(proj)
         else
-            -- Instant Hit
-            local result = CombatSystem.resolveAttack(unit, targetUnit, skillData)
-            ExecutionSystem.applyAttackResult(result, targetUnit, context)
+            if isTargetedAoe then
+                ExecutionSystem._resolveAoeAtCell(unit, skillData, castTargetX, castTargetY, context)
+            elseif targetUnit then
+                -- Instant Hit
+                local result = CombatSystem.resolveAttack(unit, targetUnit, skillData)
+                ExecutionSystem.applyAttackResult(result, targetUnit, context)
+            end
         end
         
         -- 2. Set Cooldowns (Value is in ticks)
@@ -254,13 +346,18 @@ function ExecutionSystem._updateProjectiles(context)
         
         if dist <= proj.speed then
             -- Impact!
-            local occupants = grid:getOccupants(proj.targetGridX, proj.targetGridY)
-            if #occupants > 0 then
-                for _, occupantId in ipairs(occupants) do
-                    local targetUnit = context.data.units[occupantId]
-                    if targetUnit and targetUnit.team ~= proj.attackerUnit.team then
-                        local result = CombatSystem.resolveAttack(proj.attackerUnit, targetUnit, Skills[proj.skillId])
-                        ExecutionSystem.applyAttackResult(result, targetUnit, context)
+            local skillData = Skills[proj.skillId]
+            if skillData and skillData.type == "aoe" and skillData.targeted == true then
+                ExecutionSystem._resolveAoeAtCell(proj.attackerUnit, skillData, proj.targetGridX, proj.targetGridY, context)
+            else
+                local occupants = grid:getOccupants(proj.targetGridX, proj.targetGridY)
+                if #occupants > 0 then
+                    for _, occupantId in ipairs(occupants) do
+                        local targetUnit = context.data.units[occupantId]
+                        if targetUnit and targetUnit.team ~= proj.attackerUnit.team then
+                            local result = CombatSystem.resolveAttack(proj.attackerUnit, targetUnit, Skills[proj.skillId])
+                            ExecutionSystem.applyAttackResult(result, targetUnit, context)
+                        end
                     end
                 end
             end

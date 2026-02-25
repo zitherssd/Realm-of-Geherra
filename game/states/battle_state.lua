@@ -23,6 +23,45 @@ local GameContext = require("game.game_context")
 local TICK_RATE = 1 / 20 -- 20 ticks per second
 local MAX_FRAME_SKIP = 5
 
+local function isTargetedAoeSkill(skillData)
+    return skillData and skillData.type == "aoe" and skillData.targeted == true
+end
+
+local function getNearestEnemyUnit(playerUnit)
+    if not playerUnit then return nil end
+    local nearestEnemy = nil
+    local minDist = math.huge
+
+    for _, other in ipairs(BattleContext.data.unitList) do
+        if other.team ~= playerUnit.team and other.hp > 0 then
+            local dx = playerUnit.x - other.x
+            local dy = playerUnit.y - other.y
+            local distSq = dx * dx + dy * dy
+            if distSq < minDist then
+                minDist = distSq
+                nearestEnemy = other
+            end
+        end
+    end
+
+    return nearestEnemy
+end
+
+local function battleGridToScreen(context, gx, gy)
+    local grid = context.data.grid
+    local camera = context.data.camera
+    local worldX, worldY = grid:gridToWorld(gx, gy)
+    local screenW = love.graphics.getWidth()
+    local screenH = love.graphics.getHeight()
+    local zoom = (camera and camera.zoom) or 1.0
+    local camX = (camera and camera.x) or 0
+    local camY = (camera and camera.y) or 0
+
+    local sx = ((worldX - camX) - screenW / 2) * zoom + screenW / 2
+    local sy = ((worldY - camY) - screenH / 2) * zoom + screenH / 2
+    return sx, sy, grid.cellSize * zoom
+end
+
 function BattleState.enter(params)
     params = params or {}
     local enemyParty = params.enemyParty
@@ -86,9 +125,10 @@ function BattleState.update(dt)
 
     -- 1. Input Handling
     local playerUnit = BattleContext.data.units[BattleContext.data.selectedUnitId]
+    local targetingMode = BattleContext.data.targetingMode
     
     -- Tab: Cycle Skills
-    if Input.isKeyDown("tab") and BattleContext.data.inputCooldown <= 0 then
+    if not targetingMode and Input.isKeyDown("tab") and BattleContext.data.inputCooldown <= 0 then
         BattleContext.data.selectedSkillIndex = BattleContext.data.selectedSkillIndex + 1
         if playerUnit and playerUnit.skillList then
             if BattleContext.data.selectedSkillIndex > #playerUnit.skillList then
@@ -102,57 +142,107 @@ function BattleState.update(dt)
 
     -- Only accept input if the player unit is ready to act
     if playerUnit and playerUnit:canAct() then
-        local dx, dy = 0, 0
-        if Input.isKeyDown("w") or Input.isKeyDown("up") then dy = -1 end
-        if Input.isKeyDown("s") or Input.isKeyDown("down") then dy = 1 end
-        if Input.isKeyDown("a") or Input.isKeyDown("left") then dx = -1 end
-        if Input.isKeyDown("d") or Input.isKeyDown("right") then dx = 1 end
+        if targetingMode then
+            local dx, dy = 0, 0
+            if Input.isKeyDown("w") or Input.isKeyDown("up") then dy = -1 end
+            if Input.isKeyDown("s") or Input.isKeyDown("down") then dy = 1 end
+            if Input.isKeyDown("a") or Input.isKeyDown("left") then dx = -1 end
+            if Input.isKeyDown("d") or Input.isKeyDown("right") then dx = 1 end
 
-        if (dx ~= 0 or dy ~= 0) then
-            -- Calculate target grid position
-            local tx, ty = playerUnit.x + dx, playerUnit.y + dy
-            
-            -- Issue Move Command
-            BattleContext.data.playerCommand = {
-                type = "MOVE",
-                target = {x = tx, y = ty},
-                unitId = playerUnit.id
-            }
-        end
+            if (dx ~= 0 or dy ~= 0) and BattleContext.data.inputCooldown <= 0 then
+                local grid = BattleContext.data.grid
+                local cell = BattleContext.data.targetingCell
+                if grid and cell then
+                    local tx = math.max(1, math.min(grid.width, cell.x + dx))
+                    local ty = math.max(1, math.min(grid.height, cell.y + dy))
+                    BattleContext.data.targetingCell = {x = tx, y = ty}
+                    BattleContext.data.inputCooldown = 0.12
+                end
+            end
 
-        -- Space: Use Selected Skill
-        if Input.isKeyDown("space") and BattleContext.data.inputCooldown <= 0 then
-            if playerUnit.skillList and #playerUnit.skillList > 0 then
-                local skillId = playerUnit.skillList[BattleContext.data.selectedSkillIndex]
-                local skillData = Skills[skillId]
-                
-                if skillData then
-                    -- Find best target (nearest enemy in range)
-                    local bestTarget = nil
-                    local minDist = math.huge
-                    local rangeSq = (skillData.range or 1.5) * (skillData.range or 1.5)
-                    
-                    for _, other in ipairs(BattleContext.data.unitList) do
-                        if other.team ~= playerUnit.team and other.hp > 0 then
-                            local tdx = playerUnit.x - other.x
-                            local tdy = playerUnit.y - other.y
-                            local dist = tdx*tdx + tdy*tdy
-                            
-                            if dist <= rangeSq and dist < minDist then
-                                minDist = dist
-                                bestTarget = other
+            if (Input.isKeyDown("space") or Input.isKeyDown("return")) and BattleContext.data.inputCooldown <= 0 then
+                local cell = BattleContext.data.targetingCell
+                local skillId = BattleContext.data.targetingSkillId
+                if cell and skillId then
+                    BattleContext.data.playerCommand = {
+                        type = "SKILL",
+                        skillId = skillId,
+                        target = {x = cell.x, y = cell.y},
+                        unitId = playerUnit.id
+                    }
+                end
+                BattleContext.data.targetingMode = false
+                BattleContext.data.targetingSkillId = nil
+                BattleContext.data.targetingCell = nil
+                BattleContext.data.inputCooldown = 0.2
+            elseif Input.isKeyDown("escape") and BattleContext.data.inputCooldown <= 0 then
+                BattleContext.data.targetingMode = false
+                BattleContext.data.targetingSkillId = nil
+                BattleContext.data.targetingCell = nil
+                BattleContext.data.inputCooldown = 0.2
+            end
+        else
+            local dx, dy = 0, 0
+            if Input.isKeyDown("w") or Input.isKeyDown("up") then dy = -1 end
+            if Input.isKeyDown("s") or Input.isKeyDown("down") then dy = 1 end
+            if Input.isKeyDown("a") or Input.isKeyDown("left") then dx = -1 end
+            if Input.isKeyDown("d") or Input.isKeyDown("right") then dx = 1 end
+
+            if (dx ~= 0 or dy ~= 0) then
+                -- Calculate target grid position
+                local tx, ty = playerUnit.x + dx, playerUnit.y + dy
+
+                -- Issue Move Command
+                BattleContext.data.playerCommand = {
+                    type = "MOVE",
+                    target = {x = tx, y = ty},
+                    unitId = playerUnit.id
+                }
+            end
+
+            -- Space: Use Selected Skill
+            if Input.isKeyDown("space") and BattleContext.data.inputCooldown <= 0 then
+                if playerUnit.skillList and #playerUnit.skillList > 0 then
+                    local skillId = playerUnit.skillList[BattleContext.data.selectedSkillIndex]
+                    local skillData = Skills[skillId]
+
+                    if skillData then
+                        if isTargetedAoeSkill(skillData) then
+                            local nearestEnemy = getNearestEnemyUnit(playerUnit)
+                            local defaultCell = nearestEnemy and {x = nearestEnemy.x, y = nearestEnemy.y} or {x = playerUnit.x, y = playerUnit.y}
+                            BattleContext.data.targetingMode = true
+                            BattleContext.data.targetingSkillId = skillId
+                            BattleContext.data.targetingCell = defaultCell
+                            BattleContext.data.inputCooldown = 0.2
+                        else
+                            -- Find best target (nearest enemy in range)
+                            local bestTarget = nil
+                            local minDist = math.huge
+                            local rangeSq = (skillData.range or 1.5) * (skillData.range or 1.5)
+
+                            for _, other in ipairs(BattleContext.data.unitList) do
+                                if other.team ~= playerUnit.team and other.hp > 0 then
+                                    local tdx = playerUnit.x - other.x
+                                    local tdy = playerUnit.y - other.y
+                                    local dist = tdx*tdx + tdy*tdy
+
+                                    if dist <= rangeSq and dist < minDist then
+                                        minDist = dist
+                                        bestTarget = other
+                                    end
+                                end
+                            end
+
+                            if bestTarget then
+                                BattleContext.data.playerCommand = {
+                                    type = "SKILL",
+                                    skillId = skillId,
+                                    targetUnitId = bestTarget.id,
+                                    unitId = playerUnit.id
+                                }
+                                BattleContext.data.inputCooldown = 0.2
                             end
                         end
-                    end
-                    
-                    if bestTarget then
-                        BattleContext.data.playerCommand = {
-                            type = "SKILL",
-                            skillId = skillId,
-                            targetUnitId = bestTarget.id,
-                            unitId = playerUnit.id
-                        }
-                        BattleContext.data.inputCooldown = 0.2
                     end
                 end
             end
@@ -278,6 +368,17 @@ function BattleState.draw()
     if playerUnit and playerUnit:canAct() and not BattleContext.data.playerCommand then
         love.graphics.setColor(1, 1, 0)
         love.graphics.print("Waiting for Input...", 10, 30)
+    end
+
+    if BattleContext.data.targetingMode and BattleContext.data.targetingCell then
+        local tx = BattleContext.data.targetingCell.x
+        local ty = BattleContext.data.targetingCell.y
+        local sx, sy, drawSize = battleGridToScreen(BattleContext, tx, ty)
+        love.graphics.setColor(1, 0.1, 0.1, 1)
+        love.graphics.setLineWidth(3)
+        love.graphics.rectangle("line", sx - drawSize / 2, sy - drawSize / 2, drawSize, drawSize)
+        love.graphics.setLineWidth(1)
+        love.graphics.print("TARGETING MODE", 10, 50)
     end
 
     -- Draw Player Skills UI

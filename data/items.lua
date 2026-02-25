@@ -11,6 +11,16 @@ return {
         value = 100,
         stats = {damage = 10}
     },
+
+    ["fire_wand"] = {
+        id = "fire_wand",
+        name = "Fire Wand",
+        type = "weapon",
+        description = "A carved wand that channels ember magic",
+        weight = 1.2,
+        value = 220,
+        stats = {damage = 8}
+    },
     
     ["health_potion"] = {
         id = "health_potion",

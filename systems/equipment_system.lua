@@ -24,11 +24,13 @@ function EquipmentSystem.equip(actor, itemId, slot)
     end
     
     -- Unequip previous item if any
+    local previousItemId = nil
     if actor.equipment[slot] then
-        EquipmentSystem.unequip(actor, slot)
+        previousItemId = EquipmentSystem.unequip(actor, slot)
     end
     
     actor.equipment[slot] = itemId
+    return previousItemId
 end
 
 function EquipmentSystem.unequip(actor, slot)

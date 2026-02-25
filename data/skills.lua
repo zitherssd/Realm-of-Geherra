@@ -29,11 +29,13 @@ return {
     ["fireball"] = {
         id = "fireball",
         name = "Fireball",
-        type = "spell",
-        description = "Launch a fireball at the enemy",
+        type = "aoe",
+        description = "Launch a fireball at a target cell",
         damageMultiplier = 1.5,
-        area = true,
-        windup = 120,
+        targeted = true,
+        aoe = 1,
+        range = 8.0,
+        windup = 20,
         cooldown = 40,
         cost = 30
     },

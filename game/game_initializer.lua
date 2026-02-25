@@ -10,6 +10,7 @@ local Party = require("entities.party")
 local Map = require("world.map")
 local Location = require("world.location")
 local Troop = require("entities.troop")
+local Items = require("data.items")
 
 -- Initialize a new game with starting conditions
 function GameInitializer.initNewGame(options)
@@ -31,11 +32,13 @@ function GameInitializer.initNewGame(options)
     local playerParty = Party.new(options.playerName or "Wanderer", player.id, "party_player")
     playerParty:setPosition(512, 512)
     playerParty:addActor(player)
-    playerParty:addActor(Troop.new("bandit"))
-    playerParty:addActor(Troop.new("bandit"))
-    playerParty:addActor(Troop.new("bandit"))
     playerParty:addActor(Troop.new("companion"))
     playerParty:addActor(Troop.new("war_dog"))
+
+    -- Starter inventory
+    if Items["fire_wand"] then
+        table.insert(playerParty.inventory, Items["fire_wand"])
+    end
 
     GameContext.data.playerParty = playerParty
     

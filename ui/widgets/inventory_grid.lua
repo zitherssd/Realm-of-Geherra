@@ -17,6 +17,7 @@ function InventoryGrid.new(title, items, x, y, w, h, cellSize, onItemClick)
     self.onItemClick = onItemClick
     
     self.hoveredItem = nil
+    self.selectedIndex = nil
     self.wasDown = false
     
     return self
@@ -89,6 +90,14 @@ function InventoryGrid:draw()
             love.graphics.setColor(1, 1, 1, 0.2)
             love.graphics.rectangle("fill", ix, iy, self.cellSize, self.cellSize)
         end
+
+        -- Highlight if selected (keyboard navigation)
+        if self.selectedIndex == i then
+            love.graphics.setColor(1, 1, 0, 1)
+            love.graphics.setLineWidth(2)
+            love.graphics.rectangle("line", ix, iy, self.cellSize, self.cellSize)
+            love.graphics.setLineWidth(1)
+        end
         
         love.graphics.setColor(1, 1, 1, 1)
         love.graphics.rectangle("line", ix, iy, self.cellSize, self.cellSize)
@@ -104,6 +113,10 @@ end
 
 function InventoryGrid:getHoveredItem()
     return self.hoveredItem
+end
+
+function InventoryGrid:setSelectedIndex(index)
+    self.selectedIndex = index
 end
 
 return InventoryGrid

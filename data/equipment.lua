@@ -19,6 +19,15 @@ return {
         stats = {damage = 10},
         grantsSkill = "javelin_throw"
     },
+
+    ["fire_wand"] = {
+        id = "fire_wand",
+        name = "Fire Wand",
+        slot = "mainHand",
+        type = "wand",
+        stats = {damage = 8},
+        grantsSkill = "fireball"
+    },
     
     ["leather_armor"] = {
         id = "leather_armor",

@@ -34,18 +34,22 @@ end
 
 function love.keypressed(key)
     Input.keypressed(key)
+    StateManager.keypressed(key)
 end
 
 function love.keyreleased(key)
     Input.keyreleased(key)
+    StateManager.keyreleased(key)
 end
 
 function love.mousepressed(x, y, button)
     Input.mousepressed(x, y, button)
+    StateManager.mousepressed(x, y, button)
 end
 
 function love.mousereleased(x, y, button)
     Input.mousereleased(x, y, button)
+    StateManager.mousereleased(x, y, button)
 end
 
 function love.mousemoved(x, y, dx, dy)
@@ -54,4 +58,5 @@ end
 
 function love.wheelmoved(x, y)
     Input.wheelmoved(x, y)
+    StateManager.wheelmoved(x, y)
 end

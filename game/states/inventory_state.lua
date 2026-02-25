@@ -42,4 +42,12 @@ function InventoryState.mousereleased(x, y, button)
     UIManager.mousereleased(x, y, button)
 end
 
+function InventoryState.keypressed(key)
+    UIManager.keypressed(key)
+end
+
+function InventoryState.keyreleased(key)
+    UIManager.keyreleased(key)
+end
+
 return InventoryState

@@ -59,4 +59,16 @@ function UIManager.mousereleased(x, y, button)
     end
 end
 
+function UIManager.keypressed(key)
+    if activeScreen and activeScreen.keypressed then
+        activeScreen:keypressed(key)
+    end
+end
+
+function UIManager.keyreleased(key)
+    if activeScreen and activeScreen.keyreleased then
+        activeScreen:keyreleased(key)
+    end
+end
+
 return UIManager
