@@ -27,7 +27,8 @@ return {
         attributes = {
             command = 1,
             oratory = 1,
-            navigation = 0
+            navigation = 0,
+            shadowcraft = 1
         }
     },
     
@@ -108,7 +109,7 @@ return {
         type = "beast",
         tags = {"companion"},
         sprite = "assets/sprites/units/dog.png",
-        slots = {"body"}, -- Can only wear body armor/collar
+        slots = {"collar"}, -- Can only wear body armor/collar
         stats = {
             health = 25,
             strength = 6,

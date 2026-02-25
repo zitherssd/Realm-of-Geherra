@@ -8,7 +8,7 @@ return {
         type = "melee",
         description = "Basic melee attack",
         damageMultiplier = 1.0,
-        windup = 10,
+        windup = 40,
         cooldown = 10,
         cost = 0,
         range = 1.5,
@@ -20,8 +20,20 @@ return {
         type = "melee",
         description = "Basic melee attack",
         damageMultiplier = 1.0,
+        windup = 15,
+        cooldown = 22,
+        cost = 0,
+        range = 1.5,
+    },
+
+    ["dagger"] = {
+        id = "dagger",
+        name = "Dagger",
+        type = "melee",
+        description = "Fast close-range stab",
+        damageMultiplier = 1.0,
         windup = 0,
-        cooldown = 12,
+        cooldown = 40,
         cost = 0,
         range = 1.5,
     },
@@ -35,9 +47,21 @@ return {
         targeted = true,
         aoe = 1,
         range = 8.0,
-        windup = 20,
-        cooldown = 40,
-        cost = 30
+        windup = 40,
+        cooldown = 60,
+        cost = 30,
+        onHitStatuses = {
+            burn = {
+                duration = 120,
+                damagePerTick = 1,
+                tickEvery = 20
+            }
+        },
+        projectile = {
+            speed = 24,
+            arc = 0,
+            style = "fireball"
+        }
     },
     
     ["heal"] = {

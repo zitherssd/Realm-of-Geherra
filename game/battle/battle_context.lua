@@ -30,6 +30,7 @@ BattleContext.data = {
     camera = {x = 0, y = 0, zoom = 1.3},
     floatingTexts = {},
     projectiles = {},
+    vfx = {},
     casualties = {}    -- List of BattleUnit
 }
 
@@ -51,6 +52,7 @@ function BattleContext.init(grid)
     BattleContext.data.camera = {x = 0, y = 0, zoom = 1.3}
     BattleContext.data.floatingTexts = {}
     BattleContext.data.projectiles = {}
+    BattleContext.data.vfx = {}
     BattleContext.data.casualties = {}
 end
 
@@ -96,6 +98,10 @@ end
 
 function BattleContext.addProjectile(proj)
     table.insert(BattleContext.data.projectiles, proj)
+end
+
+function BattleContext.addVfx(effect)
+    table.insert(BattleContext.data.vfx, effect)
 end
 
 function BattleContext.findNearestHostile(unit, maxRange)

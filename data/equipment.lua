@@ -28,6 +28,20 @@ return {
         stats = {damage = 8},
         grantsSkill = "fireball"
     },
+
+    ["dagger"] = {
+        id = "dagger",
+        name = "Dagger",
+        slots = {"mainHand", "offHand"},
+        type = "dagger",
+        stats = {damage = 6},
+        grantsSkill = "dagger",
+        requires = {
+            attributes = {
+                shadowcraft = 1
+            }
+        }
+    },
     
     ["leather_armor"] = {
         id = "leather_armor",

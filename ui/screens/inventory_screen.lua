@@ -178,7 +178,7 @@ function InventoryScreen:draw()
     end
     
     if hovered then
-        self.tooltip:setText(hovered.name .. "\n" .. (hovered.description or ""))
+        self.tooltip:setText(self:_buildItemTooltip(hovered))
         local mx, my = love.mouse.getPosition()
         self.tooltip:setPosition(mx, my)
         self.tooltip:show()
@@ -186,6 +186,73 @@ function InventoryScreen:draw()
         self.tooltip:hide()
     end
     self.tooltip:draw()
+end
+
+function InventoryScreen:_getEquipSlots(itemId)
+    local equipData = EquipmentData[itemId]
+    if not equipData then return {} end
+    if equipData.slots then return equipData.slots end
+    if equipData.slot then return {equipData.slot} end
+    return {}
+end
+
+function InventoryScreen:_buildItemTooltip(item)
+    local lines = {
+        item.name or "Unknown",
+        item.description or ""
+    }
+
+    local equipData = item and item.id and EquipmentData[item.id] or nil
+    if equipData then
+        local slots = self:_getEquipSlots(item.id)
+        if #slots > 0 then
+            table.insert(lines, "Slots: " .. table.concat(slots, " / "))
+        end
+
+        if equipData.requires and equipData.requires.attributes then
+            for attrName, minValue in pairs(equipData.requires.attributes) do
+                local label = string.upper(string.sub(attrName, 1, 1)) .. string.sub(attrName, 2)
+                local current = self.actor and self.actor.attributes and (self.actor.attributes[attrName] or 0) or 0
+                table.insert(lines, string.format("Requires %s %d (Current: %d)", label, minValue, current))
+            end
+        end
+    end
+
+    return table.concat(lines, "\n")
+end
+
+function InventoryScreen:_chooseEquipSlot(itemId)
+    if not self.actor then return nil end
+    local candidates = self:_getEquipSlots(itemId)
+    if #candidates == 0 then return nil end
+
+    local actorSlots = {}
+    for _, s in ipairs(self.actor.availableSlots or {}) do
+        actorSlots[s] = true
+    end
+
+    -- Prefer an empty compatible slot first
+    for _, slotId in ipairs(candidates) do
+        if actorSlots[slotId] then
+            local ok = EquipmentSystem.canEquip(self.actor, itemId, slotId)
+            local equipped = EquipmentSystem.getEquipped(self.actor, slotId)
+            if ok and not equipped then
+                return slotId
+            end
+        end
+    end
+
+    -- Fallback to first compatible/equippable slot
+    for _, slotId in ipairs(candidates) do
+        if actorSlots[slotId] then
+            local ok = EquipmentSystem.canEquip(self.actor, itemId, slotId)
+            if ok then
+                return slotId
+            end
+        end
+    end
+
+    return nil
 end
 
 function InventoryScreen:drawEquipmentList()
@@ -251,26 +318,24 @@ function InventoryScreen:_clickEquipFromInventory(index)
     if not item or not self.actor then return false end
 
     local equipData = EquipmentData[item.id]
-    if not equipData or not equipData.slot then return false end
+    if not equipData then return false end
 
-    local hasSlot = false
-    for _, slotId in ipairs(self.actor.availableSlots or {}) do
-        if slotId == equipData.slot then
-            hasSlot = true
-            break
-        end
+    local targetSlot = self:_chooseEquipSlot(item.id)
+    if not targetSlot then return false end
+
+    local unequippedId = EquipmentSystem.equip(self.actor, item.id, targetSlot)
+    if unequippedId == false then
+        return false
     end
-    if not hasSlot then return false end
 
     table.remove(self.party.inventory, index)
-    local unequippedId = EquipmentSystem.equip(self.actor, item.id, equipData.slot)
     if unequippedId and Items[unequippedId] then
         table.insert(self.party.inventory, Items[unequippedId])
     end
 
     self.navMode = "equipment"
     for i, slotId in ipairs(self.actor.availableSlots or {}) do
-        if slotId == equipData.slot then
+        if slotId == targetSlot then
             self.selectedSlotIndex = i
             break
         end
@@ -419,25 +484,30 @@ function InventoryScreen:mousereleased(x, y, button)
             local item = self.dragging.item
             local equipData = item and EquipmentData[item.id] or nil
 
-            if equipData and equipData.slot == region.slotId then
+            if equipData then
                 if self.dragging.source == "inventory" then
-                    table.remove(self.party.inventory, self.dragging.index)
                     local unequippedId = EquipmentSystem.equip(self.actor, item.id, region.slotId)
-                    if unequippedId and Items[unequippedId] then
-                        table.insert(self.party.inventory, Items[unequippedId])
+                    if unequippedId ~= false then
+                        table.remove(self.party.inventory, self.dragging.index)
+                        if unequippedId and Items[unequippedId] then
+                            table.insert(self.party.inventory, Items[unequippedId])
+                        end
+                        handled = true
                     end
                 elseif self.dragging.source == "equipment" and self.dragging.slot ~= region.slotId then
                     local fromItemId = EquipmentSystem.getEquipped(self.actor, self.dragging.slot)
                     if fromItemId then
                         local swappedOutId = EquipmentSystem.equip(self.actor, fromItemId, region.slotId)
-                        if swappedOutId then
-                            EquipmentSystem.equip(self.actor, swappedOutId, self.dragging.slot)
-                        else
-                            EquipmentSystem.unequip(self.actor, self.dragging.slot)
+                        if swappedOutId ~= false then
+                            if swappedOutId then
+                                EquipmentSystem.equip(self.actor, swappedOutId, self.dragging.slot)
+                            else
+                                EquipmentSystem.unequip(self.actor, self.dragging.slot)
+                            end
+                            handled = true
                         end
                     end
                 end
-                handled = true
             end
         end
 

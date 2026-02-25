@@ -2,13 +2,33 @@
 -- Handle equipment and gear
 
 local EquipmentSystem = {}
+local EquipmentData = require("data.equipment")
 
-function EquipmentSystem.equip(actor, itemId, slot)
-    if not actor.equipment then
-        actor.equipment = {}
+local function itemSupportsSlot(equipData, slot)
+    if not equipData then return false end
+    if equipData.slot then
+        return equipData.slot == slot
     end
-    
-    -- Validate that the actor has this slot
+    if equipData.slots then
+        for _, s in ipairs(equipData.slots) do
+            if s == slot then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+function EquipmentSystem.canEquip(actor, itemId, slot)
+    local equipData = EquipmentData[itemId]
+    if not equipData then
+        return false, "unknown_item"
+    end
+
+    if not itemSupportsSlot(equipData, slot) then
+        return false, "wrong_slot"
+    end
+
     local hasSlot = false
     if actor.availableSlots then
         for _, s in ipairs(actor.availableSlots) do
@@ -18,9 +38,32 @@ function EquipmentSystem.equip(actor, itemId, slot)
             end
         end
     end
-    
     if not hasSlot then
-        return false -- Actor does not have this slot
+        return false, "missing_slot"
+    end
+
+    local requirements = equipData.requires
+    if requirements and requirements.attributes then
+        local attributes = actor.attributes or {}
+        for attrName, minValue in pairs(requirements.attributes) do
+            local current = attributes[attrName] or 0
+            if current < minValue then
+                return false, "requirements_not_met"
+            end
+        end
+    end
+
+    return true, nil
+end
+
+function EquipmentSystem.equip(actor, itemId, slot)
+    if not actor.equipment then
+        actor.equipment = {}
+    end
+
+    local ok, err = EquipmentSystem.canEquip(actor, itemId, slot)
+    if not ok then
+        return false, err
     end
     
     -- Unequip previous item if any

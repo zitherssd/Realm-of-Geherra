@@ -175,6 +175,46 @@ The tactical battle mode operates on a strict loop managed by `battle_state.lua`
 3.  **Execution System:** Resolves all Intents, updates grid positions, applies damage, and manages cooldowns.
 4.  **Render System:** Visualizes the state, interpolating (lerping) unit positions for smooth movement.
 
+### Battle VFX & Status Effect Pipeline (MANDATORY)
+
+All combat effects (projectile trails, impact bursts, status glows) must follow a unified runtime pipeline.
+
+1.  **Data Layer (`data/skills.lua`)**
+    * Skills declare effect intent only (for example `projectile.style = "fireball"`, `aoe`, `targeted`)
+    * No rendering code or imperative callbacks in data
+
+2.  **Execution Layer (`systems/battle/execution_system.lua`)**
+    * Spawns projectiles and transient VFX payloads into `BattleContext` (for example trail particles, explosion descriptors)
+    * Applies/refreshes runtime statuses on `BattleUnit.statusEffects` (for example `burn` with `{remaining, duration}`)
+    * Owns status ticking/expiration logic
+
+3.  **Context Layer (`game/battle/battle_context.lua`)**
+    * Stores transient render payloads in `BattleContext.data.vfx`
+    * Stores live projectile payloads in `BattleContext.data.projectiles`
+    * Contains no effect logic beyond storage helpers
+
+4.  **Render Layer (`systems/battle/render_system.lua`)**
+    * Sole owner of visual representation (particles, additive glow, shader passes)
+    * Reads `BattleUnit.statusEffects` and context VFX payloads to draw effect state
+    * Must not apply gameplay outcomes (damage, CC, stat changes)
+
+#### Status Effect Contract
+
+Runtime status effects on `BattleUnit` must use keyed entries in `statusEffects`:
+
+* Example: `unit.statusEffects.burn = { remaining = 100, duration = 100, sourceSkillId = "fireball" }`
+* Renderer computes visual intensity from `remaining / duration`
+* Gameplay systems can later consume the same status key for mechanics (DoT, penalties) without changing UI/state boundaries
+
+#### Authoring Rule for New Effects
+
+When adding any future effect (ice, poison, holy, shock):
+
+* Add declarative config in data
+* Spawn/update runtime payloads in execution
+* Render exclusively in render system (shader/particles/sprites)
+* Never place effect gameplay logic in UI, entities, or context storage modules
+
 ### party_system.lua
 
 **Responsibilities:**

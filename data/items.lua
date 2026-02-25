@@ -21,6 +21,16 @@ return {
         value = 220,
         stats = {damage = 8}
     },
+
+    ["dagger"] = {
+        id = "dagger",
+        name = "Dagger",
+        type = "weapon",
+        description = "A short blade suited for close, precise strikes",
+        weight = 0.9,
+        value = 140,
+        stats = {damage = 6}
+    },
     
     ["health_potion"] = {
         id = "health_potion",

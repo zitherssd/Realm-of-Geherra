@@ -39,6 +39,9 @@ function GameInitializer.initNewGame(options)
     if Items["fire_wand"] then
         table.insert(playerParty.inventory, Items["fire_wand"])
     end
+    if Items["dagger"] then
+        table.insert(playerParty.inventory, Items["dagger"])
+    end
 
     GameContext.data.playerParty = playerParty
     

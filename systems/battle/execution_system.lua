@@ -5,6 +5,50 @@ local ExecutionSystem = {}
 local Skills = require("data.skills")
 local CombatSystem = require("systems.combat_system")
 
+local function isFireballProjectile(skillData)
+    return skillData and skillData.projectile and skillData.projectile.style == "fireball"
+end
+
+local function applyOnHitStatuses(targetUnit, skillData)
+    if not targetUnit or not skillData or not skillData.onHitStatuses then return end
+
+    targetUnit.statusEffects = targetUnit.statusEffects or {}
+    for statusId, statusConfig in pairs(skillData.onHitStatuses) do
+        local duration = 0
+
+        if type(statusConfig) == "number" then
+            duration = statusConfig
+        elseif type(statusConfig) == "table" then
+            duration = statusConfig.duration or statusConfig.remaining or statusConfig.ticks or 0
+        elseif statusConfig == true then
+            duration = 60
+        end
+
+        if duration > 0 then
+            local damagePerTick = 0
+            local tickEvery = nil
+
+            if type(statusConfig) == "table" then
+                damagePerTick = statusConfig.damagePerTick or statusConfig.damage_per_tick or 0
+                tickEvery = statusConfig.tickEvery or statusConfig.tick_every
+            end
+
+            if damagePerTick > 0 and (not tickEvery or tickEvery < 1) then
+                tickEvery = 20
+            end
+
+            targetUnit.statusEffects[statusId] = {
+                remaining = duration,
+                duration = duration,
+                sourceSkillId = skillData.id,
+                damagePerTick = damagePerTick,
+                tickEvery = tickEvery,
+                tickCounter = 0
+            }
+        end
+    end
+end
+
 local function collectAoeCells(grid, originX, originY, aoe)
     local cells = {{x = originX, y = originY}}
     local extra = math.max(0, (aoe or 1) - 1)
@@ -45,7 +89,7 @@ function ExecutionSystem._resolveAoeAtCell(attackerUnit, skillData, targetX, tar
             local targetUnit = context.data.units[occupantId]
             if targetUnit and targetUnit.team ~= attackerUnit.team and targetUnit.hp > 0 then
                 local result = CombatSystem.resolveAttack(attackerUnit, targetUnit, skillData)
-                ExecutionSystem.applyAttackResult(result, targetUnit, context)
+                ExecutionSystem.applyAttackResult(result, targetUnit, context, skillData)
             end
         end
     end
@@ -63,6 +107,34 @@ function ExecutionSystem.update(context)
         for skillId, cd in pairs(unit.cooldowns) do
             if cd > 0 then
                 unit.cooldowns[skillId] = cd - 1
+            end
+        end
+
+        if unit.statusEffects then
+            for effectId, effectData in pairs(unit.statusEffects) do
+                if type(effectData) == "table" and effectData.remaining then
+                    if (effectData.damagePerTick or 0) > 0 and (effectData.tickEvery or 0) > 0 then
+                        effectData.tickCounter = (effectData.tickCounter or 0) + 1
+                        if effectData.tickCounter >= effectData.tickEvery then
+                            effectData.tickCounter = 0
+                            local dotDamage = math.max(0, math.floor(effectData.damagePerTick or 0))
+                            if dotDamage > 0 and unit.hp > 0 then
+                                local defeated = CombatSystem._applyBattleDamage(unit, dotDamage)
+                                if context.addFloatingText then
+                                    context.addFloatingText(unit.visualX, unit.visualY, tostring(dotDamage), {1, 0.45, 0.15, 1})
+                                end
+                                if defeated then
+                                    context.data.grid:removeUnit(unit.x, unit.y, unit.id)
+                                end
+                            end
+                        end
+                    end
+
+                    effectData.remaining = effectData.remaining - 1
+                    if effectData.remaining <= 0 then
+                        unit.statusEffects[effectId] = nil
+                    end
+                end
             end
         end
         
@@ -279,11 +351,17 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
                 targetGridY = castTargetY,
                 attackerUnit = unit,
                 skillId = skillId,
+                style = skillData.projectile.style,
                 speed = skillData.projectile.speed or 10,
                 sprite = skillData.projectile.sprite,
                 arc = skillData.projectile.arc or 0,
                 progress = 0 -- 0.0 to 1.0 (approximate for arc)
             }
+
+            if isFireballProjectile(skillData) then
+                proj.trailParticles = {}
+                proj.trailSpawnTimer = 0
+            end
             
             context.addProjectile(proj)
         else
@@ -292,7 +370,7 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
             elseif targetUnit then
                 -- Instant Hit
                 local result = CombatSystem.resolveAttack(unit, targetUnit, skillData)
-                ExecutionSystem.applyAttackResult(result, targetUnit, context)
+                ExecutionSystem.applyAttackResult(result, targetUnit, context, skillData)
             end
         end
         
@@ -311,8 +389,10 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
 end
 
 -- Applies the contextual side-effects of a combat result
-function ExecutionSystem.applyAttackResult(result, target, context)
+function ExecutionSystem.applyAttackResult(result, target, context, skillData)
     if result.hit then
+        applyOnHitStatuses(target, skillData)
+
         -- HIT: Apply Damage & Visuals
         if result.defeated then
             context.data.grid:removeUnit(target.x, target.y, target.id)
@@ -347,6 +427,34 @@ function ExecutionSystem._updateProjectiles(context)
         if dist <= proj.speed then
             -- Impact!
             local skillData = Skills[proj.skillId]
+
+            if skillData and skillData.projectile and skillData.projectile.style == "fireball" and context.addVfx then
+                context.addVfx({
+                    type = "fire_explosion",
+                    x = tx,
+                    y = ty,
+                    time = 0,
+                    duration = 0.45,
+                    maxRadius = 44,
+                    ringRadius = 12,
+                    sparks = {
+                        {vx = 120, vy = -80, life = 0.35, size = 4},
+                        {vx = -110, vy = -60, life = 0.32, size = 4},
+                        {vx = 90, vy = 40, life = 0.28, size = 3},
+                        {vx = -95, vy = 50, life = 0.30, size = 3},
+                        {vx = 0, vy = -130, life = 0.36, size = 5},
+                        {vx = 35, vy = -105, life = 0.34, size = 4},
+                        {vx = -45, vy = -95, life = 0.34, size = 4}
+                    },
+                    smoke = {
+                        {vx = -22, vy = -28, life = 0.55, size = 12},
+                        {vx = 18, vy = -34, life = 0.62, size = 14},
+                        {vx = 0, vy = -38, life = 0.68, size = 16},
+                        {vx = 30, vy = -24, life = 0.50, size = 11}
+                    }
+                })
+            end
+
             if skillData and skillData.type == "aoe" and skillData.targeted == true then
                 ExecutionSystem._resolveAoeAtCell(proj.attackerUnit, skillData, proj.targetGridX, proj.targetGridY, context)
             else
@@ -355,8 +463,9 @@ function ExecutionSystem._updateProjectiles(context)
                     for _, occupantId in ipairs(occupants) do
                         local targetUnit = context.data.units[occupantId]
                         if targetUnit and targetUnit.team ~= proj.attackerUnit.team then
-                            local result = CombatSystem.resolveAttack(proj.attackerUnit, targetUnit, Skills[proj.skillId])
-                            ExecutionSystem.applyAttackResult(result, targetUnit, context)
+                            local impactSkill = Skills[proj.skillId]
+                            local result = CombatSystem.resolveAttack(proj.attackerUnit, targetUnit, impactSkill)
+                            ExecutionSystem.applyAttackResult(result, targetUnit, context, impactSkill)
                         end
                     end
                 end
@@ -368,6 +477,35 @@ function ExecutionSystem._updateProjectiles(context)
             local moveY = (dy / dist) * proj.speed
             proj.x = proj.x + moveX
             proj.y = proj.y + moveY
+
+            -- Spawn fire trail particles
+            local skillData = Skills[proj.skillId]
+            if skillData and skillData.projectile and skillData.projectile.style == "fireball" and proj.trailParticles then
+                proj.trailSpawnTimer = (proj.trailSpawnTimer or 0) + 1
+                if proj.trailSpawnTimer >= 1 then
+                    proj.trailSpawnTimer = 0
+                    table.insert(proj.trailParticles, {
+                        kind = "ember",
+                        x = proj.x + (math.random() - 0.5) * 6,
+                        y = proj.y + (math.random() - 0.5) * 6,
+                        vx = (math.random() - 0.5) * 10,
+                        vy = -20 - math.random() * 35,
+                        life = 0.24 + math.random() * 0.16,
+                        duration = 0.24 + math.random() * 0.16,
+                        size = 3 + math.random() * 3
+                    })
+                    table.insert(proj.trailParticles, {
+                        kind = "smoke",
+                        x = proj.x + (math.random() - 0.5) * 8,
+                        y = proj.y + (math.random() - 0.5) * 8,
+                        vx = (math.random() - 0.5) * 7,
+                        vy = -10 - math.random() * 12,
+                        life = 0.35 + math.random() * 0.3,
+                        duration = 0.35 + math.random() * 0.3,
+                        size = 5 + math.random() * 5
+                    })
+                end
+            end
             
             -- Update progress for Arc calculation (simple approximation based on distance)
             local totalDist = math.sqrt((tx - proj.startX)^2 + (ty - proj.startY)^2)
