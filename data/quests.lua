@@ -33,7 +33,8 @@ return {
         giver = nil, -- Assigned dynamically by the NPC
         description = "Hunt down the pack of wild dogs terrorizing the village.",
         objectives = {
-            {type = "kill_party", target = "wild_dog_pack", required = 1, description = "Defeat the Wild Dog Pack"}
+            {type = "kill_party", target = "wild_dog_pack", required = 1, description = "Defeat the Wild Dog Pack"},
+            {type = "report_to_giver", required = 1, description = "Report back to the Village Elder"}
         },
         rewards = {gold = 50, reputation = {menari = 5}},
         onStart = {

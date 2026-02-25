@@ -7,6 +7,7 @@ return {
         checkQuest = "hunt_dogs",
         states = {
             active = "elder_quest_active",
+            ready_to_turn_in = "elder_quest_ready_to_turn_in",
             completed = "elder_quest_completed"
         },
         lines = {
@@ -55,6 +56,20 @@ return {
                 text = "Have you driven off those dogs yet? The village is not safe until they are gone.",
                 options = {
                     {text = "I am working on it.", next = "end"}
+                }
+            }
+        }
+    },
+
+    ["elder_quest_ready_to_turn_in"] = {
+        id = "elder_quest_ready_to_turn_in",
+        speaker = "Village Elder",
+        lines = {
+            {
+                text = "Have you dealt with the wild dogs?",
+                options = {
+                    {text = "Yes. The pack is gone.", action = "turn_in_quest", questId = "hunt_dogs", next = "elder_quest_completed"},
+                    {text = "Not yet.", next = "end"}
                 }
             }
         }

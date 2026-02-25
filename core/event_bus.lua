@@ -29,9 +29,17 @@ end
 
 function EventBus.emit(eventName, ...)
     if not listeners[eventName] then return end
-    
-    for _, callback in ipairs(listeners[eventName]) do
-        callback(...)
+
+    local callbacks = {}
+    for i, callback in ipairs(listeners[eventName]) do
+        callbacks[i] = callback
+    end
+
+    for _, callback in ipairs(callbacks) do
+        local ok, err = pcall(callback, ...)
+        if not ok then
+            print(string.format("EventBus error on '%s': %s", tostring(eventName), tostring(err)))
+        end
     end
 end
 

@@ -76,6 +76,11 @@ function DialogueState.enter(params)
                 if questId then
                     QuestSystem.activateQuest(questId, speakerName)
                 end
+            elseif choice.action == "turn_in_quest" then
+                local questId = choice.questId
+                if questId then
+                    QuestSystem.reportQuestToGiver(questId, speakerName)
+                end
             end
 
             -- Navigation Logic

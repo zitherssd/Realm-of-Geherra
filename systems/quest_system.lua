@@ -10,6 +10,47 @@ local Quest = require("quests.quest")
 local Objective = require("quests.objective")
 local Party = require("entities.party")
 local Troop = require("entities.troop")
+local Item = require("entities.item")
+local ItemsData = require("data.items")
+local ReputationSystem = require("systems.reputation_system")
+
+local function _grantItemRewards(playerParty, itemsReward)
+    if not playerParty or not itemsReward then return end
+
+    if itemsReward[1] then
+        for _, itemSpec in ipairs(itemsReward) do
+            if itemSpec then
+                local itemId = itemSpec.id or itemSpec.itemId
+                local quantity = itemSpec.quantity or itemSpec.amount or 1
+                local itemData = itemId and ItemsData[itemId]
+
+                if itemData then
+                    local item = Item.new(itemData.id, itemData.type)
+                    item.name = itemData.name or itemData.id
+                    item.description = itemData.description or ""
+                    item.weight = itemData.weight or 1.0
+                    item.value = itemData.value or 0
+                    item.quantity = quantity
+                    playerParty:addToInventory(item)
+                end
+            end
+        end
+        return
+    end
+
+    for itemId, quantity in pairs(itemsReward) do
+        local itemData = ItemsData[itemId]
+        if itemData then
+            local item = Item.new(itemData.id, itemData.type)
+            item.name = itemData.name or itemData.id
+            item.description = itemData.description or ""
+            item.weight = itemData.weight or 1.0
+            item.value = itemData.value or 0
+            item.quantity = quantity or 1
+            playerParty:addToInventory(item)
+        end
+    end
+end
 
 function QuestSystem.init()
     -- Subscribe to relevant game events
@@ -85,6 +126,46 @@ function QuestSystem.checkQuestCompletion(quest)
     end
 end
 
+function QuestSystem._isReadyToTurnIn(quest)
+    local hasReportObjective = false
+
+    for _, objective in ipairs(quest.objectives) do
+        if objective.type == "report_to_giver" then
+            hasReportObjective = true
+            if objective:isCompleted() then
+                return false
+            end
+        elseif not objective:isCompleted() then
+            return false
+        end
+    end
+
+    return hasReportObjective
+end
+
+function QuestSystem.reportQuestToGiver(questId, npcName)
+    if not GameContext.data.activeQuests then return false end
+
+    local quest = GameContext.data.activeQuests[questId]
+    if not quest or quest:getState() ~= "active" then
+        return false
+    end
+
+    if quest.giver and npcName and quest.giver ~= npcName then
+        return false
+    end
+
+    for _, objective in ipairs(quest.objectives) do
+        if objective.type == "report_to_giver" and not objective:isCompleted() then
+            local remaining = objective.required - objective.current
+            objective:advance(remaining > 0 and remaining or 1)
+        end
+    end
+
+    QuestSystem.checkQuestCompletion(quest)
+    return true
+end
+
 function QuestSystem.completeQuest(questId)
     if not GameContext.data.activeQuests then return end
     local quest = GameContext.data.activeQuests[questId]
@@ -99,7 +180,23 @@ function QuestSystem.completeQuest(questId)
         if rewards.gold and playerParty then
             playerParty:addTreasury(rewards.gold)
         end
-        -- TODO: Add item and reputation rewards
+
+        _grantItemRewards(playerParty, rewards.items)
+
+        if rewards.reputation and playerParty then
+            for factionId, amount in pairs(rewards.reputation) do
+                ReputationSystem.addReputation(playerParty, factionId, amount)
+            end
+        end
+
+        if rewards.unlock then
+            GameContext.setGlobalFlag(rewards.unlock, true)
+        end
+        if rewards.unlocks then
+            for _, unlockId in ipairs(rewards.unlocks) do
+                GameContext.setGlobalFlag(unlockId, true)
+            end
+        end
     end
 
     -- Move from active to completed
@@ -116,7 +213,11 @@ function QuestSystem.getQuestState(questId)
         return "completed"
     end
     if GameContext.data.activeQuests and GameContext.data.activeQuests[questId] then
-        return GameContext.data.activeQuests[questId]:getState()
+        local activeQuest = GameContext.data.activeQuests[questId]
+        if activeQuest:getState() == "active" and QuestSystem._isReadyToTurnIn(activeQuest) then
+            return "ready_to_turn_in"
+        end
+        return activeQuest:getState()
     end
     return "inactive"
 end
