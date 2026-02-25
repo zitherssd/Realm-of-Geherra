@@ -8,6 +8,7 @@ local FactionSystem = require("systems.faction_system")
 local StateManager = require("core.state_manager")
 local Camera = require("world.camera")
 local TimeSystem = require("systems.time_system")
+local AttributeSystem = require("systems.attribute_system")
 
 local WorldState = {
     camera = nil,
@@ -217,12 +218,82 @@ function WorldState.draw()
     love.graphics.setColor(1, 1, 1, 1)
     local day = TimeSystem.getDay()
     local period = TimeSystem.getPeriodName()
-    local timeStr = string.format("Day %d, %s", day, period)
+    local timeStr
+    
+    if AttributeSystem.partyHasLevel("navigation", 1) then
+        local hour = math.floor(TimeSystem.getHour())
+        local minute = math.floor((TimeSystem.getHour() - hour) * 60)
+        timeStr = string.format("Day %d | %s | %02d:%02d", day, period, hour, minute)
+    else
+        timeStr = string.format("Day %d, %s", day, period)
+    end
+    
     local textWidth = WorldState.font:getWidth(timeStr)
     love.graphics.print(timeStr, love.graphics.getWidth() - textWidth - 20, 20)
+    
+    local playerParty = GameContext.data.playerParty
+    -- Draw HUD Bars (HP and Favor)
+    if playerParty then
+        local barX, barY = 20, 35
+        local barW, barH = 200, 15
+        
+        -- 1. Party HP Bar
+        local partyHpPct = playerParty:getAveragePartyHp()
+        
+        -- Background
+        love.graphics.setColor(0.2, 0, 0, 1)
+        love.graphics.rectangle("fill", barX, barY, barW, barH)
+        
+        -- Foreground
+        love.graphics.setColor(0.8, 0.1, 0.1, 1)
+        love.graphics.rectangle("fill", barX, barY, barW * partyHpPct, barH)
+        
+        -- Border
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.rectangle("line", barX, barY, barW, barH)
+        
+        -- Player Marker
+        local player = GameContext.data.player
+        if player then
+            local max = (player.stats and player.stats.health) or 100
+            local current = player.hp or max
+            local playerPct = math.max(0, math.min(1, current / max))
+            
+            local markerX = barX + (barW * playerPct)
+            love.graphics.setColor(1, 1, 0, 1) -- Yellow marker
+            love.graphics.setLineWidth(2)
+            love.graphics.line(markerX, barY - 2, markerX, barY + barH + 2)
+            love.graphics.setLineWidth(1)
+        end
+        
+        -- Label
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.print("Party HP", barX, barY - 18)
+        
+        -- 2. Favor Bar (Right of HP bar)
+        local favorX = barX + barW + 20
+        local favor = GameContext.data.favor or 0
+        local favorPct = math.min(1, math.max(0, favor / 100))
+        
+        -- Background
+        love.graphics.setColor(0.2, 0.2, 0, 1)
+        love.graphics.rectangle("fill", favorX, barY, barW, barH)
+        
+        -- Foreground
+        love.graphics.setColor(0.8, 0.8, 0.2, 1)
+        love.graphics.rectangle("fill", favorX, barY, barW * favorPct, barH)
+        
+        -- Border
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.rectangle("line", favorX, barY, barW, barH)
+        
+        -- Label
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.print("Favor: " .. math.floor(favor), favorX, barY - 18)
+    end
 
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.print("World View - WASD to move, [I] Inventory", 10, 10)
+    love.graphics.printf("World View - WASD to move, [I] Inventory", 0, love.graphics.getHeight() - 30, love.graphics.getWidth() - 20, "right")
 
     -- Draw location interaction hint
     if WorldState.nearbyLocation then
@@ -236,14 +307,6 @@ function WorldState.draw()
         love.graphics.setColor(1, 1, 0, 1)
         love.graphics.printf("Press ENTER to talk to " .. (WorldState.nearbyParty.name or "Party"), 
             0, love.graphics.getHeight() - 100, love.graphics.getWidth(), "center")
-    end
-    
-    local playerParty = GameContext.data.playerParty
-    if playerParty then
-        love.graphics.printf(
-            string.format("Party: %.0f, %.0f (%d members)", playerParty.x, playerParty.y, playerParty:getActorCount()),
-            10, 30, love.graphics.getWidth() - 20, "left"
-        )
     end
 end
 

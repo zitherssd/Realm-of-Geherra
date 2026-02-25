@@ -84,7 +84,7 @@ function LocationScreen:refreshButtons()
     elseif location.type == "village" then
         table.insert(self.buttons, Button.new("Buy Supplies", startX, optionsY, btnWidth, 50, function() LocationActions.buySupplies(location) end))
         
-        local cooldown = LocationActions.getRecruitCooldown(location)
+        local cooldown = LocationActions.getRecruitmentCooldown(location)
         if cooldown > 0 then
             local btn = Button.new("Recruit (" .. math.ceil(cooldown) .. "d)", startX, optionsY + 60, btnWidth, 50, function() end)
             btn.disabled = true
@@ -101,6 +101,16 @@ function LocationScreen:refreshButtons()
     end
 end
 
+function LocationScreen:showPopup(text)
+    self.popup = {
+        text = text,
+        okBtn = Button.new("OK", self.width/2 - 50, self.height/2 + 40, 100, 40, function()
+            self.popup = nil
+            self:refreshButtons()
+        end)
+    }
+end
+
 function LocationScreen:show()
     -- Called when screen becomes active
 end
@@ -110,6 +120,11 @@ function LocationScreen:hide()
 end
 
 function LocationScreen:update(dt)
+    if self.popup then
+        self.popup.okBtn:update(dt)
+        return
+    end
+
     for _, btn in ipairs(self.buttons) do
         btn:update(dt)
     end
@@ -179,6 +194,22 @@ function LocationScreen:draw()
     end
     
     self.leaveBtn:draw()
+
+    -- Draw Popup Overlay
+    if self.popup then
+        love.graphics.setColor(0, 0, 0, 0.8)
+        love.graphics.rectangle("fill", 0, 0, self.width, self.height)
+        
+        local boxW, boxH = 400, 200
+        love.graphics.setColor(0.2, 0.2, 0.2, 1)
+        love.graphics.rectangle("fill", (self.width - boxW)/2, (self.height - boxH)/2, boxW, boxH)
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.rectangle("line", (self.width - boxW)/2, (self.height - boxH)/2, boxW, boxH)
+        
+        love.graphics.printf(self.popup.text, (self.width - boxW)/2 + 20, (self.height - boxH)/2 + 40, boxW - 40, "center")
+        
+        self.popup.okBtn:draw()
+    end
 end
 
 function LocationScreen:mousepressed(x, y, button)

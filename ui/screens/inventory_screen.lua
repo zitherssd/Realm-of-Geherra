@@ -213,7 +213,7 @@ function InventoryScreen:drawStatsPanel()
     
     -- Title
     love.graphics.setColor(1, 0.8, 0.2, 1)
-    love.graphics.print("Attributes", panelX + 10, panelY + 10)
+    love.graphics.print("Stats", panelX + 10, panelY + 10)
     
     -- Stats List
     local stats = self.actor.stats or {}
@@ -227,6 +227,35 @@ function InventoryScreen:drawStatsPanel()
     end
     
     love.graphics.print("LEVEL: " .. (self.actor.level or 1), panelX + 20, y + 10)
+    y = y + lineHeight + 20
+
+    -- Attributes
+    love.graphics.setColor(1, 0.8, 0.2, 1)
+    love.graphics.print("Attributes", panelX + 10, y)
+    y = y + 30
+    love.graphics.setColor(0.9, 0.9, 0.9, 1)
+
+    local attributes = {
+        "command", "oratory", "navigation", "tracking", 
+        "shadowcraft", "divination", "engineering"
+    }
+    
+    for _, attrName in ipairs(attributes) do
+        love.graphics.print(string.upper(string.sub(attrName, 1, 1)) .. string.sub(attrName, 2), panelX + 20, y)
+        
+        local level = self.actor.attributes[attrName] or 0
+        
+        -- Draw the boxes
+        for j = 1, 4 do
+            local boxX = panelX + 150 + (j - 1) * 25
+            if j <= level then
+                love.graphics.rectangle("fill", boxX, y + 5, 20, 15)
+            else
+                love.graphics.rectangle("line", boxX, y + 5, 20, 15)
+            end
+        end
+        y = y + lineHeight
+    end
 end
 
 function InventoryScreen:mousepressed(x, y, button)

@@ -9,6 +9,7 @@ local BattleUnit = require("game.battle.battle_unit")
 local StateManager = require("core.state_manager")
 local Skills = require("data.skills")
 local LootGeneratorSystem = require("systems.loot_generator_system")
+local PartySystem = require("systems.party_system")
 local BattleState = {}
 
 -- Systems
@@ -213,6 +214,24 @@ function BattleState.checkBattleEnd()
     end
     
     if not playerAlive or not enemyAlive then
+        -- Sync Battle State back to World State (Persistence)
+        local playerParty = GameContext.data.playerParty
+        
+        -- 1. Update Survivors HP
+        for _, unit in pairs(BattleContext.data.units) do
+            if unit.actor and unit.team == "player" then
+                unit.actor.hp = unit.hp
+            end
+        end
+
+        -- 2. Remove Casualties from Party
+        for _, unit in ipairs(BattleContext.data.casualties) do
+            if unit.actor and unit.team == "player" then
+                unit.actor.hp = 0
+                PartySystem.removeFromParty(playerParty, unit.actor.id)
+            end
+        end
+
         if playerAlive and BattleState.enemyParty and GameContext.data.currentMap then
             GameContext.data.currentMap:removeParty(BattleState.enemyParty.id)
         end

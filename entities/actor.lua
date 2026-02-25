@@ -31,6 +31,15 @@ function Actor.new(id, actorType)
     self.skills = {
         ["slash"] = {learned = true} -- Default basic attack
     }
+    self.attributes = {
+        tracking = 0,
+        shadowcraft = 0,
+        divination = 0,
+        engineering = 0,
+        oratory = 0,
+        command = 0,
+        navigation = 0
+    }
     self.factions = {}
     
     self.velocity = {x = 0, y = 0}

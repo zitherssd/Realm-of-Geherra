@@ -88,7 +88,11 @@ function BattleUnit.new(actor, gridX, gridY, team)
     
     -- 4. Finalize HP
     self.maxHp = self.stats.health or 100
-    self.hp = self.maxHp
+    if actor.hp then
+        self.hp = actor.hp
+    else
+        self.hp = self.maxHp
+    end
     
     -- Initialize charges for skills that have limits
     self.skillList = {}

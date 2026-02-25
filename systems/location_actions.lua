@@ -10,6 +10,7 @@ local Party = require("entities.party")
 local Troop = require("entities.troop")
 local RecruitmentSystem = require("systems.recruitment_system")
 local TimeSystem = require("systems.time_system")
+local AttributeSystem = require("systems.attribute_system")
 
 function LocationActions.exploreRuin(location)
     local enemyParty = Party.new("Ruin Guardians", nil)
@@ -138,15 +139,26 @@ end
 
 
 
-function LocationActions.getRecruitCooldown(location)
+function LocationActions.getRecruitmentCooldown(location)
     local currentDay = TimeSystem.getDay()
     local lastRecruit = location.lastRecruitDay or -100
     return math.max(0, (lastRecruit + 5) - currentDay)
 end
 
-function LocationActions.performRecruitment(location)
+function LocationActions.getRecruitmentCost()
+    local oratoryLevel = AttributeSystem.getPartyMaxLevel("oratory")
+    if oratoryLevel >= 2 then
+        return 0
+    elseif oratoryLevel >= 1 then
+        return 5
+    else
+        return 10
+    end
+end
+
+function LocationActions.performRecruitment(location, favorCost)
     local currentDay = TimeSystem.getDay()
-    GameContext.data.favor = (GameContext.data.favor or 0) - 10
+    GameContext.data.favor = (GameContext.data.favor or 0) - favorCost
     location.lastRecruitDay = currentDay
     
     local playerParty = GameContext.data.playerParty
@@ -156,7 +168,7 @@ function LocationActions.performRecruitment(location)
 end
 
 function LocationActions.startRecruitmentDialogue(location)
-    if LocationActions.getRecruitCooldown(location) > 0 then
+    if LocationActions.getRecruitmentCooldown(location) > 0 then
         StateManager.push("dialogue", {
             dialogueTree = {
                 speaker = "System",
@@ -167,7 +179,7 @@ function LocationActions.startRecruitmentDialogue(location)
         return
     end
 
-    local favorCost = 10
+    local favorCost = LocationActions.getRecruitmentCost()
     local currentFavor = GameContext.data.favor or 0
     if currentFavor < favorCost then
         StateManager.push("dialogue", {
@@ -180,10 +192,29 @@ function LocationActions.startRecruitmentDialogue(location)
         return
     end
 
+    local optionText = "Recruit them"
+    if favorCost > 0 then
+        optionText = optionText .. " (" .. favorCost .. " favor)."
+    else
+        optionText = optionText .. " (free)."
+    end
+
     StateManager.push("dialogue", {
-        dialogueId = "village_recruit",
+        dialogueTree = {
+            speaker = "Village Elder",
+            lines = {
+                {
+                    text = "A few able-bodied villagers look eager to join a new cause.",
+                    options = {
+                        {text = optionText, action = "recruit_volunteers"},
+                        {text = "Leave them be.", next = "end"}
+                    }
+                }
+            }
+        },
         location = location,
-        showFavor = true
+        showFavor = true,
+        favorCost = favorCost
     })
 end
 

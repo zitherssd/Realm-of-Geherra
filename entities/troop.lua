@@ -59,6 +59,13 @@ function Troop.new(troopType, id)
                 self.skills[skillId] = {learned = true}
             end
         end
+
+        -- Apply attributes from data
+        if data.attributes then
+            for attr, level in pairs(data.attributes) do
+                self.attributes[attr] = level
+            end
+        end
         
         -- Apply Sprite
         if data.sprite then

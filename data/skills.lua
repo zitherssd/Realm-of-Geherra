@@ -72,7 +72,7 @@ return {
         maxCharges = 2, -- Only usable 2 times per battle
         projectile = {
             sprite = "assets/sprites/projectiles/spear.png",
-            speed = 34,
+            speed = 32,
             arc = 30
         }
     }

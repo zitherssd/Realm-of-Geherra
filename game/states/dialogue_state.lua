@@ -14,6 +14,7 @@ function DialogueState.enter(params)
     local target = params.target -- The entity/party we are talking to
     local location = params.location
     local options = { showFavor = params.showFavor }
+    local favorCost = params.favorCost
 
     local dialogueTree = params.dialogueTree
     if not dialogueTree and params.dialogueId then
@@ -49,13 +50,15 @@ function DialogueState.enter(params)
                 -- TRANSITION TO BATTLE
                 StateManager.swap("battle", { enemyParty = target })
             elseif choice.action == "recruit_volunteers" then
-                local resultText = LocationActions.performRecruitment(location)
+                local resultText = LocationActions.performRecruitment(location, favorCost)
                 StateManager.swap("dialogue", { -- Use swap to replace current dialogue
                     dialogueTree = {
                         speaker = "System",
                         lines = { { text = resultText, options = {{ text = "Continue", next = "end" }} } }
                     },
-                    location = location -- pass location along if needed for other actions
+                    location = location, -- pass location along if needed for other actions
+                    showFavor = true,
+                    favorCost = favorCost
                 })
             elseif choice.next == "end" then
                 StateManager.pop()

@@ -194,4 +194,21 @@ function Party:setVisibilityModifier(modifier)
     self.visibilityModifier = modifier
 end
 
+-- Calculate the average HP percentage of the party (Total Current / Total Max)
+function Party:getAveragePartyHp()
+    local totalCurrent = 0
+    local totalMax = 0
+    
+    for _, actor in ipairs(self.actors) do
+        local max = (actor.stats and actor.stats.health) or 100
+        local current = actor.hp or max
+        
+        totalCurrent = totalCurrent + current
+        totalMax = totalMax + max
+    end
+    
+    if totalMax == 0 then return 1.0 end
+    return totalCurrent / totalMax
+end
+
 return Party

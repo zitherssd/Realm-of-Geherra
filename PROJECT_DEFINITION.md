@@ -148,6 +148,7 @@ systems/
 ├─ combat_system.lua
 ├─ ai_system.lua
 ├─ animation_system.lua
+├─ attribute_system.lua   -- Manages and checks character attributes
 ├─ skill_system.lua
 ├─ inventory_system.lua
 ├─ equipment_system.lua
@@ -243,7 +244,7 @@ entities/
 
 ### Actor Specialization
 
-An **actor** represents any living being capable of action. Player characters, NPCs, and troops are all actors differentiated by **data, tags, and control source**, not by unique logic.
+An **actor** represents any living being capable of action. Player characters, NPCs, and troops are all actors differentiated by **data, tags, control source, and non-combat attributes (e.g., Oratory, Tracking)**, not by unique logic.
 
 ### Party Structure
 
