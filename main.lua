@@ -1,5 +1,9 @@
 -- Realm of Geherra
 -- A Love2D Mount & Blade-style RPG
+if os.getenv("LOCAL_LUA_DEBUGGER_VSCODE") == "1" then
+    require("lldebugger").start()
+end
+
 
 -- Core Framework
 local GameManager = require("core.game")
@@ -10,9 +14,9 @@ local Input = require("core.input")
 -- Initialize
 function love.load()
     -- Initialize core systems
+    EventBus.init()
     GameManager.init()
     StateManager.init()
-    EventBus.init()
     Input.init()
     
     -- Start in menu state

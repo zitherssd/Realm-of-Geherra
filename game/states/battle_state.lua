@@ -27,6 +27,7 @@ function BattleState.enter(params)
     params = params or {}
     local enemyParty = params.enemyParty
     BattleState.enemyParty = enemyParty
+    print(string.format("BattleState: Battle started against party ID: '%s'", tostring(enemyParty and enemyParty.id)))
     
     -- Initialize battle with 30x13 grid, 42px cells
     local grid = BattleGrid.new(30, 13, 42)

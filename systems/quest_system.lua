@@ -65,6 +65,9 @@ function QuestSystem.onPartyKilled(partyId)
     for questId, quest in pairs(GameContext.data.activeQuests) do
         if quest:getState() == "active" then
             for _, objective in ipairs(quest.objectives) do
+                if objective.type == "kill_party" then
+                    print(string.format("QuestSystem Debug: Checking objective for quest '%s'. Target: '%s' vs Killed: '%s'", quest.title, tostring(objective.target), tostring(partyId)))
+                end
                 if objective.type == "kill_party" and objective.target == partyId and not objective:isCompleted() then
                     objective:advance(1)
                     print(string.format("Quest '%s' progress: kill_party %s (%d/%d)", quest.title, partyId, objective.current, objective.required))
@@ -126,6 +129,7 @@ function QuestSystem._handleQuestAction(action)
         
         if playerParty and map then
             local party = Party.new(action.name, nil, action.partyId)
+            print(string.format("QuestSystem: Spawning quest party '%s' with ID: '%s'", party.name, party.id))
             party.faction = action.faction or "bandits"
             
             for _, troopId in ipairs(action.troops or {}) do

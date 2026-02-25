@@ -30,6 +30,10 @@ function QuestLogScreen.new(onClose)
     self.selectedQuest = self.activeQuests[1] or self.completedQuests[1]
     
     self.closeBtn = Button.new("Close", self.width - 120, 20, 100, 40, onClose)
+
+    self.titleFont = love.graphics.newFont(32)
+    self.headerFont = love.graphics.newFont(24)
+    self.bodyFont = love.graphics.newFont(16)
     
     return self
 end
@@ -45,7 +49,7 @@ function QuestLogScreen:draw()
     
     -- Header
     love.graphics.setColor(1, 0.8, 0.2, 1)
-    love.graphics.setFont(love.graphics.newFont(32))
+    love.graphics.setFont(self.titleFont)
     love.graphics.print("Quest Log", 20, 20)
     
     self.closeBtn:draw()
@@ -57,7 +61,7 @@ function QuestLogScreen:draw()
     local detailsY = 80
     
     -- Draw List
-    love.graphics.setFont(love.graphics.newFont(18))
+    love.graphics.setFont(self.bodyFont)
     local y = listY
     
     love.graphics.setColor(0.8, 0.8, 0.8, 1)
@@ -93,14 +97,14 @@ function QuestLogScreen:draw()
     if self.selectedQuest then
         local q = self.selectedQuest
         love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.setFont(love.graphics.newFont(24))
+        love.graphics.setFont(self.headerFont)
         love.graphics.print(q.title, detailsX, detailsY)
         
-        love.graphics.setFont(love.graphics.newFont(16))
+        love.graphics.setFont(self.bodyFont)
         love.graphics.setColor(0.7, 0.7, 0.7, 1)
         love.graphics.print("Given by: " .. (q.giver or "Unknown"), detailsX, detailsY + 35)
         
-        love.graphics.setFont(love.graphics.newFont(16))
+        love.graphics.setFont(self.bodyFont)
         love.graphics.setColor(0.8, 0.8, 0.8, 1)
         love.graphics.printf(q.description, detailsX, detailsY + 65, self.width - detailsX - 20, "left")
         
