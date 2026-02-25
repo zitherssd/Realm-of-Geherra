@@ -8,6 +8,7 @@ local UIManager = require("ui.ui_manager")
 local DialogueData = require("data.dialogue")
 local DialogueScreen = require("ui.screens.dialogue_screen")
 local LocationActions = require("systems.location_actions")
+local QuestSystem = require("systems.quest_system")
 
 function DialogueState.enter(params)
     params = params or {}
@@ -19,6 +20,16 @@ function DialogueState.enter(params)
     local dialogueTree = params.dialogueTree
     if not dialogueTree and params.dialogueId then
         dialogueTree = DialogueData[params.dialogueId]
+    end
+
+    -- Check for dynamic redirects based on quest state
+    if dialogueTree and dialogueTree.checkQuest then
+        local status = QuestSystem.getQuestState(dialogueTree.checkQuest)
+        if dialogueTree.states and dialogueTree.states[status] then
+            local newId = dialogueTree.states[status]
+            local newTree = DialogueData[newId]
+            if newTree then dialogueTree = newTree end
+        end
     end
     
     if dialogueTree then
@@ -60,12 +71,25 @@ function DialogueState.enter(params)
                     showFavor = true,
                     favorCost = favorCost
                 })
-            elseif choice.next == "end" then
+            elseif choice.action == "accept_quest" then
+                local questId = choice.questId
+                if questId then
+                    QuestSystem.activateQuest(questId)
+                end
+            end
+
+            -- Navigation Logic
+            if choice.next == "end" then
                 StateManager.pop()
                 
             elseif choice.next then
-                -- Placeholder for navigation logic
-                StateManager.pop() 
+                -- Navigate to next dialogue node by swapping state
+                StateManager.swap("dialogue", {
+                    dialogueId = choice.next,
+                    target = target,
+                    location = location,
+                    showFavor = options.showFavor
+                })
             end
         end, options)
         

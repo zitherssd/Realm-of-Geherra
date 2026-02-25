@@ -16,6 +16,10 @@ function StateManager.init()
     states.battle_end = require("game.states.battle_end_state")
     states.location = require("game.states.location_state")
     states.inventory = require("game.states.inventory_state")
+    states.quest_log = require("game.states.quest_log_state")
+
+    -- Initialize systems that subscribe to events
+    require("systems.quest_system").init()
 end
 
 function StateManager.push(stateName, ...)

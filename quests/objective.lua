@@ -2,6 +2,7 @@
 -- Quest objective definitions
 
 local Objective = {}
+Objective.__index = Objective
 
 local objectiveTypes = {
     "kill",      -- Kill X enemies
@@ -23,6 +24,7 @@ function Objective.new(id, objectiveType)
         current = 0,
         description = ""
     }
+    setmetatable(self, Objective)
     return self
 end
 

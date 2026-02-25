@@ -25,5 +25,24 @@ return {
             {type = "reach", location = "barracks"}
         },
         rewards = {gold = 100, unlock = "join_army"}
+    },
+
+    ["hunt_dogs"] = {
+        id = "hunt_dogs",
+        title = "The Wild Pack",
+        giver = "elder",
+        description = "Hunt down the pack of wild dogs terrorizing the village.",
+        objectives = {
+            {type = "kill_party", target = "wild_dog_pack", required = 1, description = "Defeat the Wild Dog Pack"}
+        },
+        rewards = {gold = 50, reputation = {menari = 5}},
+        onStart = {
+            type = "spawn_party",
+            partyId = "wild_dog_pack",
+            name = "Wild Dog Pack",
+            faction = "bandits",
+            troops = {"war_dog", "war_dog", "war_dog", "war_dog", "war_dog"},
+            offset = {x = 100, y = 0}
+        }
     }
 }

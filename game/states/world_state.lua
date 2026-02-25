@@ -76,6 +76,12 @@ function WorldState.update(dt)
         return
     end
     
+    -- Open Quest Log
+    if Input.isKeyDown("l") then
+        StateManager.push("quest_log")
+        return
+    end
+
     -- Handle player movement and time progression
     local moveX, moveY = 0, 0
     
@@ -293,7 +299,7 @@ function WorldState.draw()
     end
 
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.printf("World View - WASD to move, [I] Inventory", 0, love.graphics.getHeight() - 30, love.graphics.getWidth() - 20, "right")
+    love.graphics.printf("World View - WASD to move, [I] Inventory, [L] Quests", 0, love.graphics.getHeight() - 30, love.graphics.getWidth() - 20, "right")
 
     -- Draw location interaction hint
     if WorldState.nearbyLocation then

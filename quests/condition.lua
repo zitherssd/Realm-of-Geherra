@@ -2,6 +2,7 @@
 -- Reusable quest conditions
 
 local Condition = {}
+Condition.__index = Condition
 
 function Condition.new(id, conditionType)
     local self = {
@@ -9,6 +10,7 @@ function Condition.new(id, conditionType)
         type = conditionType or "time",
         parameters = {}
     }
+    setmetatable(self, Condition)
     return self
 end
 

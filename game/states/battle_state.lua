@@ -9,6 +9,7 @@ local BattleUnit = require("game.battle.battle_unit")
 local StateManager = require("core.state_manager")
 local Skills = require("data.skills")
 local LootGeneratorSystem = require("systems.loot_generator_system")
+local EventBus = require("core.event_bus")
 local PartySystem = require("systems.party_system")
 local BattleState = {}
 
@@ -234,6 +235,7 @@ function BattleState.checkBattleEnd()
 
         if playerAlive and BattleState.enemyParty and GameContext.data.currentMap then
             GameContext.data.currentMap:removeParty(BattleState.enemyParty.id)
+            EventBus.emit("party_killed", BattleState.enemyParty.id)
         end
 
         -- Calculate favor gained (Base 5 + 1 per enemy casualty)
