@@ -97,10 +97,14 @@ function QuestLogScreen:draw()
         love.graphics.print(q.title, detailsX, detailsY)
         
         love.graphics.setFont(love.graphics.newFont(16))
-        love.graphics.setColor(0.8, 0.8, 0.8, 1)
-        love.graphics.printf(q.description, detailsX, detailsY + 40, self.width - detailsX - 20, "left")
+        love.graphics.setColor(0.7, 0.7, 0.7, 1)
+        love.graphics.print("Given by: " .. (q.giver or "Unknown"), detailsX, detailsY + 35)
         
-        local objY = detailsY + 100
+        love.graphics.setFont(love.graphics.newFont(16))
+        love.graphics.setColor(0.8, 0.8, 0.8, 1)
+        love.graphics.printf(q.description, detailsX, detailsY + 65, self.width - detailsX - 20, "left")
+        
+        local objY = detailsY + 125
         love.graphics.setColor(1, 0.8, 0.2, 1)
         love.graphics.print("Objectives:", detailsX, objY)
         objY = objY + 30

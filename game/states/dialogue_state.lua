@@ -74,7 +74,7 @@ function DialogueState.enter(params)
             elseif choice.action == "accept_quest" then
                 local questId = choice.questId
                 if questId then
-                    QuestSystem.activateQuest(questId)
+                    QuestSystem.activateQuest(questId, speakerName)
                 end
             end
 

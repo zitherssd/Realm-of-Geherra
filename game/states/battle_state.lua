@@ -235,6 +235,7 @@ function BattleState.checkBattleEnd()
 
         if playerAlive and BattleState.enemyParty and GameContext.data.currentMap then
             GameContext.data.currentMap:removeParty(BattleState.enemyParty.id)
+            print("BattleState: Emitting party_killed for " .. tostring(BattleState.enemyParty.id))
             EventBus.emit("party_killed", BattleState.enemyParty.id)
         end
 

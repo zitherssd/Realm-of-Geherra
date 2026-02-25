@@ -30,7 +30,7 @@ return {
     ["hunt_dogs"] = {
         id = "hunt_dogs",
         title = "The Wild Pack",
-        giver = "elder",
+        giver = nil, -- Assigned dynamically by the NPC
         description = "Hunt down the pack of wild dogs terrorizing the village.",
         objectives = {
             {type = "kill_party", target = "wild_dog_pack", required = 1, description = "Defeat the Wild Dog Pack"}

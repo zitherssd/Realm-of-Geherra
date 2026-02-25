@@ -17,7 +17,7 @@ function QuestSystem.init()
 end
 
 -- Activates a quest by creating an instance and adding it to the global context.
-function QuestSystem.activateQuest(questId)
+function QuestSystem.activateQuest(questId, giverName)
     if QuestSystem.getQuestState(questId) ~= "inactive" then
         print("QuestSystem: Attempted to activate quest that is not inactive: " .. questId)
         return
@@ -32,7 +32,7 @@ function QuestSystem.activateQuest(questId)
     -- Create a new Quest instance
     local newQuest = Quest.new(questId, questData.title)
     newQuest.description = questData.description
-    newQuest.giver = questData.giver
+    newQuest.giver = giverName or questData.giver
     newQuest.rewards = questData.rewards
     newQuest:setState("active")
 
@@ -59,6 +59,7 @@ end
 
 -- Event handler for when a party is killed
 function QuestSystem.onPartyKilled(partyId)
+    print("QuestSystem: onPartyKilled event received for " .. tostring(partyId))
     if not GameContext.data.activeQuests then return end
 
     for questId, quest in pairs(GameContext.data.activeQuests) do
