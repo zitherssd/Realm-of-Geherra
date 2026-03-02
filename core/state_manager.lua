@@ -91,4 +91,49 @@ function StateManager.getCurrentState()
     return nil
 end
 
+function StateManager.keypressed(key)
+    if #stateStack > 0 then
+        local current = stateStack[#stateStack]
+        if current.state.keypressed then
+            current.state.keypressed(key)
+        end
+    end
+end
+
+function StateManager.keyreleased(key)
+    if #stateStack > 0 then
+        local current = stateStack[#stateStack]
+        if current.state.keyreleased then
+            current.state.keyreleased(key)
+        end
+    end
+end
+
+function StateManager.mousepressed(x, y, button)
+    if #stateStack > 0 then
+        local current = stateStack[#stateStack]
+        if current.state.mousepressed then
+            current.state.mousepressed(x, y, button)
+        end
+    end
+end
+
+function StateManager.mousereleased(x, y, button)
+    if #stateStack > 0 then
+        local current = stateStack[#stateStack]
+        if current.state.mousereleased then
+            current.state.mousereleased(x, y, button)
+        end
+    end
+end
+
+function StateManager.wheelmoved(x, y)
+    if #stateStack > 0 then
+        local current = stateStack[#stateStack]
+        if current.state.wheelmoved then
+            current.state.wheelmoved(x, y)
+        end
+    end
+end
+
 return StateManager

@@ -49,7 +49,8 @@ function DecisionSystem._processAI(unit, context)
             local skillData = Skills[skillId]
             
             if skillData then
-                local rangeSq = skillData.range * skillData.range
+                local range = skillData.range or 1.5
+                local rangeSq = range * range
                 local onCooldown = (unit.cooldowns[skillId] or 0) > 0
                 local hasCharges = true
                 
@@ -72,10 +73,19 @@ function DecisionSystem._processAI(unit, context)
         end
         
         if bestSkillId then
+            local bestSkillData = Skills[bestSkillId]
+            local intentTarget = nil
+            local intentTargetUnitId = nearestTarget.id
+
+            if bestSkillData and bestSkillData.type == "aoe" and bestSkillData.targeted == true then
+                intentTarget = {x = nearestTarget.x, y = nearestTarget.y}
+            end
+
             unit.intent = {
                 type = "SKILL",
                 skillId = bestSkillId,
-                targetUnitId = nearestTarget.id
+                target = intentTarget,
+                targetUnitId = intentTargetUnitId
             }
         else
             -- Move towards target

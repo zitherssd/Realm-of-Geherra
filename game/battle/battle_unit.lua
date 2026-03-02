@@ -28,6 +28,7 @@ function BattleUnit.new(actor, gridX, gridY, team)
         skills = {},        -- Available skills (Learned + Granted)
         hp = 0,
         maxHp = 0,
+        statusEffects = {}, -- Runtime statuses (e.g. burn, bleed, stun)
         
         -- Action State
         intent = nil,       -- { type="MOVE", target={x,y} } or { type="SKILL", id="slash", target=unitId }
@@ -65,6 +66,13 @@ function BattleUnit.new(actor, gridX, gridY, team)
     -- 2. Copy Learned Skills
     if actor.skills then
         for k, v in pairs(actor.skills) do self.skills[k] = v end
+    end
+
+    -- 2b. Copy status effects (if any)
+    if actor.statusEffects then
+        for k, v in pairs(actor.statusEffects) do
+            self.statusEffects[k] = v
+        end
     end
     
     -- 3. Apply Equipment Bonuses & Granted Skills

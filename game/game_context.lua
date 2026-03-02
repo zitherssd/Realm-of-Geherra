@@ -11,6 +11,8 @@ GameContext.data = {
     currentMap = nil,
     activeQuests = {},
     completedQuests = {},
+    questInstanceCounter = 0,
+    questOfferCounter = 0,
     globalFlags = {},
     difficulty = "normal",
     playtime = 0
@@ -25,6 +27,8 @@ function GameContext.init()
         currentMap = nil,
         activeQuests = {},
         completedQuests = {},
+        questInstanceCounter = 0,
+        questOfferCounter = 0,
         globalFlags = {},
         difficulty = "normal",
         playtime = 0

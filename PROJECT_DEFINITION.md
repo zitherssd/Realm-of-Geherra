@@ -175,6 +175,46 @@ The tactical battle mode operates on a strict loop managed by `battle_state.lua`
 3.  **Execution System:** Resolves all Intents, updates grid positions, applies damage, and manages cooldowns.
 4.  **Render System:** Visualizes the state, interpolating (lerping) unit positions for smooth movement.
 
+### Battle VFX & Status Effect Pipeline (MANDATORY)
+
+All combat effects (projectile trails, impact bursts, status glows) must follow a unified runtime pipeline.
+
+1.  **Data Layer (`data/skills.lua`)**
+    * Skills declare effect intent only (for example `projectile.style = "fireball"`, `aoe`, `targeted`)
+    * No rendering code or imperative callbacks in data
+
+2.  **Execution Layer (`systems/battle/execution_system.lua`)**
+    * Spawns projectiles and transient VFX payloads into `BattleContext` (for example trail particles, explosion descriptors)
+    * Applies/refreshes runtime statuses on `BattleUnit.statusEffects` (for example `burn` with `{remaining, duration}`)
+    * Owns status ticking/expiration logic
+
+3.  **Context Layer (`game/battle/battle_context.lua`)**
+    * Stores transient render payloads in `BattleContext.data.vfx`
+    * Stores live projectile payloads in `BattleContext.data.projectiles`
+    * Contains no effect logic beyond storage helpers
+
+4.  **Render Layer (`systems/battle/render_system.lua`)**
+    * Sole owner of visual representation (particles, additive glow, shader passes)
+    * Reads `BattleUnit.statusEffects` and context VFX payloads to draw effect state
+    * Must not apply gameplay outcomes (damage, CC, stat changes)
+
+#### Status Effect Contract
+
+Runtime status effects on `BattleUnit` must use keyed entries in `statusEffects`:
+
+* Example: `unit.statusEffects.burn = { remaining = 100, duration = 100, sourceSkillId = "fireball" }`
+* Renderer computes visual intensity from `remaining / duration`
+* Gameplay systems can later consume the same status key for mechanics (DoT, penalties) without changing UI/state boundaries
+
+#### Authoring Rule for New Effects
+
+When adding any future effect (ice, poison, holy, shock):
+
+* Add declarative config in data
+* Spawn/update runtime payloads in execution
+* Render exclusively in render system (shader/particles/sprites)
+* Never place effect gameplay logic in UI, entities, or context storage modules
+
 ### party_system.lua
 
 **Responsibilities:**
@@ -194,7 +234,9 @@ The tactical battle mode operates on a strict loop managed by `battle_state.lua`
 **Responsibilities:**
 
 * Track quest states (inactive, active, completed, failed)
+* Manage unique quest instances derived from quest templates
 * Evaluate objectives and conditions
+* Generate procedural quest offers from data-defined templates
 * Emit quest-related events
 * Interface with dialogue and world systems
 
@@ -202,6 +244,63 @@ The tactical battle mode operates on a strict loop managed by `battle_state.lua`
 
 * Render UI
 * Contain hardcoded narrative or story logic
+
+### Quest Runtime Flow (Template → Offer → Instance → Completion)
+
+This project uses a two-layer quest model:
+
+1.  **Quest Templates (Author-Time Data):**
+    * Stored in `data/quests.lua`
+    * Define reusable structure (title, objectives, rewards, optional onStart actions)
+    * May be marked as procedural/repeatable for generator-based NPC quest handouts
+
+2.  **Quest Instances (Runtime State):**
+    * Created by `systems/quest_system.lua` when accepted
+    * Assigned unique instance IDs (for example `hunt_dogs#12`)
+    * Stored in `GameContext.data.activeQuests` keyed by instance ID
+    * Keep giver identity (`giverId`, `giverName`) and runtime bindings (for example spawned party IDs)
+
+#### End-to-End Runtime Sequence
+
+1.  **Dialogue asks QuestSystem for quest context**
+    * `dialogue_state.lua` queries quest status using quest template + speaker reference
+    * The returned context includes state and matching active/completed instance IDs for that giver
+
+2.  **Player accepts a quest**
+    * Static flow: `accept_quest` can activate a template directly
+    * Procedural flow: `accept_procedural_quest` requests an offer from a template pool, then accepts that offer
+
+3.  **Quest instance is created**
+    * QuestSystem clones template data into a runtime quest object
+    * A unique instance ID is generated and stored in `activeQuests`
+    * Objectives are copied as runtime objective objects
+
+4.  **onStart actions bind runtime targets**
+    * If the template has spawn actions (for example enemy party spawn), QuestSystem creates runtime entities with unique IDs
+    * Objective targets are rebound from template target IDs to runtime IDs
+    * This prevents one kill from completing multiple same-template quests
+
+5.  **Gameplay events advance objectives**
+    * Systems emit events (for example `party_killed`)
+    * QuestSystem matches the event against objective runtime targets and increments only the correct instance
+
+6.  **Turn-in objective gating**
+    * If a quest includes `report_to_giver`, the quest enters a ready-to-turn-in dialogue state after non-report objectives are complete
+    * Reward payout is deferred until player reports to the correct giver
+
+7.  **Completion and archival**
+    * Completed instance moves from `activeQuests` to `completedQuests`
+    * Rewards are granted by QuestSystem
+    * `quest_completed` event is emitted with instance and template identifiers
+
+#### Why This Model Is Required
+
+* Supports multiple simultaneous quests from the same template
+* Supports procedural map/NPC generation where giver identity is dynamic
+* Preserves strict data/logic/UI separation:
+  * Data defines template content
+  * Systems own runtime state transitions
+  * UI/dialogue only emits intent and reads state
 
 ### time_system.lua
 

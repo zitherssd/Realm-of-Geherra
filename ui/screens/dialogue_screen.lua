@@ -18,6 +18,10 @@ function DialogueScreen.new(dialogueTree, onChoice, options)
     self.selectedOption = 1
     self.inputCooldown = 0.2
     self.timer = 0
+
+    self.completionPopup = self.options.completionPopup
+    self.completionPopupTimer = 0
+    self.completionPopupDuration = 3
     
     -- Cache fonts
     self.speakerFont = love.graphics.newFont(24)
@@ -28,6 +32,13 @@ end
 
 function DialogueScreen:update(dt)
     if not self.currentNode then return end
+
+    if self.completionPopup then
+        self.completionPopupTimer = self.completionPopupTimer + dt
+        if self.completionPopupTimer >= self.completionPopupDuration then
+            self.completionPopup = nil
+        end
+    end
     
     self.timer = self.timer + dt
     if self.timer < self.inputCooldown then return end
@@ -70,6 +81,36 @@ function DialogueScreen:draw()
     -- Draw a semi-transparent background over the world
     love.graphics.setColor(0, 0, 0, 0.8)
     love.graphics.rectangle("fill", 0, 0, screenW, screenH)
+
+    if self.completionPopup then
+        local alpha = 1
+        local fadeDuration = 0.25
+        local remaining = self.completionPopupDuration - self.completionPopupTimer
+        if self.completionPopupTimer < fadeDuration then
+            alpha = self.completionPopupTimer / fadeDuration
+        elseif remaining < fadeDuration then
+            alpha = remaining / fadeDuration
+        end
+
+        local drift = math.min(self.completionPopupTimer * 24, 36)
+        local baseY = screenH - 120 - drift
+        local popupLines = self.completionPopup.lines or {}
+
+        if #popupLines > 0 then
+            love.graphics.setFont(self.textFont)
+
+            for i, line in ipairs(popupLines) do
+                local lineY = baseY + ((i - 1) * 22)
+                local shadowOffset = 2
+
+                love.graphics.setColor(0, 0, 0, 0.8 * alpha)
+                love.graphics.printf(line, shadowOffset, lineY + shadowOffset, screenW, "center")
+
+                love.graphics.setColor(1, 0.9, 0.4, alpha)
+                love.graphics.printf(line, 0, lineY, screenW, "center")
+            end
+        end
+    end
     
     -- Draw Speaker Name
     if self.dialogueTree and self.dialogueTree.speaker then

@@ -29,6 +29,22 @@ local flashShader = love.graphics.newShader[[
     }
 ]]
 
+local fireballHeatShader = love.graphics.newShader[[
+    extern number time;
+    extern number pulse;
+
+    vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) {
+        vec2 uv = texture_coords - vec2(0.5, 0.5);
+        number r = length(uv);
+        number wobble = sin((uv.y * 28.0) + (time * 14.0)) * 0.02 * pulse;
+        number core = smoothstep(0.40 + wobble, 0.05 + wobble, r);
+        number hazeRing = smoothstep(0.55, 0.25, r) - smoothstep(0.25, 0.1, r);
+        vec3 col = mix(vec3(1.0, 0.35, 0.08), vec3(1.0, 0.85, 0.4), core);
+        number alpha = clamp(core * 0.9 + hazeRing * 0.35, 0.0, 1.0);
+        return vec4(col, alpha) * color;
+    }
+]]
+
 local function getImage(path)
     if not path then return nil end
     if imageCache[path] == nil then
@@ -40,6 +56,30 @@ local function getImage(path)
         end
     end
     return imageCache[path] or nil
+end
+
+local function getBurnStatus(unit)
+    if not unit or not unit.statusEffects then return nil end
+    return unit.statusEffects.burn
+end
+
+local function getBurnIntensity(unit)
+    local burn = getBurnStatus(unit)
+    if not burn then return 0 end
+
+    if type(burn) == "number" then
+        return math.max(0, math.min(1, burn))
+    end
+
+    if type(burn) == "table" then
+        local remaining = burn.remaining or burn.duration or 0
+        local duration = burn.duration or 1
+        if duration <= 0 then return 0 end
+        return math.max(0, math.min(1, remaining / duration))
+    end
+
+    if burn == true then return 1 end
+    return 0
 end
 
 function RenderSystem.update(dt, context)
@@ -121,6 +161,69 @@ function RenderSystem.update(dt, context)
             local dy = proj.y - proj.visualY
             proj.visualX = proj.visualX + dx * PROJ_LERP * dt
             proj.visualY = proj.visualY + dy * PROJ_LERP * dt
+
+            if proj.trailParticles then
+                for i = #proj.trailParticles, 1, -1 do
+                    local p = proj.trailParticles[i]
+                    p.life = p.life - dt
+                    if p.life <= 0 then
+                        table.remove(proj.trailParticles, i)
+                    else
+                        p.x = p.x + p.vx * dt
+                        p.y = p.y + p.vy * dt
+                        if p.kind == "smoke" then
+                            p.vx = p.vx * 0.97
+                            p.vy = p.vy * 0.98
+                        else
+                            p.vx = p.vx * 0.96
+                            p.vy = p.vy * 0.92
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Update transient VFX (explosions, etc.)
+    local vfx = context.data.vfx
+    if vfx then
+        for i = #vfx, 1, -1 do
+            local effect = vfx[i]
+            effect.time = (effect.time or 0) + dt
+
+            if effect.type == "fire_explosion" and effect.sparks then
+                for j = #effect.sparks, 1, -1 do
+                    local spark = effect.sparks[j]
+                    spark.life = spark.life - dt
+                    if spark.life <= 0 then
+                        table.remove(effect.sparks, j)
+                    else
+                        spark.x = (spark.x or effect.x) + spark.vx * dt
+                        spark.y = (spark.y or effect.y) + spark.vy * dt
+                        spark.vx = spark.vx * 0.9
+                        spark.vy = spark.vy + (220 * dt)
+                    end
+                end
+            end
+
+            if effect.type == "fire_explosion" and effect.smoke then
+                for j = #effect.smoke, 1, -1 do
+                    local puff = effect.smoke[j]
+                    puff.life = puff.life - dt
+                    if puff.life <= 0 then
+                        table.remove(effect.smoke, j)
+                    else
+                        puff.x = (puff.x or effect.x) + puff.vx * dt
+                        puff.y = (puff.y or effect.y) + puff.vy * dt
+                        puff.vx = puff.vx * 0.94
+                        puff.vy = puff.vy - (14 * dt)
+                    end
+                end
+            end
+
+            if effect.time >= (effect.duration or 0.4) then
+                table.remove(vfx, i)
+            end
         end
     end
     
@@ -203,6 +306,7 @@ function RenderSystem.draw(context)
         if unit.hp > 0 then
             local sprite = getImage(unit.actor.sprite)
             local drawX, drawY = unit.visualX, unit.visualY
+            local burnIntensity = getBurnIntensity(unit)
             
             -- Apply Shake Offset
             if unit.visualEffects and unit.visualEffects.shakeTime > 0 then
@@ -253,6 +357,22 @@ function RenderSystem.draw(context)
                 end
                 love.graphics.circle("fill", drawX, drawY, grid.cellSize * 0.3)
             end
+
+            if burnIntensity > 0 then
+                local pulse = 0.65 + 0.35 * math.sin(love.timer.getTime() * 18)
+                fireballHeatShader:send("time", love.timer.getTime())
+                fireballHeatShader:send("pulse", pulse)
+
+                love.graphics.setShader(fireballHeatShader)
+                love.graphics.setBlendMode("add")
+                love.graphics.setColor(1, 1, 1, 0.45 * burnIntensity)
+                love.graphics.circle("fill", drawX, drawY - grid.cellSize * 0.18, grid.cellSize * (0.42 + 0.08 * pulse))
+                love.graphics.setShader()
+
+                love.graphics.setColor(1, 0.5, 0.15, 0.35 * burnIntensity)
+                love.graphics.circle("line", drawX, drawY - grid.cellSize * 0.18, grid.cellSize * (0.48 + 0.08 * pulse))
+                love.graphics.setBlendMode("alpha")
+            end
             
             -- Draw HP Bar
             local barWidth = grid.cellSize * 0.8
@@ -275,8 +395,41 @@ function RenderSystem.draw(context)
     local projectiles = context.data.projectiles
     if projectiles then
         for _, proj in ipairs(projectiles) do
+            if proj.trailParticles and #proj.trailParticles > 0 then
+                for _, p in ipairs(proj.trailParticles) do
+                    local lifeRatio = math.max(0, math.min(1, p.life / p.duration))
+                    local size = p.size * (0.4 + 0.6 * lifeRatio)
+                    if p.kind == "smoke" then
+                        love.graphics.setBlendMode("alpha")
+                        love.graphics.setColor(0.2, 0.2, 0.2, 0.22 * lifeRatio)
+                        love.graphics.circle("fill", p.x, p.y, size)
+                    else
+                        love.graphics.setBlendMode("add")
+                        love.graphics.setColor(1, 0.5 + 0.4 * lifeRatio, 0.15, 0.55 * lifeRatio)
+                        love.graphics.circle("fill", p.x, p.y, size)
+                    end
+                end
+                love.graphics.setBlendMode("alpha")
+            end
+
             local sprite = getImage(proj.sprite)
-            if sprite then
+            if proj.style == "fireball" then
+                local pulse = 0.75 + 0.25 * math.sin(love.timer.getTime() * 22)
+                fireballHeatShader:send("time", love.timer.getTime())
+                fireballHeatShader:send("pulse", pulse)
+                love.graphics.setShader(fireballHeatShader)
+                love.graphics.setBlendMode("add")
+                love.graphics.setColor(1, 1, 1, 0.95)
+                love.graphics.circle("fill", proj.visualX, proj.visualY, 13)
+                love.graphics.setShader()
+
+                love.graphics.setColor(1, 0.95, 0.8, 0.95)
+                love.graphics.circle("fill", proj.visualX, proj.visualY, 3.5)
+
+                love.graphics.setColor(1, 0.5, 0.15, 0.26)
+                love.graphics.circle("line", proj.visualX, proj.visualY, 17)
+                love.graphics.setBlendMode("alpha")
+            elseif sprite then
                 -- Get target world coordinates from grid coordinates
                 local tx, ty = grid:gridToWorld(proj.targetGridX, proj.targetGridY)
 
@@ -328,11 +481,67 @@ function RenderSystem.draw(context)
                 local w, h = sprite:getDimensions()
                 love.graphics.setColor(1, 1, 1, 1)
                 love.graphics.draw(sprite, drawX, drawY, rotation, sx, 1, w/2, h/2)
+            else
+                -- Fallback projectile rendering (used by fireball if no sprite)
+                local pulse = 0.7 + 0.3 * math.sin(love.timer.getTime() * 24)
+                love.graphics.setBlendMode("add")
+                love.graphics.setColor(1, 0.65, 0.2, 0.28)
+                love.graphics.circle("fill", proj.visualX, proj.visualY, 14 * pulse)
+                love.graphics.setColor(1, 0.85, 0.4, 0.75)
+                love.graphics.circle("fill", proj.visualX, proj.visualY, 8 * pulse)
+                love.graphics.setColor(1, 0.95, 0.75, 1)
+                love.graphics.circle("fill", proj.visualX, proj.visualY, 3.5)
+                love.graphics.setBlendMode("alpha")
+            end
+        end
+    end
+
+    -- 4. Draw transient VFX
+    local vfx = context.data.vfx
+    if vfx then
+        for _, effect in ipairs(vfx) do
+            if effect.type == "fire_explosion" then
+                local t = math.max(0, math.min(1, effect.time / effect.duration))
+                local coreRadius = (effect.maxRadius or 44) * t
+                local ringRadius = (effect.ringRadius or 12) + (effect.maxRadius or 44) * t
+                local fade = 1.0 - t
+
+                love.graphics.setBlendMode("add")
+                love.graphics.setColor(1, 0.45, 0.1, 0.4 * fade)
+                love.graphics.circle("fill", effect.x, effect.y, coreRadius)
+
+                love.graphics.setColor(1, 0.75, 0.2, 0.65 * fade)
+                love.graphics.setLineWidth(2)
+                love.graphics.circle("line", effect.x, effect.y, ringRadius)
+
+                if effect.sparks then
+                    for _, spark in ipairs(effect.sparks) do
+                        local sx = spark.x or effect.x
+                        local sy = spark.y or effect.y
+                        local sparkFade = math.max(0, math.min(1, spark.life / 0.36))
+                        love.graphics.setColor(1, 0.85, 0.25, 0.9 * sparkFade)
+                        love.graphics.circle("fill", sx, sy, (spark.size or 3) * sparkFade)
+                    end
+                end
+
+                if effect.smoke then
+                    love.graphics.setBlendMode("alpha")
+                    for _, puff in ipairs(effect.smoke) do
+                        local px = puff.x or effect.x
+                        local py = puff.y or effect.y
+                        local puffFade = math.max(0, math.min(1, puff.life / 0.7))
+                        love.graphics.setColor(0.17, 0.17, 0.17, 0.22 * puffFade)
+                        love.graphics.circle("fill", px, py, (puff.size or 10) * (1.2 - puffFade * 0.2))
+                    end
+                end
+
+                love.graphics.setBlendMode("alpha")
+                love.graphics.setLineWidth(1)
             end
         end
     end
     
-    -- 4. Draw Floating Texts
+    -- 5. Draw Floating Texts
     local texts = context.data.floatingTexts
     if texts then
         for _, txt in ipairs(texts) do
