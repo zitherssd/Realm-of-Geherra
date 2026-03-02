@@ -161,8 +161,37 @@ systems/
 ├─ trade_system.lua      -- Handles buying/selling logic
 ├─ loot_system.lua       -- Handles loot generation and distribution
 ├─ trade_system.lua      -- Handles buying/selling logic
+├─ world_generation_system.lua   -- Seeded world mask, biome partitioning, road graph
+├─ location_population_system.lua -- Spawns runtime locations from generated site data
 ├─ time_system.lua       -- Manages day/night cycle and time flow
 ```
+
+### Procedural World Generation Flow
+
+World map generation is split into two systems and one data config:
+
+1.  **Config Layer (`data/world_generation.lua`)**
+    * Declares tunable parameters (seed, site count, spacing, biome definitions, biome colors, road options)
+    * Declares location population ranges (type weights, population/prosperity ranges, faction pool)
+
+2.  **Generation Layer (`systems/world_generation_system.lua`)**
+    * Builds walkable navigation cells from map art mask (black = blocked, non-black = walkable)
+    * Places major sites with spacing constraints
+    * Assigns biomes to sites and computes Voronoi ownership for walkable cells
+    * Computes road paths between sites over the walkable grid
+    * Writes generation payload into `Map.worldGen`
+
+3.  **Population Layer (`systems/location_population_system.lua`)**
+    * Consumes generated site payloads from `Map.worldGen`
+    * Creates runtime `Location` instances (village/town/castle) using weighted data rules
+    * Assigns faction, biome tags, population, and prosperity to each location
+
+#### Extensibility Contract
+
+* Adding a biome requires only data updates (`id`, `weight`, `color`, optional location bias)
+* Changing settlement counts or spacing requires only config updates
+* New location archetypes are added in data and interpreted by `location_population_system`
+* Rendering systems may consume biome colors for overlays, but generation remains system-owned
 
 ### Battle System Flow
 
@@ -274,7 +303,6 @@ This project uses a two-layer quest model:
     * QuestSystem clones template data into a runtime quest object
     * A unique instance ID is generated and stored in `activeQuests`
     * Objectives are copied as runtime objective objects
-
 4.  **onStart actions bind runtime targets**
     * If the template has spawn actions (for example enemy party spawn), QuestSystem creates runtime entities with unique IDs
     * Objective targets are rebound from template target IDs to runtime IDs
@@ -403,9 +431,11 @@ Manages the viewport and player tracking:
 
 Enhanced with visual rendering:
 
-* Displays map background image (assets/map/visual_map.png)
+* Displays optional map background image loaded from config/options
 * Renders settlements and their locations
 * Displays parties and actors on the map
+* Stores `worldGen` runtime payload (navigation grid, biome ownership, road paths)
+* Provides walkability checks (`isWalkable`) and biome lookup (`getBiomeAt`)
 
 ### Settlements and Locations
 
@@ -498,7 +528,8 @@ data/
 ├─ equipment.lua
 ├─ quests.lua
 ├─ dialogue.lua
-└─ progression.lua
+├─ progression.lua
+└─ world_generation.lua
 ```
 
 All content must be editable without modifying system logic.

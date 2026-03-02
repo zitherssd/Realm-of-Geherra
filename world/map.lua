@@ -8,12 +8,18 @@ function Map.new(id, name)
     local self = {
         id = id,
         name = name or "Map",
-        width = 1660,
-        height = 1174,
+        width = 2048,
+        height = 2048,
         parties = {},
         tiles = {},
         objects = {},
         locations = {},
+        worldGen = nil,
+        renderOptions = {
+            showWater = true,
+            showBiomeOverlay = true,
+            showRoads = true
+        },
         visuals = {
             image = nil,
             tileSize = 32
@@ -21,6 +27,46 @@ function Map.new(id, name)
     }
     setmetatable(self, Map)
     return self
+end
+
+function Map:setWorldGenerationData(worldGen)
+    self.worldGen = worldGen
+end
+
+function Map:isWalkable(worldX, worldY)
+    if not self.worldGen or not self.worldGen.navigationGrid then
+        return true
+    end
+
+    local grid = self.worldGen.navigationGrid
+    local cellSize = grid.cellSize
+    local cellX = math.floor(worldX / cellSize) + 1
+    local cellY = math.floor(worldY / cellSize) + 1
+
+    if cellX < 1 or cellY < 1 or cellX > grid.cols or cellY > grid.rows then
+        return false
+    end
+
+    local cell = grid.cells[cellY][cellX]
+    return cell and cell.walkable or false
+end
+
+function Map:getBiomeAt(worldX, worldY)
+    if not self.worldGen or not self.worldGen.navigationGrid then
+        return nil
+    end
+
+    local grid = self.worldGen.navigationGrid
+    local cellSize = grid.cellSize
+    local cellX = math.floor(worldX / cellSize) + 1
+    local cellY = math.floor(worldY / cellSize) + 1
+
+    if cellX < 1 or cellY < 1 or cellX > grid.cols or cellY > grid.rows then
+        return nil
+    end
+
+    local cell = grid.cells[cellY][cellX]
+    return cell and cell.biomeId or nil
 end
 
 -- Load the visual map image
@@ -82,6 +128,80 @@ function Map:drawMap()
         love.graphics.setColor(0.3, 0.5, 0.3, 1)
         love.graphics.rectangle("fill", 0, 0, self.width, self.height)
     end
+
+    if self.renderOptions.showWater then
+        self:drawWaterOverlay()
+    end
+
+    if self.renderOptions.showBiomeOverlay then
+        self:drawBiomeOverlay()
+    end
+
+    if self.renderOptions.showRoads then
+        self:drawRoads()
+    end
+end
+
+function Map:drawWaterOverlay()
+    if not self.worldGen or not self.worldGen.navigationGrid then
+        return
+    end
+
+    local grid = self.worldGen.navigationGrid
+    local waterColor = self.worldGen.waterColor or { 0.08, 0.26, 0.48, 0.85 }
+    local cellSize = grid.cellSize
+
+    love.graphics.setColor(waterColor)
+    for y = 1, grid.rows do
+        for x = 1, grid.cols do
+            local cell = grid.cells[y][x]
+            if not cell.walkable and cell.blockedReason == "water" then
+                love.graphics.rectangle("fill", (x - 1) * cellSize, (y - 1) * cellSize, cellSize, cellSize)
+            end
+        end
+    end
+end
+
+function Map:drawBiomeOverlay()
+    if not self.worldGen or not self.worldGen.navigationGrid then
+        return
+    end
+
+    local grid = self.worldGen.navigationGrid
+    local colors = self.worldGen.biomeColors or {}
+    local cellSize = grid.cellSize
+
+    for y = 1, grid.rows do
+        for x = 1, grid.cols do
+            local cell = grid.cells[y][x]
+            if cell.walkable and cell.biomeId then
+                local color = colors[cell.biomeId]
+                if color then
+                    love.graphics.setColor(color)
+                    love.graphics.rectangle("fill", (x - 1) * cellSize, (y - 1) * cellSize, cellSize, cellSize)
+                end
+            end
+        end
+    end
+end
+
+function Map:drawRoads()
+    if not self.worldGen or not self.worldGen.roads then
+        return
+    end
+
+    love.graphics.setColor(0.45, 0.45, 0.45, 0.9)
+    love.graphics.setLineWidth(2)
+
+    for _, road in ipairs(self.worldGen.roads) do
+        for i = 1, #road.points - 1 do
+            local fromPoint = road.points[i]
+            local toPoint = road.points[i + 1]
+            love.graphics.line(fromPoint.x, fromPoint.y, toPoint.x, toPoint.y)
+        end
+    end
+
+    love.graphics.setLineWidth(1)
 end
 
 -- Draw locations on the map

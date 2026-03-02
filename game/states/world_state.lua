@@ -125,6 +125,22 @@ function WorldState.update(dt)
     -- Clamp party position to map bounds
     newX = math.max(0, math.min(newX, WorldState.currentMap.width))
     newY = math.max(0, math.min(newY, WorldState.currentMap.height))
+
+    if WorldState.currentMap.isWalkable then
+        if not WorldState.currentMap:isWalkable(newX, newY) then
+            local canMoveXOnly = WorldState.currentMap:isWalkable(newX, currentY)
+            local canMoveYOnly = WorldState.currentMap:isWalkable(currentX, newY)
+
+            if canMoveXOnly then
+                newY = currentY
+            elseif canMoveYOnly then
+                newX = currentX
+            else
+                newX = currentX
+                newY = currentY
+            end
+        end
+    end
     
     playerParty:setPosition(newX, newY)
     
