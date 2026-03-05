@@ -162,5 +162,24 @@ return {
             mainHand = "iron_sword",
             body = "leather_armor"
         }
+    },
+
+    ["trader"] = {
+        id = "trader",
+        name = "Trader",
+        type = "trader",
+        tags = {"civilian", "merchant"},
+        sprite = { "assets/sprites/units/town.png",
+                "assets/sprites/units/town2.png"
+        },
+        stats = {
+            health = 28,
+            strength = 6,
+            defense = 4,
+            speed = 7
+        },
+        equipment = {
+            mainHand = "dagger"
+        }
     }
 }

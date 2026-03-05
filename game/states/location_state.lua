@@ -6,6 +6,7 @@ local LocationState = {}
 local StateManager = require("core.state_manager")
 local UIManager = require("ui.ui_manager")
 local LocationScreen = require("ui.screens.location_screen")
+local QuestAvailabilitySystem = require("systems.quest_availability_system")
 
 LocationState.location = nil
 
@@ -18,6 +19,8 @@ function LocationState.enter(params)
         StateManager.pop()
         return
     end
+
+    QuestAvailabilitySystem.refreshLocationOffers(LocationState.location)
     
     -- Initialize the UI Screen
     local screen = LocationScreen.new(LocationState.location, function()

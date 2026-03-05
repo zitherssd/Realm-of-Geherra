@@ -6,7 +6,7 @@ local TimeSystem = {}
 local GameContext = require("game.game_context")
 
 -- Configuration
-local SECONDS_PER_DAY = 18 -- Real-time seconds for one game day
+local SECONDS_PER_DAY = 16 -- Real-time seconds for one game day
 local HOURS_PER_SECOND = 24 / SECONDS_PER_DAY
 
 -- Time Periods

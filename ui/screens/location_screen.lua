@@ -7,6 +7,8 @@ LocationScreen.__index = LocationScreen
 local Button = require("ui.widgets.button")
 local StateManager = require("core.state_manager")
 local LocationActions = require("systems.location_actions")
+local DialogueData = require("data.dialogue")
+local QuestAvailabilitySystem = require("systems.quest_availability_system")
 
 function LocationScreen.new(location, onLeave)
     local self = setmetatable({}, LocationScreen)
@@ -52,7 +54,10 @@ function LocationScreen:refreshButtons()
         local btn = Button.new(btnText, btnX, btnY, btnSize, btnSize, function()
             -- Enter dialogue with this NPC
             -- We assume the NPC has a dialogueId, or default to a generic one
-            local dialogueId = npc.dialogueId or "elder_greeting"
+            local dialogueId = npc.dialogueId or ((npc.troopType or "npc") .. "_greeting")
+            if not DialogueData[dialogueId] then
+                dialogueId = "npc_greeting"
+            end
             StateManager.push("dialogue", { target = npc, dialogueId = dialogueId })
         end)
         
@@ -162,6 +167,8 @@ function LocationScreen:draw()
         
         -- Draw NPC Sprite on top of button if applicable
         if btn.npc then
+            local questContext = QuestAvailabilitySystem.getNpcQuestContext(btn.npc)
+
             -- Draw Sprite
             if btn.npcImage then
                 love.graphics.setColor(1, 1, 1, 1)
@@ -190,6 +197,20 @@ function LocationScreen:draw()
             love.graphics.setFont(self.smallFont)
             local name = btn.npc.name or "Unknown"
             love.graphics.printf(name, btn.x + 2, btn.y + btn.h - 25, btn.w - 4, "center")
+
+            -- Draw tiny quest-available indicator
+            if questContext and questContext.hasOffer then
+                local markRadius = 10
+                local markX = btn.x + btn.w - markRadius - 6
+                local markY = btn.y + markRadius + 6
+
+                love.graphics.setColor(0.9, 0.1, 0.1, 1)
+                love.graphics.circle("fill", markX, markY, markRadius)
+
+                love.graphics.setColor(1, 1, 1, 1)
+                love.graphics.setFont(self.smallFont)
+                love.graphics.printf("!", markX - 6, markY - 8, 12, "center")
+            end
         end
     end
     

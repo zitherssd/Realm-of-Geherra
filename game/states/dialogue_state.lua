@@ -9,7 +9,91 @@ local DialogueData = require("data.dialogue")
 local DialogueScreen = require("ui.screens.dialogue_screen")
 local LocationActions = require("systems.location_actions")
 local QuestSystem = require("systems.quest_system")
+local QuestAvailabilitySystem = require("systems.quest_availability_system")
 local GameContext = require("game.game_context")
+
+local function cloneDialogueTree(dialogueTree)
+    if not dialogueTree then return nil end
+
+    local copy = {}
+    for key, value in pairs(dialogueTree) do
+        if key ~= "lines" then
+            copy[key] = value
+        end
+    end
+
+    copy.lines = {}
+    for i, line in ipairs(dialogueTree.lines or {}) do
+        local lineCopy = {}
+        for key, value in pairs(line) do
+            if key ~= "options" then
+                lineCopy[key] = value
+            end
+        end
+
+        lineCopy.options = {}
+        for _, option in ipairs(line.options or {}) do
+            local optionCopy = {}
+            for key, value in pairs(option) do
+                optionCopy[key] = value
+            end
+            table.insert(lineCopy.options, optionCopy)
+        end
+
+        copy.lines[i] = lineCopy
+    end
+
+    return copy
+end
+
+local function shouldShowDialogueOption(option, questDialogContext)
+    if option.requiresQuestPool and not questDialogContext.hasQuestPool then
+        return false
+    end
+    if option.requiresQuestOffer and not questDialogContext.hasOffer then
+        return false
+    end
+    if option.requiresAcceptedQuest and not questDialogContext.hasAcceptedQuest then
+        return false
+    end
+    if option.requiresReadyToTurnIn and not questDialogContext.readyToTurnIn then
+        return false
+    end
+
+    if option.action == "accept_available_quest" then
+        return questDialogContext.hasQuestPool and questDialogContext.hasOffer
+    end
+    if option.action == "turn_in_available_quest" then
+        return questDialogContext.hasQuestPool and questDialogContext.readyToTurnIn
+    end
+
+    return true
+end
+
+local function filterDialogueTreeOptions(dialogueTree, questDialogContext)
+    if not dialogueTree then return nil end
+
+    local filtered = cloneDialogueTree(dialogueTree)
+    for _, line in ipairs(filtered.lines or {}) do
+        local allowedOptions = {}
+
+        for _, option in ipairs(line.options or {}) do
+            if shouldShowDialogueOption(option, questDialogContext) then
+                table.insert(allowedOptions, option)
+            end
+        end
+
+        if #allowedOptions == 0 then
+            allowedOptions = {
+                { text = "Leave.", next = "end" }
+            }
+        end
+
+        line.options = allowedOptions
+    end
+
+    return filtered
+end
 
 local function buildQuestCompletionPopup(questInstanceId)
     if not questInstanceId then return nil end
@@ -55,6 +139,12 @@ function DialogueState.enter(params)
     end
 
     local questSpeakerRef = { id = nil, name = nil }
+    local questDialogContext = {
+        hasQuestPool = false,
+        hasOffer = false,
+        hasAcceptedQuest = false,
+        readyToTurnIn = false
+    }
     if target then
         if target.getLeader then
             local leader = target:getLeader()
@@ -65,6 +155,12 @@ function DialogueState.enter(params)
         elseif target.name then
             questSpeakerRef.id = target.id
             questSpeakerRef.name = target.name
+
+            questDialogContext.hasQuestPool = QuestAvailabilitySystem.hasQuestPoolForNpc(target)
+            local npcQuestContext = QuestAvailabilitySystem.getNpcQuestContext(target)
+            questDialogContext.hasOffer = npcQuestContext.hasOffer
+            questDialogContext.hasAcceptedQuest = npcQuestContext.state == "accepted"
+            questDialogContext.readyToTurnIn = npcQuestContext.readyToTurnIn
         end
     end
 
@@ -81,6 +177,8 @@ function DialogueState.enter(params)
     end
     
     if dialogueTree then
+        dialogueTree = filterDialogueTreeOptions(dialogueTree, questDialogContext)
+
         local speakerName
         local speakerId
         if target then
@@ -133,14 +231,12 @@ function DialogueState.enter(params)
                     })
                 end
             elseif choice.action == "accept_procedural_quest" then
-                local offer = QuestSystem.generateProceduralQuestOffer({
-                    id = speakerId,
-                    name = speakerName
-                }, {
-                    questPool = choice.questPool
-                })
-                if offer then
-                    QuestSystem.acceptProceduralQuestOffer(offer)
+                if target then
+                    QuestAvailabilitySystem.acceptOfferForNpc(target)
+                end
+            elseif choice.action == "accept_available_quest" then
+                if target then
+                    QuestAvailabilitySystem.acceptOfferForNpc(target)
                 end
             elseif choice.action == "turn_in_quest" then
                 local questIdOrTemplateId = choice.questInstanceId
@@ -156,6 +252,13 @@ function DialogueState.enter(params)
                     if turnInSucceeded then
                         local completedInstanceId = (dialogueQuestContext and dialogueQuestContext.activeQuestInstanceId)
                             or questIdOrTemplateId
+                        completionPopup = buildQuestCompletionPopup(completedInstanceId)
+                    end
+                end
+            elseif choice.action == "turn_in_available_quest" then
+                if target then
+                    local turnedIn, completedInstanceId = QuestAvailabilitySystem.turnInQuestForNpc(target)
+                    if turnedIn then
                         completionPopup = buildQuestCompletionPopup(completedInstanceId)
                     end
                 end

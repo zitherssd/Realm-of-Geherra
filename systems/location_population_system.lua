@@ -1,5 +1,7 @@
 local Location = require("world.location")
+local Troop = require("entities.troop")
 local WorldGenerationConfig = require("data.world_generation")
+local LocationNpcSpawnRules = require("data.location_npc_spawn_rules")
 
 local LocationPopulationSystem = {}
 
@@ -65,6 +67,25 @@ local function makeLocationName(index, locationType, namePools, rng, usedNames)
     return string.format("%s %d", locationType or "settlement", index)
 end
 
+local function spawnLocationNpcs(location, locationType, rng, spawnRules)
+    local rules = spawnRules and spawnRules[locationType]
+    if not rules then
+        return
+    end
+
+    for _, rule in ipairs(rules) do
+        local chance = rule.chance or 1.0
+        local count = math.max(0, rule.count or 1)
+
+        for _ = 1, count do
+            if rng() <= chance then
+                local npc = Troop.new(rule.troopType)
+                location:addNPC(npc)
+            end
+        end
+    end
+end
+
 function LocationPopulationSystem.populate(map, generationData, options)
     options = options or {}
     local populationConfig = WorldGenerationConfig.locationPopulation
@@ -88,11 +109,11 @@ function LocationPopulationSystem.populate(map, generationData, options)
 
         local locationType = weightedChoice(typeWeights, rng)
         local locationId = string.format("settlement_%02d", index)
-
         local location = Location.new(
             locationId,
             makeLocationName(index, locationType, populationConfig.namePools, rng, usedNames)
         )
+
         location:setPosition(site.x, site.y)
         location.type = locationType
         location.faction = factions[((index - 1) % #factions) + 1]
@@ -100,6 +121,8 @@ function LocationPopulationSystem.populate(map, generationData, options)
         location.prosperity = randomRange(rng, populationConfig.prosperityByType[locationType])
         location.biomeId = site.biomeId
         location.siteId = site.id
+
+        spawnLocationNpcs(location, locationType, rng, LocationNpcSpawnRules)
 
         map:addLocation(location)
         table.insert(locations, location)

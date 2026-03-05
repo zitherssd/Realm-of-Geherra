@@ -156,6 +156,7 @@ systems/
 ├─ faction_system.lua
 ├─ reputation_system.lua
 ├─ quest_system.lua
+├─ quest_availability_system.lua -- NPC-owned procedural offer lifecycle and gating
 ├─ dialogue_system.lua
 ├─ loot_system.lua       -- Handles loot generation and distribution
 ├─ trade_system.lua      -- Handles buying/selling logic
@@ -329,6 +330,34 @@ This project uses a two-layer quest model:
   * Data defines template content
   * Systems own runtime state transitions
   * UI/dialogue only emits intent and reads state
+
+### NPC Quest Offer Availability (Location Entry Lifecycle)
+
+Procedural quest offers are owned by NPC runtime state, not UI state:
+
+1.  **Offer Profile Data (`data/npc_quest_pools.lua`)**
+    * Defines per-role quest generation rules (`rollChance`, `offerDurationDays`, `cooldownDays`, `questPool`)
+    * Role key is typically `npc.troopType` (for example `elder`, `trader`)
+
+2.  **Offer Runtime State (stored on NPC)**
+    * Each NPC may contain `npc.questOfferState`
+    * Tracks status and timing (`none`, `available`, `accepted`, `cooldown`)
+    * Stores active linkage (`questInstanceId`) while accepted
+
+3.  **Availability System (`systems/quest_availability_system.lua`)**
+    * Rolls offers on location entry
+    * Expires stale offers by day
+    * Locks NPC while an accepted quest is active
+    * Applies post-completion cooldown before NPC can roll again
+
+4.  **Location Entry Trigger (`game/states/location_state.lua`)**
+    * Calls availability refresh when entering a location
+    * Does not re-roll offers on state resume from dialogue
+
+5.  **Dialogue Gating (`game/states/dialogue_state.lua`)**
+    * Dialogue filters quest options based on NPC quest context
+    * Quest options are hidden unless pool/offer/turn-in requirements are satisfied
+    * Dialogue sends intent (`accept_available_quest`, `turn_in_available_quest`) to availability/quest systems
 
 ### time_system.lua
 
@@ -529,6 +558,8 @@ data/
 ├─ quests.lua
 ├─ dialogue.lua
 ├─ progression.lua
+├─ npc_quest_pools.lua
+├─ location_npc_spawn_rules.lua
 └─ world_generation.lua
 ```
 

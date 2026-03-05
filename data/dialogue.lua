@@ -14,7 +14,7 @@ return {
             {
                 text = "Welcome, traveler. I have a task for you.",
                 options = {
-                    {text = "What do you need?", next = "elder_request"},
+                    {text = "What do you need?", next = "elder_request", requiresQuestPool = true, requiresQuestOffer = true},
                     {text = "I'm not interested.", next = "end"}
                 }
             }
@@ -28,7 +28,7 @@ return {
             {
                 text = "A pack of wild dogs has been attacking our livestock. We need someone to drive them off.",
                 options = {
-                    {text = "I will handle it.", action = "accept_procedural_quest", questPool = {"hunt_dogs"}, next = "elder_quest_accepted"},
+                    {text = "I will handle it.", action = "accept_available_quest", next = "elder_quest_accepted", requiresQuestPool = true, requiresQuestOffer = true},
                     {text = "Not my problem.", next = "end"}
                 }
             }
@@ -68,8 +68,36 @@ return {
             {
                 text = "Have you dealt with the wild dogs?",
                 options = {
-                    {text = "Yes. The pack is gone.", action = "turn_in_quest", questId = "hunt_dogs", next = "elder_quest_completed"},
+                    {text = "Yes. The pack is gone.", action = "turn_in_available_quest", next = "elder_quest_completed", requiresQuestPool = true, requiresReadyToTurnIn = true},
                     {text = "Not yet.", next = "end"}
+                }
+            }
+        }
+    },
+
+    ["trader_greeting"] = {
+        id = "trader_greeting",
+        speaker = "Trader",
+        lines = {
+            {
+                text = "Good coin to you, traveler. If you seek work, I may have a contract.",
+                options = {
+                    {text = "Show me your contract.", action = "accept_available_quest", next = "end", requiresQuestPool = true, requiresQuestOffer = true},
+                    {text = "I have completed your contract.", action = "turn_in_available_quest", next = "end", requiresQuestPool = true, requiresReadyToTurnIn = true},
+                    {text = "Maybe later.", next = "end"}
+                }
+            }
+        }
+    },
+
+    ["npc_greeting"] = {
+        id = "npc_greeting",
+        speaker = "Local",
+        lines = {
+            {
+                text = "No work for you right now.",
+                options = {
+                    {text = "Understood.", next = "end"}
                 }
             }
         }
