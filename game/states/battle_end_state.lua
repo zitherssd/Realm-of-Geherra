@@ -16,7 +16,8 @@ function BattleEndState.enter(params)
         victory = params.victory or false,
         playerCasualties = params.playerCasualties or {},
         enemyCasualties = params.enemyCasualties or {},
-        loot = params.loot or {}
+        loot = params.loot or {},
+        gold = params.gold or 0
     }
     
     -- Initialize the UI Screen with a callback for the continue button

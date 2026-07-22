@@ -12,6 +12,8 @@ local RecruitmentSystem = require("systems.recruitment_system")
 local TimeSystem = require("systems.time_system")
 local AttributeSystem = require("systems.attribute_system")
 
+local DEFAULT_TAVERN_REST_COST = 20
+
 function LocationActions.exploreRuin(location)
     local enemyParty = Party.new("Ruin Guardians", nil)
     enemyParty.faction = "bandits"
@@ -216,6 +218,25 @@ function LocationActions.startRecruitmentDialogue(location)
         showFavor = true,
         favorCost = favorCost
     })
+end
+
+function LocationActions.payForTavernRest(location, cost)
+    local playerParty = GameContext.data.playerParty
+    if not playerParty then
+        return false, "You have no active party to charge."
+    end
+
+    local restCost = math.max(0, tonumber(cost) or DEFAULT_TAVERN_REST_COST)
+    local currentGold = playerParty:getTreasury()
+
+    if currentGold < restCost then
+        return false, string.format("You need %d gold to rest, but only have %d.", restCost, currentGold)
+    end
+
+    playerParty:withdrawTreasury(restCost)
+
+    local locationName = (location and location.name) or "the tavern"
+    return true, string.format("You pay %d gold and rest at %s.", restCost, locationName)
 end
 
 return LocationActions

@@ -23,7 +23,7 @@ function GameInitializer.initNewGame(options)
     -- Set game options
     GameContext.data.difficulty = options.difficulty or "normal"
     GameContext.data.playtime = 0
-    GameContext.data.favor = 5
+    GameContext.data.favor = 15
     
     -- Create player character
     local player = Troop.new("player")
@@ -34,6 +34,7 @@ function GameInitializer.initNewGame(options)
     playerParty:addActor(player)
     playerParty:addActor(Troop.new("companion"))
     playerParty:addActor(Troop.new("war_dog"))
+    playerParty:addTreasury(50)
 
     -- Starter inventory
     if Items["fire_wand"] then

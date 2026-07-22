@@ -1,21 +1,40 @@
 -- game/battle/battle_unit.lua
 -- Transient wrapper for an Actor during combat
--- Holds grid position, visual position, and current intent
+-- Holds world-space position, visual position, and current intent
 
 local BattleUnit = {}
 BattleUnit.__index = BattleUnit
 local Skills = require("data.skills")
 local EquipmentData = require("data.equipment")
 
-function BattleUnit.new(actor, gridX, gridY, team)
+local DEFAULT_MOVE_STEP = 24
+local DEFAULT_COLLISION_RADIUS = 18
+local DEFAULT_ATTACK_REACH = 8
+local DEFAULT_VISUAL_RADIUS = 24
+
+local function getVisualRadiusScale(size)
+    if not size then return 1.0 end
+    return 0.7 + (size * 0.1)
+end
+
+function BattleUnit.new(actor, worldX, worldY, team)
     local self = {
         -- Persistent Data Reference
         actor = actor,
         id = actor.id,
         
-        -- Logical State (Grid)
-        x = gridX,
-        y = gridY,
+        -- Logical State (World)
+        x = worldX,
+        y = worldY,
+        velocityX = 0,
+        velocityY = 0,
+        moveCooldown = 0,
+        moveStep = DEFAULT_MOVE_STEP,
+        collisionRadius = DEFAULT_COLLISION_RADIUS,
+        visualRadius = DEFAULT_VISUAL_RADIUS,
+        attackRange = DEFAULT_ATTACK_REACH,
+        moveTarget = nil,
+        state = "idle",
         team = team or "neutral", -- "player", "enemy", "ally"
         facing = 1, -- 1 = Left (Default), -1 = Right (Flipped)
         
@@ -61,6 +80,11 @@ function BattleUnit.new(actor, gridX, gridY, team)
     -- 1. Copy Base Stats
     if actor.stats then
         for k, v in pairs(actor.stats) do self.stats[k] = v end
+    end
+
+    -- Visual sizing is independent from gameplay collision.
+    if actor.size then
+        self.visualRadius = math.max(8, DEFAULT_VISUAL_RADIUS * getVisualRadiusScale(actor.size))
     end
     
     -- 2. Copy Learned Skills
@@ -121,10 +145,10 @@ function BattleUnit:canAct()
     return self.hp > 0 and self.globalCooldown <= 0
 end
 
--- Sync visual position immediately to grid (teleport)
-function BattleUnit:snapToGrid(cellSize)
-    self.visualX = (self.x - 1) * cellSize + (cellSize / 2)
-    self.visualY = (self.y - 1) * cellSize + (cellSize / 2)
+-- Sync visual position immediately to world position (teleport)
+function BattleUnit:snapToWorld()
+    self.visualX = self.x
+    self.visualY = self.y
 end
 
 return BattleUnit

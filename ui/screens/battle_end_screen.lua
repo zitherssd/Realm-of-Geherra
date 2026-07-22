@@ -92,6 +92,13 @@ function BattleEndScreen:draw()
     
     -- Loot
     drawList("Loot Gained", self.results.loot, colWidth * 2, {1, 0.8, 0.2, 1})
+
+    -- Gold gained
+    if self.results.gold and self.results.gold > 0 then
+        local goldY = startY + 30 + (#self.results.loot + 1) * lineHeight
+        love.graphics.setColor(1, 0.85, 0.1, 1)
+        love.graphics.printf("+" .. self.results.gold .. " Gold", colWidth * 2, goldY, colWidth, "center")
+    end
     
     -- 4. Draw Widgets
     self.continueButton:draw()

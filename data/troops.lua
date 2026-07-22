@@ -21,7 +21,7 @@ return {
             body = "leather_armor"
         },
         loot = {
-            {id = "gold_coin", chance = 1.0, min = 10, max = 50},
+            {currency = "gold", chance = 1.0, min = 10, max = 50},
             {id = "health_potion", chance = 0.2, min = 1, max = 1}
         },
         attributes = {
@@ -54,7 +54,7 @@ return {
         },
         size = 2,
         loot = {
-            {id = "gold_coin", chance = 0.6, min = 1, max = 15},
+            {currency = "gold", chance = 0.6, min = 1, max = 15},
             {id = "iron_sword", chance = 0.1, min = 1, max = 1}
         }
     },
@@ -76,7 +76,7 @@ return {
             body = "leather_armor"
         },
         loot = {
-            {id = "gold_coin", chance = 0.3, min = 1, max = 5}
+            {currency = "gold", chance = 0.3, min = 1, max = 5}
         }
     },
     
@@ -98,7 +98,7 @@ return {
             head = "helmet"
         },
         loot = {
-            {id = "gold_coin", chance = 0.8, min = 20, max = 100},
+            {currency = "gold", chance = 0.8, min = 20, max = 100},
             {id = "helmet", chance = 0.1, min = 1, max = 1}
         }
     },
@@ -174,6 +174,26 @@ return {
         },
         stats = {
             health = 28,
+            strength = 6,
+            defense = 4,
+            speed = 7
+        },
+        equipment = {
+            mainHand = "dagger"
+        }
+    },
+
+    ["tavern_keeper"] = {
+        id = "tavern_keeper",
+        name = "Tavern Keeper",
+        type = "tavern_keeper",
+        tags = {"civilian", "inn"},
+        sprite = {
+            "assets/sprites/units/town.png",
+            "assets/sprites/units/town2.png"
+        },
+        stats = {
+            health = 30,
             strength = 6,
             defense = 4,
             speed = 7

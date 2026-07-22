@@ -4,10 +4,17 @@
 
 local DecisionSystem = {}
 local Skills = require("data.skills")
+local WORLD_RANGE_SCALE = 42
+
+local function effectiveSkillRange(unit, target, skillData)
+    local baseRange = ((skillData and skillData.range) or 1.5) * WORLD_RANGE_SCALE
+    local attackerRadius = unit.collisionRadius or 0
+    local targetRadius = (target and target.collisionRadius) or 0
+    return baseRange + attackerRadius + targetRadius
+end
 
 function DecisionSystem.update(context)
     local units = context.data.unitList
-    local grid = context.data.grid
     local playerCommand = context.data.playerCommand
 
     for _, unit in ipairs(units) do
@@ -35,7 +42,6 @@ function DecisionSystem.update(context)
 end
 
 function DecisionSystem._processAI(unit, context)
-    local grid = context.data.grid
     -- Find nearest hostile
     local nearestTarget, minDist = context.findNearestHostile(unit)
 
@@ -49,7 +55,7 @@ function DecisionSystem._processAI(unit, context)
             local skillData = Skills[skillId]
             
             if skillData then
-                local range = skillData.range or 1.5
+                local range = effectiveSkillRange(unit, nearestTarget, skillData)
                 local rangeSq = range * range
                 local onCooldown = (unit.cooldowns[skillId] or 0) > 0
                 local hasCharges = true
@@ -88,29 +94,10 @@ function DecisionSystem._processAI(unit, context)
                 targetUnitId = intentTargetUnitId
             }
         else
-            -- Move towards target
-            local neighbors = grid:getNeighbors(unit.x, unit.y)
-            local bestMove = nil
-            local bestDist = minDist
-
-            for _, cell in ipairs(neighbors) do
-                if grid:hasCapacity(cell.x, cell.y, unit, context) then
-                    local dx = cell.x - nearestTarget.x
-                    local dy = cell.y - nearestTarget.y
-                    local d = dx*dx + dy*dy
-                    if d < bestDist then
-                        bestDist = d
-                        bestMove = cell
-                    end
-                end
-            end
-
-            if bestMove then
-                unit.intent = {
-                    type = "MOVE",
-                    target = {x = bestMove.x, y = bestMove.y}
-                }
-            end
+            unit.intent = {
+                type = "MOVE",
+                target = {x = nearestTarget.x, y = nearestTarget.y}
+            }
         end
     end
 end

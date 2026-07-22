@@ -1,24 +1,10 @@
 -- systems/battle/render_system.lua
--- Handles visual updates (lerping) and drawing
+-- Handles visual updates (lerping) and world-space drawing.
 
 local RenderSystem = {}
 
-local CELL_OFFSETS = {
-    [1] = {{0, 0}},
-    [2] = {{0.25, -0.25}, {-0.25, 0.25}},
-    [3] = {{0, -0.25}, {-0.25, 0.25}, {0.25, 0.25}},
-    [4] = {{-0.25, -0.25}, {0.25, -0.25}, {-0.25, 0.25}, {0.25, 0.25}},
-    [5] = {{0, 0}, {-0.3, -0.3}, {0.3, -0.3}, {-0.3, 0.3}, {0.3, 0.3}},
-    [6] = {{-0.15, -0.3}, {0.15, -0.3}, {-0.3, 0}, {0.3, 0}, {-0.15, 0.3}, {0.15, 0.3}},
-    [7] = {{0, 0}, {-0.3, -0.15}, {0.3, -0.15}, {-0.3, 0.15}, {0.3, 0.15}, {-0.15, -0.35}, {0.15, -0.35}},
-    [8] = {{-0.15, -0.35}, {0.15, -0.35}, {-0.35, -0.15}, {0.35, -0.15}, {-0.35, 0.15}, {0.35, 0.15}, {-0.15, 0.35}, {0.15, 0.35}},
-    [9] = {{0,0}, {-0.3, 0}, {0.3, 0}, {0, -0.3}, {0, 0.3}, {-0.3, -0.3}, {0.3, -0.3}, {-0.3, 0.3}, {0.3, 0.3}},
-    [10] = {{-0.15, -0.35}, {0.15, -0.35}, {-0.35, -0.15}, {0.35, -0.15}, {-0.35, 0.15}, {0.35, 0.15}, {-0.15, 0.35}, {0.15, 0.35}, {-0.15, 0}, {0.15, 0}}
-}
-
 local imageCache = {}
 
--- Simple Flash Shader
 local flashShader = love.graphics.newShader[[
     extern vec3 flashColor;
     extern number flashAmount;
@@ -52,7 +38,7 @@ local function getImage(path)
         if status then
             imageCache[path] = img
         else
-            imageCache[path] = false -- Mark as failed so we don't try again
+            imageCache[path] = false
         end
     end
     return imageCache[path] or nil
@@ -84,64 +70,26 @@ end
 
 function RenderSystem.update(dt, context)
     local units = context.data.unitList
-    local grid = context.data.grid
     local LERP_SPEED = 10.0
 
-    -- Pre-calculate target positions for all units
-    local unitTargetPositions = {}
-    if grid then
-        for x = 1, grid.width do
-            for y = 1, grid.height do
-                local occupants = grid:getOccupants(x, y)
-                local occupantCount = #occupants
-                if occupantCount > 0 then
-                    local offsets = CELL_OFFSETS[occupantCount] or {}
-                    for i, unitId in ipairs(occupants) do
-                        local unit = context.data.units[unitId]
-                        if unit then
-                            local cellCenterX, cellCenterY = grid:gridToWorld(unit.x, unit.y)
-                            local offsetX, offsetY = 0, 0
-                            if offsets[i] then
-                                offsetX = (offsets[i][1] or 0) * grid.cellSize
-                                offsetY = (offsets[i][2] or 0) * grid.cellSize
-                            end
-                            unitTargetPositions[unit.id] = {
-                                x = cellCenterX + offsetX,
-                                y = cellCenterY + offsetY
-                            }
-                        end
-                    end
-                end
-            end
-        end
-    end
-
     for _, unit in ipairs(units) do
-        -- Calculate target visual position from grid
-        local target = unitTargetPositions[unit.id]
-        if not target then
-            target = {x=0, y=0}
-            local targetX, targetY = grid:gridToWorld(unit.x, unit.y)
-            target.x = targetX
-            target.y = targetY
-        end
-        
-        -- Lerp visual position
-        local dx = target.x - unit.visualX
-        local dy = target.y - unit.visualY
-        
+        local targetX = unit.x
+        local targetY = unit.y
+
+        local dx = targetX - unit.visualX
+        local dy = targetY - unit.visualY
+
         if math.abs(dx) < 1 and math.abs(dy) < 1 then
-            unit.visualX = target.x
-            unit.visualY = target.y
+            unit.visualX = targetX
+            unit.visualY = targetY
         else
             unit.visualX = unit.visualX + dx * LERP_SPEED * dt
             unit.visualY = unit.visualY + dy * LERP_SPEED * dt
         end
-        
-        -- Update Visual Effects
+
         if unit.visualEffects then
             if unit.visualEffects.shakeTime > 0 then
-                unit.visualEffects.shakeTime = math.max(0, unit.visualEffects.shakeTime - dt) -- Decay in seconds
+                unit.visualEffects.shakeTime = math.max(0, unit.visualEffects.shakeTime - dt)
             end
             if unit.visualEffects.flashTime > 0 then
                 unit.visualEffects.flashTime = math.max(0, unit.visualEffects.flashTime - dt)
@@ -151,11 +99,10 @@ function RenderSystem.update(dt, context)
             end
         end
     end
-    
-    -- Update Projectiles (Visual Interpolation)
+
     local projectiles = context.data.projectiles
     if projectiles then
-        local PROJ_LERP = 15.0 -- Fast lerp for projectiles
+        local PROJ_LERP = 15.0
         for _, proj in ipairs(projectiles) do
             local dx = proj.x - proj.visualX
             local dy = proj.y - proj.visualY
@@ -184,7 +131,6 @@ function RenderSystem.update(dt, context)
         end
     end
 
-    -- Update transient VFX (explosions, etc.)
     local vfx = context.data.vfx
     if vfx then
         for i = #vfx, 1, -1 do
@@ -226,34 +172,30 @@ function RenderSystem.update(dt, context)
             end
         end
     end
-    
-    -- Update Camera
+
     local camera = context.data.camera
     local selectedUnitId = context.data.selectedUnitId
     local unit = context.data.units[selectedUnitId]
-    
+
     if camera and unit then
         local screenW = love.graphics.getWidth()
         local screenH = love.graphics.getHeight()
-        
-        -- Target is unit position centered on screen
+
         local targetX = unit.visualX - screenW / 2
         local targetY = unit.visualY - screenH / 2
-        
-        -- Lerp camera
+
         local camSpeed = 5.0
         camera.x = camera.x + (targetX - camera.x) * camSpeed * dt
         camera.y = camera.y + (targetY - camera.y) * camSpeed * dt
     end
-    
-    -- Update Floating Texts
+
     local texts = context.data.floatingTexts
     if texts then
         for i = #texts, 1, -1 do
             local txt = texts[i]
             txt.time = txt.time + dt
-            txt.offsetY = txt.offsetY - (30 * dt) -- Float up 30px/sec
-            
+            txt.offsetY = txt.offsetY - (30 * dt)
+
             if txt.time >= txt.duration then
                 table.remove(texts, i)
             end
@@ -262,92 +204,101 @@ function RenderSystem.update(dt, context)
 end
 
 function RenderSystem.draw(context)
-    local grid = context.data.grid
-    if not grid then return end
-    
     local camera = context.data.camera
+
     love.graphics.push()
     if camera then
         local screenW = love.graphics.getWidth()
         local screenH = love.graphics.getHeight()
         local zoom = camera.zoom or 1.0
-        
-        -- Scale around screen center
+
         love.graphics.translate(screenW / 2, screenH / 2)
         love.graphics.scale(zoom)
         love.graphics.translate(-screenW / 2, -screenH / 2)
-        
         love.graphics.translate(-math.floor(camera.x), -math.floor(camera.y))
     end
-    
-    -- 1. Draw Grid
-    love.graphics.setLineWidth(1)
-    for x = 1, grid.width do
-        for y = 1, grid.height do
-            local wx, wy = grid:gridToWorld(x, y)
-            local size = grid.cellSize
-            
-            -- Draw cell background
-            if grid:isWalkable(x, y) then
-                love.graphics.setColor(0.2, 0.2, 0.2, 0.5)
-            else
-                love.graphics.setColor(0.5, 0.2, 0.2, 0.5)
-            end
-            love.graphics.rectangle("fill", wx - size/2, wy - size/2, size, size)
-            
-            -- Draw cell border
-            love.graphics.setColor(0.3, 0.3, 0.3, 1)
-            love.graphics.rectangle("line", wx - size/2, wy - size/2, size, size)
-        end
+
+    local bounds = context.data.bounds
+    local debug = context.data.debug or {}
+    local showCollisionCircles = debug.showCollisionCircles == true
+    if bounds then
+        love.graphics.setColor(0.16, 0.16, 0.16, 0.85)
+        love.graphics.rectangle("fill", 0, 0, bounds.width, bounds.height)
+        love.graphics.setColor(0.25, 0.25, 0.25, 1)
+        love.graphics.setLineWidth(1)
+        love.graphics.rectangle("line", 0, 0, bounds.width, bounds.height)
     end
-    
-    -- 2. Draw Units
+
+    local sortedUnits = {}
     for _, unit in ipairs(context.data.unitList) do
         if unit.hp > 0 then
-            local sprite = getImage(unit.actor.sprite)
-            local drawX, drawY = unit.visualX, unit.visualY
-            local burnIntensity = getBurnIntensity(unit)
-            
-            -- Apply Shake Offset
+            table.insert(sortedUnits, unit)
+        end
+    end
+
+    table.sort(sortedUnits, function(a, b)
+        local ay = a.visualY or a.y or 0
+        local by = b.visualY or b.y or 0
+        if ay == by then
+            return (a.visualX or a.x or 0) < (b.visualX or b.x or 0)
+        end
+        return ay < by
+    end)
+
+    for _, unit in ipairs(sortedUnits) do
+        local sprite = getImage(unit.actor.sprite)
+        local drawX, drawY = unit.visualX, unit.visualY
+        local burnIntensity = getBurnIntensity(unit)
+        local collisionRadius = unit.collisionRadius or 18
+        local visualRadius = unit.visualRadius or collisionRadius
+
             if unit.visualEffects and unit.visualEffects.shakeTime > 0 then
-                local magnitude = 3 * (unit.visualEffects.shakeTime * 4) -- Decay magnitude (0.5s * 4 = 2 -> 6px offset)
+                local magnitude = 3 * (unit.visualEffects.shakeTime * 4)
                 drawX = drawX + (math.random() - 0.5) * magnitude
                 drawY = drawY + (math.random() - 0.5) * magnitude
             end
-            
-            -- Apply Lunge Offset
+
             if unit.visualEffects and unit.visualEffects.lungeTime > 0 then
                 local p = 1.0 - (unit.visualEffects.lungeTime / unit.visualEffects.lungeDuration)
-                local offset = math.sin(p * math.pi) * (grid.cellSize * 0.3) -- Lunge 20% of a cell
+                local offset = math.sin(p * math.pi) * (visualRadius * 1.25)
                 drawX = drawX + unit.visualEffects.lungeX * offset
                 drawY = drawY + unit.visualEffects.lungeY * offset
             end
-            
+
+            if showCollisionCircles then
+                if unit.team == "player" then
+                    love.graphics.setColor(0.3, 0.95, 0.3, 0.9)
+                elseif unit.team == "enemy" then
+                    love.graphics.setColor(0.95, 0.35, 0.35, 0.9)
+                else
+                    love.graphics.setColor(0.95, 0.95, 0.35, 0.9)
+                end
+                love.graphics.setLineWidth(1.5)
+                love.graphics.circle("line", drawX, drawY, collisionRadius)
+                love.graphics.circle("fill", drawX, drawY, 1.8)
+                love.graphics.setLineWidth(1)
+            end
+
             if sprite then
                 love.graphics.setColor(1, 1, 1, 1)
-                
-                -- Apply Flash Shader
+
                 if unit.visualEffects and unit.visualEffects.flashTime > 0 then
                     local baseIntensity = unit.visualEffects.flashIntensity or 0.7
                     local duration = unit.visualEffects.flashDuration or 1.0
-                    
-                    -- Calculate fade (1.0 -> 0.0)
                     local fade = math.min(1, math.max(0, unit.visualEffects.flashTime / duration))
                     local intensity = baseIntensity * fade
-                    
+
                     flashShader:send("flashColor", unit.visualEffects.flashColor)
                     flashShader:send("flashAmount", intensity)
                     love.graphics.setShader(flashShader)
                 end
-                
+
                 local w, h = sprite:getDimensions()
-                -- Scale to fit 80% of cell
-                local scale = (grid.cellSize * 0.8) / math.max(w, h)
-                love.graphics.draw(sprite, drawX, drawY, 0, scale * (unit.facing or 1), scale, w/2, h)
-                
-                love.graphics.setShader() -- Reset shader
+                local scale = (visualRadius * 2.0) / math.max(w, h)
+                love.graphics.draw(sprite, drawX, drawY, 0, scale * (unit.facing or 1), scale, w / 2, h)
+
+                love.graphics.setShader()
             else
-                -- Fallback: Colored Circle
                 if unit.team == "player" then
                     love.graphics.setColor(0.2, 0.8, 0.2, 1)
                 elseif unit.team == "enemy" then
@@ -355,7 +306,7 @@ function RenderSystem.draw(context)
                 else
                     love.graphics.setColor(0.8, 0.8, 0.2, 1)
                 end
-                love.graphics.circle("fill", drawX, drawY, grid.cellSize * 0.3)
+                love.graphics.circle("fill", drawX, drawY, visualRadius)
             end
 
             if burnIntensity > 0 then
@@ -366,32 +317,27 @@ function RenderSystem.draw(context)
                 love.graphics.setShader(fireballHeatShader)
                 love.graphics.setBlendMode("add")
                 love.graphics.setColor(1, 1, 1, 0.45 * burnIntensity)
-                love.graphics.circle("fill", drawX, drawY - grid.cellSize * 0.18, grid.cellSize * (0.42 + 0.08 * pulse))
+                love.graphics.circle("fill", drawX, drawY - visualRadius * 0.35, visualRadius * (1.2 + 0.2 * pulse))
                 love.graphics.setShader()
 
                 love.graphics.setColor(1, 0.5, 0.15, 0.35 * burnIntensity)
-                love.graphics.circle("line", drawX, drawY - grid.cellSize * 0.18, grid.cellSize * (0.48 + 0.08 * pulse))
+                love.graphics.circle("line", drawX, drawY - visualRadius * 0.35, visualRadius * (1.35 + 0.2 * pulse))
                 love.graphics.setBlendMode("alpha")
             end
-            
-            -- Draw HP Bar
-            local barWidth = grid.cellSize * 0.8
+
+            local barWidth = visualRadius * 2.2
             local barHeight = 4
             local barX = drawX - barWidth / 2
-            local barY = drawY + 5
-            
-            -- Background (Dark Red)
+            local barY = drawY + visualRadius - 6
+
             love.graphics.setColor(0.3, 0, 0, 1)
             love.graphics.rectangle("fill", barX, barY, barWidth, barHeight)
-            
-            -- Foreground (Green)
+
             local hpPercent = math.max(0, unit.hp / math.max(1, unit.maxHp))
             love.graphics.setColor(0.2, 0.8, 0.2, 1)
             love.graphics.rectangle("fill", barX, barY, barWidth * hpPercent, barHeight)
-        end
     end
-    
-    -- 3. Draw Projectiles
+
     local projectiles = context.data.projectiles
     if projectiles then
         for _, proj in ipairs(projectiles) do
@@ -430,59 +376,49 @@ function RenderSystem.draw(context)
                 love.graphics.circle("line", proj.visualX, proj.visualY, 17)
                 love.graphics.setBlendMode("alpha")
             elseif sprite then
-                -- Get target world coordinates from grid coordinates
-                local tx, ty = grid:gridToWorld(proj.targetGridX, proj.targetGridY)
+                local tx, ty = proj.targetX, proj.targetY
 
-                -- Recalculate progress based on visual position for smooth arc
                 local visualProgress = proj.progress or 0
-                local totalDist = math.sqrt((tx - proj.startX)^2 + (ty - proj.startY)^2)
+                local totalDist = math.sqrt((tx - proj.startX) ^ 2 + (ty - proj.startY) ^ 2)
                 if totalDist > 0 then
-                    local currentDist = math.sqrt((tx - proj.visualX)^2 + (ty - proj.visualY)^2)
+                    local currentDist = math.sqrt((tx - proj.visualX) ^ 2 + (ty - proj.visualY) ^ 2)
                     visualProgress = 1.0 - (currentDist / totalDist)
                 end
 
-                -- Calculate Arc Offset
                 local arcOffset = 0
                 if proj.arc and proj.arc > 0 then
                     arcOffset = -4 * proj.arc * visualProgress * (1 - visualProgress)
                 end
-                
-                -- Calculate Rotation
+
                 local dx = tx - proj.startX
                 local dy_linear = ty - proj.startY
                 local dy_arc = 0
                 if proj.arc and proj.arc > 0 then
-                    -- Derivative of the arc parabola
                     dy_arc = -4 * proj.arc * (1 - 2 * visualProgress)
                 end
 
                 local target_angle = math.atan2(dy_linear + dy_arc, dx)
-                
+
                 local horizontal_angle = 0
                 if dx < 0 then
                     horizontal_angle = math.pi
                 end
 
-                -- Interpolate between horizontal and target angle
                 local rotation = (horizontal_angle + target_angle) / 2
-                
-                -- Determine flip and adjust rotation
+
                 local sx = 1
                 if dx < 0 then
                     sx = -1
-                    -- We must adjust the angle to compensate for the horizontal flip
                     rotation = math.pi - rotation
                 end
 
                 local drawX = proj.visualX
                 local drawY = proj.visualY + arcOffset
-                
-                -- Draw centered
+
                 local w, h = sprite:getDimensions()
                 love.graphics.setColor(1, 1, 1, 1)
-                love.graphics.draw(sprite, drawX, drawY, rotation, sx, 1, w/2, h/2)
+                love.graphics.draw(sprite, drawX, drawY, rotation, sx, 1, w / 2, h / 2)
             else
-                -- Fallback projectile rendering (used by fireball if no sprite)
                 local pulse = 0.7 + 0.3 * math.sin(love.timer.getTime() * 24)
                 love.graphics.setBlendMode("add")
                 love.graphics.setColor(1, 0.65, 0.2, 0.28)
@@ -496,7 +432,6 @@ function RenderSystem.draw(context)
         end
     end
 
-    -- 4. Draw transient VFX
     local vfx = context.data.vfx
     if vfx then
         for _, effect in ipairs(vfx) do
@@ -540,8 +475,7 @@ function RenderSystem.draw(context)
             end
         end
     end
-    
-    -- 5. Draw Floating Texts
+
     local texts = context.data.floatingTexts
     if texts then
         for _, txt in ipairs(texts) do
@@ -550,7 +484,7 @@ function RenderSystem.draw(context)
             love.graphics.print(txt.text, txt.x - 5, txt.y + txt.offsetY - 20, 0, 0.7, 0.7)
         end
     end
-    
+
     love.graphics.pop()
 end
 

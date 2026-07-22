@@ -11,7 +11,7 @@ return {
         windup = 40,
         cooldown = 10,
         cost = 0,
-        range = 1.5,
+        range = 0.3,
     },
     
     ["bite"] = {
@@ -23,7 +23,7 @@ return {
         windup = 15,
         cooldown = 22,
         cost = 0,
-        range = 1.5,
+        range = 0.2,
     },
 
     ["dagger"] = {
@@ -35,7 +35,7 @@ return {
         windup = 0,
         cooldown = 40,
         cost = 0,
-        range = 1.5,
+        range = 0.2,
     },
 
     ["fireball"] = {

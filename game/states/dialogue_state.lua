@@ -11,6 +11,7 @@ local LocationActions = require("systems.location_actions")
 local QuestSystem = require("systems.quest_system")
 local QuestAvailabilitySystem = require("systems.quest_availability_system")
 local GameContext = require("game.game_context")
+local WorldState = require("game.states.world_state")
 
 local function cloneDialogueTree(dialogueTree)
     if not dialogueTree then return nil end
@@ -222,6 +223,23 @@ function DialogueState.enter(params)
                     showFavor = true,
                     favorCost = favorCost
                 })
+            elseif choice.action == "pay_for_rest" then
+                local paid, resultText = LocationActions.payForTavernRest(location, choice.cost)
+                if paid then
+                    WorldState.requestRestMode(true)
+                    StateManager.swap("world")
+                    return
+                else
+                    StateManager.swap("dialogue", {
+                        dialogueTree = {
+                            speaker = "System",
+                            lines = {
+                                { text = resultText, options = {{ text = "Continue", next = "end" }} }
+                            }
+                        },
+                        location = location
+                    })
+                end
             elseif choice.action == "accept_quest" then
                 local questId = choice.questId
                 if questId then

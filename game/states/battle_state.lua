@@ -4,7 +4,6 @@
 
 local Input = require("core.input")
 local BattleContext = require("game.battle.battle_context")
-local BattleGrid = require("game.battle.battle_grid")
 local BattleUnit = require("game.battle.battle_unit")
 local StateManager = require("core.state_manager")
 local Skills = require("data.skills")
@@ -13,18 +12,35 @@ local EventBus = require("core.event_bus")
 local PartySystem = require("systems.party_system")
 local BattleState = {}
 
--- Systems
 local DecisionSystem = require("systems.battle.decision_system")
 local ExecutionSystem = require("systems.battle.execution_system")
 local RenderSystem = require("systems.battle.render_system")
 
 local GameContext = require("game.game_context")
--- Constants
-local TICK_RATE = 1 / 20 -- 20 ticks per second
+
+local TICK_RATE = 1 / 20
 local MAX_FRAME_SKIP = 5
+local WORLD_RANGE_SCALE = 32
+local WORLD_BOUNDS = {
+    width = 1260,
+    height = 546
+}
 
 local function isTargetedAoeSkill(skillData)
     return skillData and skillData.type == "aoe" and skillData.targeted == true
+end
+
+local function worldToScreen(context, worldX, worldY)
+    local camera = context.data.camera
+    local screenW = love.graphics.getWidth()
+    local screenH = love.graphics.getHeight()
+    local zoom = (camera and camera.zoom) or 1.0
+    local camX = (camera and camera.x) or 0
+    local camY = (camera and camera.y) or 0
+
+    local sx = ((worldX - camX) - screenW / 2) * zoom + screenW / 2
+    local sy = ((worldY - camY) - screenH / 2) * zoom + screenH / 2
+    return sx, sy, zoom
 end
 
 local function getNearestEnemyUnit(playerUnit)
@@ -47,87 +63,66 @@ local function getNearestEnemyUnit(playerUnit)
     return nearestEnemy
 end
 
-local function battleGridToScreen(context, gx, gy)
-    local grid = context.data.grid
-    local camera = context.data.camera
-    local worldX, worldY = grid:gridToWorld(gx, gy)
-    local screenW = love.graphics.getWidth()
-    local screenH = love.graphics.getHeight()
-    local zoom = (camera and camera.zoom) or 1.0
-    local camX = (camera and camera.x) or 0
-    local camY = (camera and camera.y) or 0
-
-    local sx = ((worldX - camX) - screenW / 2) * zoom + screenW / 2
-    local sy = ((worldY - camY) - screenH / 2) * zoom + screenH / 2
-    return sx, sy, grid.cellSize * zoom
-end
-
 function BattleState.enter(params)
     params = params or {}
     local enemyParty = params.enemyParty
     BattleState.enemyParty = enemyParty
     print(string.format("BattleState: Battle started against party ID: '%s'", tostring(enemyParty and enemyParty.id)))
-    
-    -- Initialize battle with 30x13 grid, 42px cells
-    local grid = BattleGrid.new(30, 13, 42)
-    BattleContext.init(grid)
-    
-    -- Convert Player Party to BattleUnits
+
+    BattleContext.init(WORLD_BOUNDS)
+
     local playerParty = GameContext.data.playerParty
     if playerParty and playerParty.actors then
-        local startX = 3
-        local startY = 3
-        
+        local startX = 180
+        local startY = 120
+        local spacingX = 72
+        local spacingY = 78
+
         for i, actor in ipairs(playerParty.actors) do
-            -- Simple formation logic: stack vertically
-            local x = startX + math.floor((i-1)/5)
-            local y = startY + ((i-1) % 5) * 2
-            
+            local x = startX + math.floor((i - 1) / 5) * spacingX
+            local y = startY + ((i - 1) % 5) * spacingY
+
             local unit = BattleUnit.new(actor, x, y, "player")
-            unit:snapToGrid(grid.cellSize)
+            unit:snapToWorld()
             BattleContext.addUnit(unit)
-            
-            -- Auto-select the first player unit (usually leader)
+
             if i == 1 then
                 BattleContext.data.selectedUnitId = unit.id
             end
         end
     end
-    
-    -- Convert Enemy Party to BattleUnits
+
     if enemyParty and enemyParty.actors then
-        local startX = 26
-        local startY = 3
-        
+        local startX = WORLD_BOUNDS.width - 180
+        local startY = 120
+        local spacingX = 72
+        local spacingY = 78
+
         for i, actor in ipairs(enemyParty.actors) do
-            local x = startX - math.floor((i-1)/5)
-            local y = startY + ((i-1) % 5) * 2
-            
+            local x = startX - math.floor((i - 1) / 5) * spacingX
+            local y = startY + ((i - 1) % 5) * spacingY
+
             local unit = BattleUnit.new(actor, x, y, "enemy")
-            unit:snapToGrid(grid.cellSize)
+            unit:snapToWorld()
             BattleContext.addUnit(unit)
         end
     end
 end
 
 function BattleState.exit()
-    -- Cleanup battle state
     BattleState.enemyParty = nil
 end
 
 function BattleState.update(dt)
     if BattleContext.data.paused then return end
-    
-    -- Update Input Cooldown
+
     if BattleContext.data.inputCooldown > 0 then
         BattleContext.data.inputCooldown = BattleContext.data.inputCooldown - dt
     end
 
-    -- 1. Input Handling
     local playerUnit = BattleContext.data.units[BattleContext.data.selectedUnitId]
     local targetingMode = BattleContext.data.targetingMode
-    
-    -- Tab: Cycle Skills
+
     if not targetingMode and Input.isKeyDown("tab") and BattleContext.data.inputCooldown <= 0 then
         BattleContext.data.selectedSkillIndex = BattleContext.data.selectedSkillIndex + 1
         if playerUnit and playerUnit.skillList then
@@ -140,7 +135,6 @@ function BattleState.update(dt)
         BattleContext.data.inputCooldown = 0.2
     end
 
-    -- Only accept input if the player unit is ready to act
     if playerUnit and playerUnit:canAct() then
         if targetingMode then
             local dx, dy = 0, 0
@@ -150,35 +144,35 @@ function BattleState.update(dt)
             if Input.isKeyDown("d") or Input.isKeyDown("right") then dx = 1 end
 
             if (dx ~= 0 or dy ~= 0) and BattleContext.data.inputCooldown <= 0 then
-                local grid = BattleContext.data.grid
-                local cell = BattleContext.data.targetingCell
-                if grid and cell then
-                    local tx = math.max(1, math.min(grid.width, cell.x + dx))
-                    local ty = math.max(1, math.min(grid.height, cell.y + dy))
-                    BattleContext.data.targetingCell = {x = tx, y = ty}
+                local target = BattleContext.data.targetingPoint
+                if target then
+                    local step = 28
+                    local tx = math.max(0, math.min(WORLD_BOUNDS.width, target.x + dx * step))
+                    local ty = math.max(0, math.min(WORLD_BOUNDS.height, target.y + dy * step))
+                    BattleContext.data.targetingPoint = {x = tx, y = ty}
                     BattleContext.data.inputCooldown = 0.12
                 end
             end
 
             if (Input.isKeyDown("space") or Input.isKeyDown("return")) and BattleContext.data.inputCooldown <= 0 then
-                local cell = BattleContext.data.targetingCell
+                local point = BattleContext.data.targetingPoint
                 local skillId = BattleContext.data.targetingSkillId
-                if cell and skillId then
+                if point and skillId then
                     BattleContext.data.playerCommand = {
                         type = "SKILL",
                         skillId = skillId,
-                        target = {x = cell.x, y = cell.y},
+                        target = {x = point.x, y = point.y},
                         unitId = playerUnit.id
                     }
                 end
                 BattleContext.data.targetingMode = false
                 BattleContext.data.targetingSkillId = nil
-                BattleContext.data.targetingCell = nil
+                BattleContext.data.targetingPoint = nil
                 BattleContext.data.inputCooldown = 0.2
             elseif Input.isKeyDown("escape") and BattleContext.data.inputCooldown <= 0 then
                 BattleContext.data.targetingMode = false
                 BattleContext.data.targetingSkillId = nil
-                BattleContext.data.targetingCell = nil
+                BattleContext.data.targetingPoint = nil
                 BattleContext.data.inputCooldown = 0.2
             end
         else
@@ -188,19 +182,17 @@ function BattleState.update(dt)
             if Input.isKeyDown("a") or Input.isKeyDown("left") then dx = -1 end
             if Input.isKeyDown("d") or Input.isKeyDown("right") then dx = 1 end
 
-            if (dx ~= 0 or dy ~= 0) then
-                -- Calculate target grid position
-                local tx, ty = playerUnit.x + dx, playerUnit.y + dy
+            if dx ~= 0 or dy ~= 0 then
+                local targetX = playerUnit.x + dx * (playerUnit.moveStep or 24)
+                local targetY = playerUnit.y + dy * (playerUnit.moveStep or 24)
 
-                -- Issue Move Command
                 BattleContext.data.playerCommand = {
                     type = "MOVE",
-                    target = {x = tx, y = ty},
+                    target = {x = targetX, y = targetY},
                     unitId = playerUnit.id
                 }
             end
 
-            -- Space: Use Selected Skill
             if Input.isKeyDown("space") and BattleContext.data.inputCooldown <= 0 then
                 if playerUnit.skillList and #playerUnit.skillList > 0 then
                     local skillId = playerUnit.skillList[BattleContext.data.selectedSkillIndex]
@@ -209,22 +201,24 @@ function BattleState.update(dt)
                     if skillData then
                         if isTargetedAoeSkill(skillData) then
                             local nearestEnemy = getNearestEnemyUnit(playerUnit)
-                            local defaultCell = nearestEnemy and {x = nearestEnemy.x, y = nearestEnemy.y} or {x = playerUnit.x, y = playerUnit.y}
+                            local defaultPoint = nearestEnemy and {x = nearestEnemy.x, y = nearestEnemy.y} or {x = playerUnit.x, y = playerUnit.y}
                             BattleContext.data.targetingMode = true
                             BattleContext.data.targetingSkillId = skillId
-                            BattleContext.data.targetingCell = defaultCell
+                            BattleContext.data.targetingPoint = defaultPoint
                             BattleContext.data.inputCooldown = 0.2
                         else
-                            -- Find best target (nearest enemy in range)
                             local bestTarget = nil
                             local minDist = math.huge
-                            local rangeSq = (skillData.range or 1.5) * (skillData.range or 1.5)
 
                             for _, other in ipairs(BattleContext.data.unitList) do
                                 if other.team ~= playerUnit.team and other.hp > 0 then
+                                    local baseRange = (skillData.range or 1.5) * WORLD_RANGE_SCALE
+                                    local effectiveRange = baseRange + (playerUnit.collisionRadius or 0) + (other.collisionRadius or 0)
+                                    local rangeSq = effectiveRange * effectiveRange
+
                                     local tdx = playerUnit.x - other.x
                                     local tdy = playerUnit.y - other.y
-                                    local dist = tdx*tdx + tdy*tdy
+                                    local dist = tdx * tdx + tdy * tdy
 
                                     if dist <= rangeSq and dist < minDist then
                                         minDist = dist
@@ -249,14 +243,11 @@ function BattleState.update(dt)
         end
     end
 
-    -- 2. Tick Loop
     local waitingForInput = false
-    
-    -- Pause simulation if player can act but hasn't issued a command
     if playerUnit and playerUnit:canAct() and not BattleContext.data.playerCommand then
         waitingForInput = true
     end
-    
+
     if not waitingForInput then
         BattleContext.data.accumulator = BattleContext.data.accumulator + dt
         local loops = 0
@@ -267,56 +258,53 @@ function BattleState.update(dt)
         end
     end
 
-    -- 3. Render System (Visual Interpolation)
     RenderSystem.update(dt, BattleContext)
-    
-    -- 4. Check Battle End Condition
     BattleState.checkBattleEnd()
 end
 
 function BattleState.checkBattleEnd()
     local playerAlive = false
     local enemyAlive = false
-    
-    -- Check living units
-    for id, unit in pairs(BattleContext.data.units) do
+
+    for _, unit in pairs(BattleContext.data.units) do
         if unit.hp > 0 then
             if unit.team == "player" then playerAlive = true end
             if unit.team == "enemy" then enemyAlive = true end
         end
     end
-    
-    -- Collect casualties from Context
+
     local playerCasualties = {}
     local enemyCasualties = {}
     local generatedLoot = {}
-    
+    local generatedGold = 0
+
     for _, unit in ipairs(BattleContext.data.casualties) do
         local name = unit.name or (unit.actor and unit.actor.name) or "Unknown Unit"
         if unit.team == "player" then
             table.insert(playerCasualties, name)
         elseif unit.team == "enemy" then
             table.insert(enemyCasualties, name)
-            
-            -- Generate Loot
+
             if unit.actor and unit.actor.troopType then
-                LootGeneratorSystem.generateFromTroop(unit.actor.troopType, generatedLoot)
+                local _, goldFromUnit = LootGeneratorSystem.generateFromTroop(unit.actor.troopType, generatedLoot)
+                generatedGold = generatedGold + (goldFromUnit or 0)
             end
         end
     end
-    
+
     if not playerAlive or not enemyAlive then
-        -- Sync Battle State back to World State (Persistence)
         local playerParty = GameContext.data.playerParty
-        
-        -- 1. Update Survivors HP
+
+        if playerAlive and playerParty and generatedGold > 0 then
+            playerParty:addTreasury(generatedGold)
+        end
+
         for _, unit in pairs(BattleContext.data.units) do
             if unit.actor and unit.team == "player" then
                 unit.actor.hp = unit.hp
             end
         end
 
-        -- 2. Remove Casualties from Party
         for _, unit in ipairs(BattleContext.data.casualties) do
             if unit.actor and unit.team == "player" then
                 unit.actor.hp = 0
@@ -330,7 +318,6 @@ function BattleState.checkBattleEnd()
             EventBus.emit("party_killed", BattleState.enemyParty.id)
         end
 
-        -- Calculate favor gained (Base 5 + 1 per enemy casualty)
         local favorGained = playerAlive and (5 + #enemyCasualties) or 0
 
         StateManager.swap("battle_end", {
@@ -338,6 +325,7 @@ function BattleState.checkBattleEnd()
             playerCasualties = playerCasualties,
             enemyCasualties = enemyCasualties,
             loot = playerAlive and generatedLoot or {},
+            gold = playerAlive and generatedGold or 0,
             favor = favorGained
         })
     end
@@ -345,90 +333,78 @@ end
 
 function BattleState._tick()
     BattleContext.data.tick = BattleContext.data.tick + 1
-    
-    -- 1. Decision System: Every tick, units decide what they want to do
+
     DecisionSystem.update(BattleContext)
-    
-    -- 2. Execution System: Resolve intents and update state
     ExecutionSystem.update(BattleContext)
-    
-    -- 3. Cleanup: Move dead units to casualties list
     BattleContext.removeDeadUnits()
 end
 
 function BattleState.draw()
     love.graphics.clear(0.1, 0.1, 0.1)
-    
+
     RenderSystem.draw(BattleContext)
-    
+
     love.graphics.setColor(1, 1, 1)
     love.graphics.print("Battle Tick: " .. tostring(BattleContext.data.tick), 10, 10)
-    
+
     local playerUnit = BattleContext.data.units[BattleContext.data.selectedUnitId]
     if playerUnit and playerUnit:canAct() and not BattleContext.data.playerCommand then
         love.graphics.setColor(1, 1, 0)
         love.graphics.print("Waiting for Input...", 10, 30)
     end
 
-    if BattleContext.data.targetingMode and BattleContext.data.targetingCell then
-        local tx = BattleContext.data.targetingCell.x
-        local ty = BattleContext.data.targetingCell.y
-        local sx, sy, drawSize = battleGridToScreen(BattleContext, tx, ty)
+    if BattleContext.data.targetingMode and BattleContext.data.targetingPoint then
+        local tx = BattleContext.data.targetingPoint.x
+        local ty = BattleContext.data.targetingPoint.y
+        local sx, sy, zoom = worldToScreen(BattleContext, tx, ty)
         love.graphics.setColor(1, 0.1, 0.1, 1)
         love.graphics.setLineWidth(3)
-        love.graphics.rectangle("line", sx - drawSize / 2, sy - drawSize / 2, drawSize, drawSize)
+        love.graphics.circle("line", sx, sy, 18 * zoom)
         love.graphics.setLineWidth(1)
         love.graphics.print("TARGETING MODE", 10, 50)
     end
 
-    -- Draw Player Skills UI
     if playerUnit and playerUnit.skillList then
         local screenW = love.graphics.getWidth()
         local uiX = screenW - 220
         local uiY = 20
-        
-        -- Background
+
         love.graphics.setColor(0, 0, 0, 0.7)
         love.graphics.rectangle("fill", uiX, uiY, 200, #playerUnit.skillList * 40 + 10)
-        
+
         for i, skillId in ipairs(playerUnit.skillList) do
             local skill = Skills[skillId]
             if skill then
-                local y = uiY + 10 + (i-1)*40
-                
-                -- Highlight selected
+                local y = uiY + 10 + (i - 1) * 40
+
                 if i == BattleContext.data.selectedSkillIndex then
                     love.graphics.setColor(1, 1, 0, 0.3)
                     love.graphics.rectangle("fill", uiX + 5, y, 190, 35)
                 end
-                
-                -- Windup Progress (Filling Up)
+
                 if playerUnit.currentCast and playerUnit.currentCast.skillId == skillId then
                     local total = skill.windup or 1
                     local current = playerUnit.currentCast.remaining
                     local progress = math.max(0, math.min(1, 1.0 - (current / total)))
-                    
-                    love.graphics.setColor(0.2, 0.8, 1, 0.5) -- Cyan fill
+
+                    love.graphics.setColor(0.2, 0.8, 1, 0.5)
                     love.graphics.rectangle("fill", uiX + 5, y, 190 * progress, 35)
-                -- Cooldown Progress (Decreasing)
                 elseif (playerUnit.cooldowns[skillId] or 0) > 0 then
                     local total = skill.cooldown or 20
                     local current = playerUnit.cooldowns[skillId]
                     local progress = math.max(0, math.min(1, current / total))
-                    
-                    love.graphics.setColor(1, 0.5, 0, 0.3) -- Orange/Red tint for cooldown
+
+                    love.graphics.setColor(1, 0.5, 0, 0.3)
                     love.graphics.rectangle("fill", uiX + 5, y, 190 * progress, 35)
                 end
-                
-                -- Text
+
                 love.graphics.setColor(1, 1, 1, 1)
                 love.graphics.print(skill.name, uiX + 10, y + 5)
-                
-                -- Cooldown / Charges
+
                 local cd = playerUnit.cooldowns[skillId] or 0
                 if cd > 0 then
                     love.graphics.setColor(1, 0, 0, 1)
-                    love.graphics.print(string.format("%.1fs", cd/20), uiX + 150, y + 5)
+                    love.graphics.print(string.format("%.1fs", cd / 20), uiX + 150, y + 5)
                 elseif playerUnit.charges[skillId] then
                     love.graphics.setColor(0, 1, 1, 1)
                     local max = skill.maxCharges or "?"

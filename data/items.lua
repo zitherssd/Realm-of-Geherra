@@ -50,14 +50,5 @@ return {
         weight = 5.0,
         value = 150,
         stats = {defense = 5}
-    },
-    
-    ["gold_coin"] = {
-        id = "gold_coin",
-        name = "Gold Coin",
-        type = "currency",
-        description = "Standard currency",
-        weight = 0.01,
-        value = 1
     }
 }

@@ -14,40 +14,82 @@ local WorldState = {
     camera = nil,
     currentMap = nil,
     playerPartySpeed = 200,  -- pixels per second
+    passiveHealSecondsToFull = 300,
+    restHealMultiplier = 10,
     nearbyParty = nil,       -- The party currently in interaction range
     nearbyLocation = nil,    -- The location currently in interaction range
     font = nil,
-    interactionCooldowns = {}
+    interactionCooldowns = {},
+    isResting = false,
+    restInputLock = 0,
+    restModeRequested = false
 }
 
-function WorldState.enter()
-    -- Get the current map from game context (should be initialized by GameInitializer)
+local function healPartyOverTime(dt, multiplier)
+    local playerParty = GameContext.data.playerParty
+    if not playerParty then return end
+
+    local secondsToFull = math.max(1, WorldState.passiveHealSecondsToFull)
+    local appliedMultiplier = math.max(0, multiplier or 1)
+
+    for _, actor in ipairs(playerParty:getActors() or {}) do
+        if actor and actor.stats and actor.stats.health then
+            local maxHp = actor.stats.health
+            local currentHp = actor.hp or maxHp
+            local healPerSecond = (maxHp / secondsToFull) * appliedMultiplier
+            actor.hp = math.min(maxHp, currentHp + healPerSecond * dt)
+        end
+    end
+end
+
+local function initializeWorldPresentation()
     WorldState.currentMap = GameContext.data.currentMap
-    
+
     if not WorldState.currentMap then
         error("World state entered without initialized map. Call GameInitializer.initNewGame() first.")
     end
-    
-    -- Initialize camera
+
     local screenWidth = love.graphics.getWidth()
     local screenHeight = love.graphics.getHeight()
     WorldState.camera = Camera.new(screenWidth, screenHeight)
-    
-    -- Set camera bounds based on map size
     WorldState.camera:setBounds(0, 0, WorldState.currentMap.width, WorldState.currentMap.height)
-    
-    -- Initialize camera position to follow player party
+
     local playerParty = GameContext.data.playerParty
     if playerParty then
         WorldState.camera.x = playerParty.x
         WorldState.camera.y = playerParty.y
-        WorldState.nearbyLocation = nil
-        WorldState.nearbyParty = nil
     end
+
+    WorldState.nearbyLocation = nil
+    WorldState.nearbyParty = nil
+end
+
+function WorldState.enter()
+    initializeWorldPresentation()
     
     -- Initialize UI font
     WorldState.font = love.graphics.newFont(14)
     WorldState.interactionCooldowns = {}
+    WorldState.isResting = WorldState.restModeRequested and true or false
+    WorldState.restModeRequested = false
+    WorldState.restInputLock = WorldState.isResting and 0.2 or 0
+end
+
+function WorldState.requestRestMode(enabled)
+    WorldState.restModeRequested = enabled and true or false
+end
+
+function WorldState.resume()
+    if not WorldState.currentMap or not WorldState.camera then
+        initializeWorldPresentation()
+    end
+
+    if not WorldState.font then
+        WorldState.font = love.graphics.newFont(14)
+    end
+
+    WorldState.isResting = false
+    WorldState.restInputLock = 0
 end
 
 function WorldState.exit()
@@ -61,6 +103,15 @@ end
 function WorldState.update(dt)
     local playerParty = GameContext.data.playerParty
     if not playerParty or not WorldState.currentMap then return end
+
+    if WorldState.restInputLock > 0 then
+        WorldState.restInputLock = math.max(0, WorldState.restInputLock - dt)
+    end
+
+    if WorldState.isResting and WorldState.restInputLock <= 0 and Input.isKeyDown("escape") then
+        StateManager.pop()
+        return
+    end
     
     -- Update interaction cooldowns
     for id, timer in pairs(WorldState.interactionCooldowns) do
@@ -71,13 +122,13 @@ function WorldState.update(dt)
     end
     
     -- Open Inventory
-    if Input.isKeyDown("i") then
+    if not WorldState.isResting and Input.isKeyDown("i") then
         StateManager.push("inventory")
         return
     end
     
     -- Open Quest Log
-    if Input.isKeyDown("l") then
+    if not WorldState.isResting and Input.isKeyDown("l") then
         StateManager.push("quest_log")
         return
     end
@@ -85,29 +136,35 @@ function WorldState.update(dt)
     -- Handle player movement and time progression
     local moveX, moveY = 0, 0
     
-    if Input.isKeyDown("up") or Input.isKeyDown("w") then
+    if not WorldState.isResting and (Input.isKeyDown("up") or Input.isKeyDown("w")) then
         moveY = moveY - 1
     end
-    if Input.isKeyDown("down") or Input.isKeyDown("s") then
+    if not WorldState.isResting and (Input.isKeyDown("down") or Input.isKeyDown("s")) then
         moveY = moveY + 1
     end
-    if Input.isKeyDown("left") or Input.isKeyDown("a") then
+    if not WorldState.isResting and (Input.isKeyDown("left") or Input.isKeyDown("a")) then
         moveX = moveX - 1
     end
-    if Input.isKeyDown("right") or Input.isKeyDown("d") then
+    if not WorldState.isResting and (Input.isKeyDown("right") or Input.isKeyDown("d")) then
         moveX = moveX + 1
     end
     
     -- Check if player is waiting (Spacebar)
-    local isWaiting = Input.isKeyDown("space")
+    local isWaiting = (not WorldState.isResting) and Input.isKeyDown("space")
     local isMoving = (moveX ~= 0 or moveY ~= 0)
+    local shouldAdvanceTime = WorldState.isResting or isMoving or isWaiting
     
     -- Only advance time if moving or waiting
-    if isMoving or isWaiting then
+    if shouldAdvanceTime then
         TimeSystem.setPaused(false)
         TimeSystem.update(dt)
     else
         TimeSystem.setPaused(true)
+    end
+
+    if shouldAdvanceTime then
+        local healMultiplier = WorldState.isResting and WorldState.restHealMultiplier or 1
+        healPartyOverTime(dt, healMultiplier)
     end
     
     -- Normalize diagonal movement
@@ -148,6 +205,10 @@ function WorldState.update(dt)
     WorldState.camera:update(dt, playerParty)
 
     local interactionRadius = 30
+
+    if WorldState.isResting then
+        return
+    end
 
     -- Check for locations
     WorldState.nearbyLocation = nil
