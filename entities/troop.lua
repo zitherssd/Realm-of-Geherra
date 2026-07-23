@@ -26,6 +26,10 @@ function Troop.new(troopType, id)
             for k, v in pairs(data.stats) do
                 self.stats[k] = v
             end
+            if data.stats.health then
+                self.maxHp = data.stats.health
+                self.hp = self.maxHp
+            end
         end
 
         if data.size then

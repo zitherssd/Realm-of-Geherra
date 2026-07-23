@@ -27,21 +27,48 @@ function GameInitializer.initNewGame(options)
     
     -- Create player character
     local player = Troop.new("player")
+    player.attributes.shadowcraft = 2  -- Allow equipping poison dagger
     GameContext.setPlayer(player)
     
     -- Create player party
     local playerParty = Party.new(options.playerName or "Wanderer", player.id, "party_player")
     playerParty:addActor(player)
-    playerParty:addActor(Troop.new("companion"))
     playerParty:addActor(Troop.new("war_dog"))
     playerParty:addTreasury(50)
 
-    -- Starter inventory
+    -- Starter inventory (for testing)
+    if Items["iron_sword"] then
+        table.insert(playerParty.inventory, Items["iron_sword"])
+    end
+    if Items["fire_sword"] then
+        table.insert(playerParty.inventory, Items["fire_sword"])
+    end
+    if Items["ice_sword"] then
+        table.insert(playerParty.inventory, Items["ice_sword"])
+    end
     if Items["fire_wand"] then
         table.insert(playerParty.inventory, Items["fire_wand"])
     end
     if Items["dagger"] then
         table.insert(playerParty.inventory, Items["dagger"])
+    end
+    if Items["poison_dagger"] then
+        table.insert(playerParty.inventory, Items["poison_dagger"])
+    end
+    if Items["javelin"] then
+        table.insert(playerParty.inventory, Items["javelin"])
+    end
+    if Items["leather_armor"] then
+        table.insert(playerParty.inventory, Items["leather_armor"])
+    end
+    if Items["helmet"] then
+        table.insert(playerParty.inventory, Items["helmet"])
+    end
+    if Items["boots"] then
+        table.insert(playerParty.inventory, Items["boots"])
+    end
+    if Items["wooden_shield"] then
+        table.insert(playerParty.inventory, Items["wooden_shield"])
     end
 
     GameContext.data.playerParty = playerParty

@@ -4,7 +4,13 @@
 local InventoryGrid = {}
 InventoryGrid.__index = InventoryGrid
 
-function InventoryGrid.new(title, items, x, y, w, h, cellSize, onItemClick)
+local function newPixelFont(size)
+    local font = love.graphics.newFont(size)
+    font:setFilter("nearest", "nearest")
+    return font
+end
+
+function InventoryGrid.new(title, items, x, y, w, h, cellSize, onItemClick, header)
     local self = setmetatable({}, InventoryGrid)
     self.title = title
     self.items = items or {}
@@ -15,12 +21,22 @@ function InventoryGrid.new(title, items, x, y, w, h, cellSize, onItemClick)
     self.cellSize = cellSize or 64
     self.padding = 5
     self.onItemClick = onItemClick
+    self.header = header
+    self.headerFont = newPixelFont(18)
+    self.itemFont = newPixelFont(13)
     
     self.hoveredItem = nil
     self.selectedIndex = nil
     self.wasDown = false
     
     return self
+end
+
+function InventoryGrid:_itemStartY()
+    if self.header then
+        return self.y + 30 + self.padding
+    end
+    return self.y + self.padding
 end
 
 function InventoryGrid:update(dt)
@@ -37,7 +53,7 @@ function InventoryGrid:update(dt)
         local row = math.floor((i - 1) / cols)
         
         local ix = self.x + self.padding + col * (self.cellSize + self.padding)
-        local iy = self.y + self.padding + row * (self.cellSize + self.padding)
+        local iy = self:_itemStartY() + row * (self.cellSize + self.padding)
         
         -- Clipping
         if iy + self.cellSize > self.y + self.h then break end
@@ -63,8 +79,20 @@ function InventoryGrid:draw()
     love.graphics.setColor(0.5, 0.5, 0.5, 1)
     love.graphics.rectangle("line", self.x, self.y, self.w, self.h)
     
-    -- Title
-    if self.title then
+    -- Header
+    if self.header then
+        love.graphics.setFont(self.headerFont)
+        love.graphics.setColor(1, 0.8, 0.2, 1)
+        local thirdWidth = math.floor(self.w / 3)
+        love.graphics.printf(self.header.title or self.title or "Inventory", self.x + 8, self.y + 5, thirdWidth - 8, "left")
+        love.graphics.printf(self.header.capacity or "Capacity", self.x + thirdWidth, self.y + 5, thirdWidth, "center")
+
+        local gold = self.header.gold
+        if type(gold) == "function" then
+            gold = gold()
+        end
+        love.graphics.printf("Gold: " .. tostring(gold or 0), self.x + (thirdWidth * 2), self.y + 5, thirdWidth - 8, "right")
+    elseif self.title then
         love.graphics.setColor(1, 1, 1, 1)
         love.graphics.print(self.title, self.x, self.y - 25)
     end
@@ -77,7 +105,7 @@ function InventoryGrid:draw()
         local row = math.floor((i - 1) / cols)
         
         local ix = self.x + self.padding + col * (self.cellSize + self.padding)
-        local iy = self.y + self.padding + row * (self.cellSize + self.padding)
+        local iy = self:_itemStartY() + row * (self.cellSize + self.padding)
         
         if iy + self.cellSize > self.y + self.h then break end
         
@@ -104,7 +132,12 @@ function InventoryGrid:draw()
         
         -- Draw Item Info
         local name = item.name or "???"
-        love.graphics.print(string.sub(name, 1, 8), ix + 5, iy + 5)
+        love.graphics.setFont(self.itemFont)
+        local textWidth = self.cellSize - 8
+        local _, wrappedLines = self.itemFont:getWrap(name, textWidth)
+        local textHeight = #wrappedLines * self.itemFont:getHeight()
+        local textY = math.floor(iy + (self.cellSize - textHeight) / 2 + 0.5)
+        love.graphics.printf(name, ix + 4, textY, textWidth, "center")
         if item.quantity and item.quantity > 1 then
             love.graphics.print(tostring(item.quantity), ix + 5, iy + self.cellSize - 20)
         end

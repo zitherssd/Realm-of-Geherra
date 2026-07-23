@@ -67,6 +67,7 @@ function BattleState.enter(params)
     params = params or {}
     local enemyParty = params.enemyParty
     BattleState.enemyParty = enemyParty
+    BattleState.onVictory = params.onVictory
     print(string.format("BattleState: Battle started against party ID: '%s'", tostring(enemyParty and enemyParty.id)))
 
     BattleContext.init(WORLD_BOUNDS)
@@ -88,6 +89,7 @@ function BattleState.enter(params)
 
             if i == 1 then
                 BattleContext.data.selectedUnitId = unit.id
+                BattleContext.data.playerUnit = unit
             end
         end
     end
@@ -111,6 +113,7 @@ end
 
 function BattleState.exit()
     BattleState.enemyParty = nil
+    BattleState.onVictory = nil
 end
 
 function BattleState.update(dt)
@@ -302,12 +305,14 @@ function BattleState.checkBattleEnd()
         for _, unit in pairs(BattleContext.data.units) do
             if unit.actor and unit.team == "player" then
                 unit.actor.hp = unit.hp
+                unit.actor.maxHp = unit.maxHp
             end
         end
 
         for _, unit in ipairs(BattleContext.data.casualties) do
             if unit.actor and unit.team == "player" then
                 unit.actor.hp = 0
+                unit.actor.maxHp = unit.maxHp
                 PartySystem.removeFromParty(playerParty, unit.actor.id)
             end
         end
@@ -320,14 +325,22 @@ function BattleState.checkBattleEnd()
 
         local favorGained = playerAlive and (5 + #enemyCasualties) or 0
 
-        StateManager.swap("battle_end", {
-            victory = playerAlive,
-            playerCasualties = playerCasualties,
-            enemyCasualties = enemyCasualties,
-            loot = playerAlive and generatedLoot or {},
-            gold = playerAlive and generatedGold or 0,
-            favor = favorGained
-        })
+        if playerAlive then
+            if BattleState.onVictory then
+                BattleState.onVictory()
+            end
+
+            StateManager.swap("battle_end", {
+                victory = true,
+                playerCasualties = playerCasualties,
+                enemyCasualties = enemyCasualties,
+                loot = generatedLoot,
+                gold = generatedGold,
+                favor = favorGained
+            })
+        else
+            StateManager.swap("menu")
+        end
     end
 end
 

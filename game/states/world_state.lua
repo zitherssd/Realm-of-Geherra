@@ -22,7 +22,8 @@ local WorldState = {
     interactionCooldowns = {},
     isResting = false,
     restInputLock = 0,
-    restModeRequested = false
+    restModeRequested = false,
+    restStartTotalHour = nil  -- total game-hours when rest began
 }
 
 local function healPartyOverTime(dt, multiplier)
@@ -34,7 +35,7 @@ local function healPartyOverTime(dt, multiplier)
 
     for _, actor in ipairs(playerParty:getActors() or {}) do
         if actor and actor.stats and actor.stats.health then
-            local maxHp = actor.stats.health
+            local maxHp = actor.maxHp or actor.stats.health
             local currentHp = actor.hp or maxHp
             local healPerSecond = (maxHp / secondsToFull) * appliedMultiplier
             actor.hp = math.min(maxHp, currentHp + healPerSecond * dt)
@@ -73,6 +74,9 @@ function WorldState.enter()
     WorldState.isResting = WorldState.restModeRequested and true or false
     WorldState.restModeRequested = false
     WorldState.restInputLock = WorldState.isResting and 0.2 or 0
+    if WorldState.isResting then
+        WorldState.restStartTotalHour = TimeSystem.getDay() * 24 + TimeSystem.getHour()
+    end
 end
 
 function WorldState.requestRestMode(enabled)
@@ -108,9 +112,20 @@ function WorldState.update(dt)
         WorldState.restInputLock = math.max(0, WorldState.restInputLock - dt)
     end
 
-    if WorldState.isResting and WorldState.restInputLock <= 0 and Input.isKeyDown("escape") then
-        StateManager.pop()
-        return
+    if WorldState.isResting and WorldState.restInputLock <= 0 then
+        -- Auto-return after 1 full day (24 game-hours)
+        local totalHourNow = TimeSystem.getDay() * 24 + TimeSystem.getHour()
+        if WorldState.restStartTotalHour and totalHourNow >= WorldState.restStartTotalHour + 24 then
+            WorldState.restStartTotalHour = nil
+            StateManager.pop()
+            return
+        end
+        -- Manual cancel
+        if Input.isKeyDown("escape") then
+            WorldState.restStartTotalHour = nil
+            StateManager.pop()
+            return
+        end
     end
     
     -- Update interaction cooldowns
@@ -313,8 +328,18 @@ function WorldState.draw()
     
     local textWidth = WorldState.font:getWidth(timeStr)
     love.graphics.print(timeStr, love.graphics.getWidth() - textWidth - 20, 20)
-    
+
+    -- Draw current biome (debug)
     local playerParty = GameContext.data.playerParty
+    if playerParty and WorldState.currentMap then
+        local biomeId = WorldState.currentMap:getBiomeAt(playerParty.x, playerParty.y)
+        local biomeStr = "Biome: " .. (biomeId or "unknown")
+        local biomeWidth = WorldState.font:getWidth(biomeStr)
+        love.graphics.setColor(0.7, 0.9, 0.7, 1)
+        love.graphics.print(biomeStr, love.graphics.getWidth() - biomeWidth - 20, 40)
+        love.graphics.setColor(1, 1, 1, 1)
+    end
+
     -- Draw HUD Bars (HP and Favor)
     if playerParty then
         local barX, barY = 20, 35
@@ -338,7 +363,7 @@ function WorldState.draw()
         -- Player Marker
         local player = GameContext.data.player
         if player then
-            local max = (player.stats and player.stats.health) or 100
+            local max = player.maxHp or (player.stats and player.stats.health) or 100
             local current = player.hp or max
             local playerPct = math.max(0, math.min(1, current / max))
             

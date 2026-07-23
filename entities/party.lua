@@ -200,7 +200,7 @@ function Party:getAveragePartyHp()
     local totalMax = 0
     
     for _, actor in ipairs(self.actors) do
-        local max = (actor.stats and actor.stats.health) or 100
+        local max = actor.maxHp or (actor.stats and actor.stats.health) or 100
         local current = actor.hp or max
         
         totalCurrent = totalCurrent + current

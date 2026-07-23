@@ -17,7 +17,7 @@ local WorldGeneration = {
         }
     },
     sites = {
-        majorCount = 8,
+        majorCount = 18,
         minDistanceCells = 10,
         maxPlacementAttempts = 2500,
         edgePaddingCells = 2,
@@ -34,16 +34,26 @@ local WorldGeneration = {
         blockedCost = 1000000
     },
     biomes = {
-        { id = "forest", weight = 4, color = { 0.14, 0.32, 0.14, 0.28 }, locationBias = { village = 3, town = 2, castle = 1 } },
-        { id = "desert", weight = 2, color = { 0.78, 0.70, 0.22, 0.28 }, locationBias = { village = 1, town = 2, castle = 1 } },
-        { id = "plains", weight = 3, color = { 0.45, 0.62, 0.28, 0.26 }, locationBias = { village = 3, town = 2, castle = 1 } },
-        { id = "highlands", weight = 2, color = { 0.48, 0.48, 0.52, 0.24 }, locationBias = { village = 1, town = 2, castle = 2 } },
-        { id = "marsh", weight = 1, color = { 0.20, 0.36, 0.30, 0.30 }, locationBias = { village = 2, town = 1, castle = 1 } }
+        { id = "forest",    weight = 4, color = { 0.14, 0.32, 0.14, 0.28 }, locationBias = { village = 3, town = 2, castle = 1, shrine = 3, ruins = 2 } },
+        { id = "desert",    weight = 2, color = { 0.78, 0.70, 0.22, 0.28 }, locationBias = { village = 1, town = 2, castle = 1, shrine = 1, ruins = 1 } },
+        { id = "plains",    weight = 3, color = { 0.45, 0.62, 0.28, 0.26 }, locationBias = { village = 3, town = 2, castle = 1, shrine = 1, ruins = 1 } },
+        { id = "highlands", weight = 2, color = { 0.48, 0.48, 0.52, 0.24 }, locationBias = { village = 1, town = 2, castle = 2, shrine = 1, ruins = 3 } },
+        { id = "marsh",     weight = 1, color = { 0.20, 0.36, 0.30, 0.30 }, locationBias = { village = 2, town = 1, castle = 1, shrine = 1, ruins = 2 } }
     },
     locationPopulation = {
-        majorTypes = { "village", "town", "castle" },
-        typeWeights = { village = 4, town = 3, castle = 2 },
+        majorTypes = { "village", "town", "castle", "shrine", "ruins" },
+        typeWeights = { village = 4, town = 3, castle = 2, shrine = 3, ruins = 2 },
         namePools = {
+            ruins = {
+                "The Hollow Keep", "Gravenwall", "Ashfeld Remnants", "Crestfall Ruins",
+                "The Broken Spire", "Vordenmoor", "The Sunken Hall", "Duskwall",
+                "The Forgotten Gate", "Irenmoth Ruins"
+            },
+            shrine = {
+                "The Pale Altar", "Shrine of Aethon", "The Weeping Stone", "Shroud Hollow",
+                "The Bound Grove", "Omen's Rest", "The Silent Pyre", "Dusk Sanctum",
+                "The Red Idol", "Vigil's End"
+            },
             village = {
                 "Briar Glen", "Willowmere", "Thornfield", "Ashbrook", "Mossford",
                 "Raven Hollow", "Oakrest", "Emberfen", "Stonebrook", "Redmeadow"
@@ -60,12 +70,16 @@ local WorldGeneration = {
         populationByType = {
             village = { min = 500, max = 1500 },
             town = { min = 1800, max = 4200 },
-            castle = { min = 3200, max = 6200 }
+            castle  = { min = 3200, max = 6200 },
+            shrine  = { min = 0,    max = 0    },
+            ruins   = { min = 0,    max = 0    }
         },
         prosperityByType = {
             village = { min = 35, max = 60 },
-            town = { min = 45, max = 75 },
-            castle = { min = 55, max = 85 }
+            town    = { min = 45, max = 75 },
+            castle  = { min = 55, max = 85 },
+            shrine  = { min = 0,  max = 0  },
+            ruins   = { min = 0,  max = 0  }
         },
         defaultFactions = { "menari", "dacians", "hyperboreans", "neutral" }
     }

@@ -130,6 +130,7 @@ function DialogueState.enter(params)
     local location = params.location
     local options = {
         showFavor = params.showFavor,
+        showGold  = params.showGold,
         completionPopup = params.completionPopup
     }
     local favorCost = params.favorCost
@@ -137,6 +138,12 @@ function DialogueState.enter(params)
     local dialogueTree = params.dialogueTree
     if not dialogueTree and params.dialogueId then
         dialogueTree = DialogueData[params.dialogueId]
+    end
+
+    -- Inherit display flags from the dialogue tree definition
+    if dialogueTree then
+        if dialogueTree.showFavor then options.showFavor = true end
+        if dialogueTree.showGold  then options.showGold  = true end
     end
 
     local questSpeakerRef = { id = nil, name = nil }
@@ -293,6 +300,7 @@ function DialogueState.enter(params)
                     target = target,
                     location = location,
                     showFavor = options.showFavor,
+                    showGold  = options.showGold,
                     completionPopup = completionPopup
                 })
             end

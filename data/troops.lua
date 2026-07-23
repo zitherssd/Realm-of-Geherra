@@ -10,8 +10,8 @@ return {
         stats = {
             health = 30,
             strength = 10,
-            attack = 10,
-            defense = 10,
+            attack = 30,
+            defense = 25,
             speed = 10,
             battle_speed = 10
         },
@@ -43,14 +43,13 @@ return {
         stats = {
             health = 20,
             strength = 8,
-            defense = 8,
-            attack = 10,
+            defense = 20,
+            attack = 28,
             speed = 8,
             battle_speed = 10
         },
         equipment = {
             mainHand = "iron_sword",
-            rangedWeapon = "javelin"
         },
         size = 2,
         loot = {
@@ -65,10 +64,11 @@ return {
         type = "soldier",
         sprite = "assets/sprites/units/heavyinfantry.png",
         stats = {
-            health = 50,
+            health = 35,
             strength = 10,
-            defense = 5,
-            speed = 7
+            defense = 42,
+            attack = 37,
+            speed = 8
         },
         size = 4,
         equipment = {
@@ -86,9 +86,10 @@ return {
         type = "knight",
         sprite = "assets/sprites/units/knight.png",
         stats = {
-            health = 80,
+            health = 45,
             strength = 12,
-            defense = 8,
+            defense = 75,
+            attack = 70,
             speed = 6,
             battle_speed = 9 
         },
@@ -111,13 +112,14 @@ return {
         sprite = "assets/sprites/units/dog.png",
         slots = {"collar"}, -- Can only wear body armor/collar
         stats = {
-            health = 25,
+            health = 12,
             strength = 6,
-            defense = 2,
+            defense = 18,
+            attack = 11,
             speed = 10,
             battle_speed = 16
         },
-        size = 1,
+        size = 3,
         equipment = {},
         skills = {"bite"},
         attributes = {
@@ -134,7 +136,8 @@ return {
         stats = {
             health = 30,
             strength = 11,
-            defense = 6,
+            defense = 45,
+            attack = 34,
             speed = 7
         },
         equipment = {
@@ -155,7 +158,8 @@ return {
         stats = {
             health = 60,
             strength = 11,
-            defense = 6,
+            defense = 110,
+            attack = 120,
             speed = 7
         },
         equipment = {
@@ -200,6 +204,131 @@ return {
         },
         equipment = {
             mainHand = "dagger"
+        }
+    },
+
+    ["skeleton_sword"] = {
+        id = "skeleton_sword",
+        name = "Skeleton",
+        type = "undead",
+        sprite = "assets/sprites/units/skeleton.png",
+        stats = {
+            health = 35,
+            strength = 9,
+            attack = 28,
+            defense = 26,
+            speed = 8,
+            battle_speed = 11
+        },
+        size = 3,
+        equipment = {
+            mainHand = "iron_sword"
+        },
+        loot = {
+            {currency = "gold", chance = 0.5, min = 5, max = 20},
+            {id = "iron_sword", chance = 0.15, min = 1, max = 1}
+        }
+    },
+
+    ["skeleton_spear"] = {
+        id = "skeleton_spear",
+        name = "Skeleton",
+        type = "undead",
+        sprite = "assets/sprites/units/skeleton_spear.png",
+        stats = {
+            health = 35,
+            strength = 9,
+            attack = 28,
+            defense = 26,
+            speed = 8,
+            battle_speed = 11
+        },
+        size = 3,
+        equipment = {
+            mainHand = "spear"
+        },
+        loot = {
+            {currency = "gold", chance = 0.5, min = 5, max = 20},
+            {id = "spear", chance = 0.15, min = 1, max = 1}
+        }
+    },
+
+    ["peasant"] = {
+        id = "peasant",
+        name = "Peasant",
+        type = "peasant",
+        sprite = {
+            "assets/sprites/units/town.png",
+            "assets/sprites/units/town2.png"
+        },
+        stats = {
+            health = 20,
+            strength = 5,
+            attack = 20,
+            defense = 18,
+            speed = 6,
+            battle_speed = 8
+        },
+        size = 3,
+        equipment = {
+            mainHand = "club"
+        },
+        loot = {
+            {currency = "gold", chance = 0.3, min = 1, max = 10}
+        }
+    },
+
+    ["ogre"] = {
+        id = "ogre",
+        name = "Ogre",
+        type = "ogre",
+        sprite = "assets/sprites/units/ogre.png",
+        stats = {
+            health = 105,
+            strength = 16,
+            attack = 70,
+            defense = 45,
+            speed = 5,
+            battle_speed = 9
+        },
+        size = 5,
+        equipment = {
+            mainHand = "warhammer"
+        },
+        loot = {
+            {currency = "gold", chance = 0.7, min = 30, max = 100},
+            {id = "warhammer", chance = 0.2, min = 1, max = 1}
+        }
+    },
+
+    ["dragon"] = {
+        id = "dragon",
+        name = "Dragon",
+        type = "dragon",
+        sprite = "assets/sprites/units/dragon.png",
+        stats = {
+            health = 250,
+            strength = 25,
+            attack = 100,
+            defense = 100,
+            speed = 8,
+            battle_speed = 15
+        },
+        size = 8,
+        equipment = {},
+        skills = {"fireball"},
+        innateProtections = {
+            slashing = 2,
+            piercing = 3,
+            blunt = 2,
+            fire = 10,
+            ice = 0,
+            shock = 0,
+            poison = 0
+        },
+        loot = {
+            {currency = "gold", chance = 1.0, min = 500, max = 1000},
+            {id = "greatsword", chance = 0.3, min = 1, max = 1}
         }
     }
 }

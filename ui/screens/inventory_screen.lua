@@ -5,11 +5,12 @@ local InventoryScreen = {}
 InventoryScreen.__index = InventoryScreen
 
 local InventoryGrid = require("ui.widgets.inventory_grid")
+local StatsPanel = require("ui.widgets.stats_panel")
+local EquipmentPanel = require("ui.widgets.equipment_panel")
 local Button = require("ui.widgets.button")
 local Tooltip = require("ui.widgets.tooltip")
 local EquipmentSystem = require("systems.equipment_system")
 local GameContext = require("game.game_context")
-local EquipmentData = require("data.equipment")
 local Items = require("data.items")
 
 function InventoryScreen.new(party, onClose)
@@ -19,6 +20,11 @@ function InventoryScreen.new(party, onClose)
     
     self.width = love.graphics.getWidth()
     self.height = love.graphics.getHeight()
+    love.graphics.getFont():setFilter("nearest", "nearest")
+    self.titleFont = love.graphics.newFont(24)
+    self.titleFont:setFilter("nearest", "nearest")
+    self.commanderNameFont = love.graphics.newFont(28)
+    self.commanderNameFont:setFilter("nearest", "nearest")
     
     -- Identify Commanders (Player + Companions)
     self.commanders = {}
@@ -33,16 +39,35 @@ function InventoryScreen.new(party, onClose)
     self.actor = self.commanders[1]
     
     -- Layout Constants
-    self.gridY = self.height / 2
-    self.gridH = self.height / 2 - 100
-    
-    -- Commander Tabs
+    self.commanderSize = 72
+    self.commanderOverlap = 48
+    self.commanderX = 28
+    self.commanderY = 48
+    self.separatorY = self.commanderY + self.commanderSize + 16
+    self.contentY = self.separatorY + 14
+    self.leftPanelX = 28
+    self.rightPanelX = math.floor(self.width * 0.48)
+    self.panelGap = 14
+    self.leftPanelW = self.rightPanelX - self.leftPanelX - self.panelGap
+    self.rightPanelW = self.width - self.rightPanelX - 28
+    self.gridY = self.contentY
+    self.gridH = self.height - self.gridY - 70
+    self.equipmentY = self.contentY + 190 + 14
+
+    self.statsPanel = StatsPanel.new(self.leftPanelX, self.contentY, self.leftPanelW, 190)
+    self.equipmentPanel = EquipmentPanel.new(self.leftPanelX, self.equipmentY, self.leftPanelW, EquipmentSystem, Items)
+
+    -- Commander sprite buttons
     self.commanderButtons = {}
-    local btnW = 150
     for i, cmdr in ipairs(self.commanders) do
-        local btn = Button.new(cmdr.name, 50 + (i-1)*(btnW+10), 50, btnW, 30, function()
+        local btn = Button.new("", self.commanderX + (i - 1) * self.commanderOverlap, self.commanderY, self.commanderSize, self.commanderSize, function()
             self:selectCommander(i)
         end)
+        btn.commander = cmdr
+        if cmdr.sprite and love.filesystem.getInfo(cmdr.sprite) then
+            btn.commanderImage = love.graphics.newImage(cmdr.sprite)
+            btn.commanderImage:setFilter("nearest", "nearest")
+        end
         table.insert(self.commanderButtons, btn)
     end
     
@@ -58,7 +83,13 @@ function InventoryScreen.new(party, onClose)
     
     -- Inventory Grid (Bottom Half)
     -- We pass nil for onClick because we handle input globally in this screen for drag/drop
-    self.grid = InventoryGrid.new("Party Inventory", self.party.inventory, 50, self.gridY, self.width - 100, self.gridH, 64, nil)
+    self.grid = InventoryGrid.new("Inventory", self.party.inventory, self.rightPanelX, self.gridY, self.rightPanelW, self.gridH, 64, nil, {
+        title = "Inventory",
+        capacity = "Capacity",
+        gold = function()
+            return self.party.getTreasury and self.party:getTreasury() or self.party.treasury or 0
+        end
+    })
     
     self.closeBtn = Button.new("Close", self.width/2 - 50, self.height - 80, 100, 40, onClose)
     self.tooltip = Tooltip.new(250)
@@ -75,12 +106,39 @@ function InventoryScreen:selectCommander(index)
     self.selectedSlotIndex = 1
 end
 
+function InventoryScreen:_commanderAt(x, y)
+    local drawOrder = {}
+    for i = 1, #self.commanderButtons do
+        if i ~= self.selectedCommanderIndex then
+            table.insert(drawOrder, i)
+        end
+    end
+    if self.selectedCommanderIndex then
+        table.insert(drawOrder, self.selectedCommanderIndex)
+    end
+
+    for order = #drawOrder, 1, -1 do
+        local btn = self.commanderButtons[drawOrder[order]]
+        if x >= btn.x and x <= btn.x + btn.w and y >= btn.y and y <= btn.y + btn.h then
+            return drawOrder[order]
+        end
+    end
+    return nil
+end
+
 function InventoryScreen:show() end
 function InventoryScreen:hide() end
 
 function InventoryScreen:update(dt)
-    for _, btn in ipairs(self.commanderButtons) do
-        btn:update(dt)
+    local mx, my = love.mouse.getPosition()
+    local hoveredCommander = self:_commanderAt(mx, my)
+    for i, btn in ipairs(self.commanderButtons) do
+        if i == hoveredCommander then
+            btn:update(dt)
+        else
+            btn.state = "idle"
+            btn.wasDown = false
+        end
     end
     self.grid:update(dt)
     self.closeBtn:update(dt)
@@ -125,23 +183,51 @@ function InventoryScreen:draw()
     love.graphics.rectangle("fill", 0, 0, self.width, self.height)
     
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.setFont(love.graphics.newFont(24))
+    love.graphics.setFont(self.titleFont)
     love.graphics.printf("Character & Inventory", 0, 20, self.width, "center")
     
-    -- Draw Commander Tabs
-    for i, btn in ipairs(self.commanderButtons) do
-        -- Highlight selected
+    -- Draw the unit stack, with the selected unit always in front.
+    local drawOrder = {}
+    for i = 1, #self.commanderButtons do
+        if i ~= self.selectedCommanderIndex then
+            table.insert(drawOrder, i)
+        end
+    end
+    if self.selectedCommanderIndex then
+        table.insert(drawOrder, self.selectedCommanderIndex)
+    end
+
+    for _, i in ipairs(drawOrder) do
+        local btn = self.commanderButtons[i]
+        btn:draw()
         if i == self.selectedCommanderIndex then
-            love.graphics.setColor(1, 1, 0, 0.2)
+            love.graphics.setColor(1, 0.85, 0.2, 0.25)
             love.graphics.rectangle("fill", btn.x, btn.y, btn.w, btn.h)
         end
-        btn:draw()
+        if btn.commanderImage then
+            love.graphics.setColor(1, 1, 1, 1)
+            local scale = math.min((btn.w - 8) / btn.commanderImage:getWidth(), (btn.h - 8) / btn.commanderImage:getHeight())
+            local imageW = btn.commanderImage:getWidth() * scale
+            local imageH = btn.commanderImage:getHeight() * scale
+            love.graphics.draw(btn.commanderImage, btn.x + (btn.w - imageW) / 2, btn.y + (btn.h - imageH) / 2, 0, scale, scale)
+        else
+            love.graphics.setColor(0.5, 0.8, 0.9, 1)
+            love.graphics.circle("fill", btn.x + btn.w / 2, btn.y + btn.h / 2, 22)
+        end
     end
+
+    love.graphics.setColor(0.55, 0.55, 0.55, 1)
+    love.graphics.setLineWidth(1)
+    love.graphics.line(28, self.separatorY, self.width - 28, self.separatorY)
+
+    love.graphics.setFont(self.commanderNameFont)
+    love.graphics.setColor(1, 0.85, 0.2, 1)
+    love.graphics.printf(self.actor and self.actor.name or "", self.width - 300, self.commanderY + 12, 272, "right")
     
     -- Draw Selected Commander Details
     if self.actor then
-        self:drawEquipmentList()
-        self:drawStatsPanel()
+        self.slotRegions = self.equipmentPanel:draw(self.actor, self.navMode, self.selectedSlotIndex, self.dragging)
+        self.statsPanel:draw(self.actor)
     end
     
     self.grid:draw()
@@ -189,7 +275,7 @@ function InventoryScreen:draw()
 end
 
 function InventoryScreen:_getEquipSlots(itemId)
-    local equipData = EquipmentData[itemId]
+    local equipData = Items[itemId]
     if not equipData then return {} end
     if equipData.slots then return equipData.slots end
     if equipData.slot then return {equipData.slot} end
@@ -202,7 +288,7 @@ function InventoryScreen:_buildItemTooltip(item)
         item.description or ""
     }
 
-    local equipData = item and item.id and EquipmentData[item.id] or nil
+    local equipData = item and item.id and Items[item.id] or nil
     if equipData then
         local slots = self:_getEquipSlots(item.id)
         if #slots > 0 then
@@ -256,68 +342,14 @@ function InventoryScreen:_chooseEquipSlot(itemId)
 end
 
 function InventoryScreen:drawEquipmentList()
-    local startX = 50
-    local startY = 100
-    local rowHeight = 40
-    local labelWidth = 120
-    local slotWidth = 250
-    
-    self.slotRegions = {} -- Reset regions
-    
-    love.graphics.setFont(love.graphics.newFont(16))
-    
-    for i, slotId in ipairs(self.actor.availableSlots or {}) do
-        local y = startY + (i-1) * (rowHeight + 5)
-        
-        -- Draw Label
-        love.graphics.setColor(0.8, 0.8, 0.8, 1)
-        love.graphics.print(slotId:upper(), startX, y + 10)
-        
-        -- Draw Slot Box
-        local boxX = startX + labelWidth
-        local boxY = y
-        
-        -- Store region for input
-        table.insert(self.slotRegions, {slotId = slotId, x = boxX, y = boxY, w = slotWidth, h = rowHeight})
-        
-        love.graphics.setColor(0.2, 0.2, 0.2, 1)
-        love.graphics.rectangle("fill", boxX, boxY, slotWidth, rowHeight)
-        if self.navMode == "equipment" and i == self.selectedSlotIndex then
-            love.graphics.setColor(1, 1, 0, 1)
-            love.graphics.setLineWidth(2)
-        else
-            love.graphics.setColor(0.5, 0.5, 0.5, 1)
-            love.graphics.setLineWidth(1)
-        end
-        love.graphics.rectangle("line", boxX, boxY, slotWidth, rowHeight)
-        love.graphics.setLineWidth(1)
-        
-        -- Draw Equipped Item
-        local itemId = EquipmentSystem.getEquipped(self.actor, slotId)
-        if itemId then
-            -- Dim if dragging this slot
-            if self.dragging and self.dragging.source == "equipment" and self.dragging.slot == slotId then
-                love.graphics.setColor(1, 1, 1, 0.3)
-            else
-                love.graphics.setColor(1, 1, 1, 1)
-            end
-
-            local item = Items[itemId]
-            local name = item and item.name or itemId
-            
-            love.graphics.print(name, boxX + 10, boxY + 10)
-        else
-            love.graphics.setColor(0.4, 0.4, 0.4, 1)
-            love.graphics.print("<Empty>", boxX + 10, boxY + 10)
-        end
-    end
+    self.slotRegions = self.equipmentPanel:draw(self.actor, self.navMode, self.selectedSlotIndex, self.dragging)
 end
 
 function InventoryScreen:_clickEquipFromInventory(index)
     local item = self.party.inventory[index]
     if not item or not self.actor then return false end
 
-    local equipData = EquipmentData[item.id]
+    local equipData = Items[item.id]
     if not equipData then return false end
 
     local targetSlot = self:_chooseEquipSlot(item.id)
@@ -356,71 +388,11 @@ function InventoryScreen:_clickUnequipSlot(slotId)
 end
 
 function InventoryScreen:_slotAt(x, y)
-    for _, region in ipairs(self.slotRegions) do
-        if x >= region.x and x <= region.x + region.w and y >= region.y and y <= region.y + region.h then
-            return region
-        end
-    end
-    return nil
+    return self.equipmentPanel:getSlotAt(x, y)
 end
 
 function InventoryScreen:drawStatsPanel()
-    local panelX = self.width / 2 + 20
-    local panelY = 100
-    local panelW = self.width / 2 - 70
-    local panelH = self.gridY - 120
-    
-    -- Panel Background
-    love.graphics.setColor(0.15, 0.15, 0.15, 1)
-    love.graphics.rectangle("fill", panelX, panelY, panelW, panelH)
-    love.graphics.setColor(0.4, 0.4, 0.4, 1)
-    love.graphics.rectangle("line", panelX, panelY, panelW, panelH)
-    
-    -- Title
-    love.graphics.setColor(1, 0.8, 0.2, 1)
-    love.graphics.print("Stats", panelX + 10, panelY + 10)
-    
-    -- Stats List
-    local stats = self.actor.stats or {}
-    local y = panelY + 40
-    local lineHeight = 25
-    
-    love.graphics.setColor(0.9, 0.9, 0.9, 1)
-    for k, v in pairs(stats) do
-        love.graphics.print(k:upper() .. ": " .. tostring(v), panelX + 20, y)
-        y = y + lineHeight
-    end
-    
-    love.graphics.print("LEVEL: " .. (self.actor.level or 1), panelX + 20, y + 10)
-    y = y + lineHeight + 20
-
-    -- Attributes
-    love.graphics.setColor(1, 0.8, 0.2, 1)
-    love.graphics.print("Attributes", panelX + 10, y)
-    y = y + 30
-    love.graphics.setColor(0.9, 0.9, 0.9, 1)
-
-    local attributes = {
-        "command", "oratory", "navigation", "tracking", 
-        "shadowcraft", "divination", "engineering"
-    }
-    
-    for _, attrName in ipairs(attributes) do
-        love.graphics.print(string.upper(string.sub(attrName, 1, 1)) .. string.sub(attrName, 2), panelX + 20, y)
-        
-        local level = self.actor.attributes[attrName] or 0
-        
-        -- Draw the boxes
-        for j = 1, 4 do
-            local boxX = panelX + 150 + (j - 1) * 25
-            if j <= level then
-                love.graphics.rectangle("fill", boxX, y + 5, 20, 15)
-            else
-                love.graphics.rectangle("line", boxX, y + 5, 20, 15)
-            end
-        end
-        y = y + lineHeight
-    end
+    self.statsPanel:draw(self.actor)
 end
 
 function InventoryScreen:mousepressed(x, y, button)
@@ -482,7 +454,7 @@ function InventoryScreen:mousereleased(x, y, button)
         local region = self:_slotAt(x, y)
         if region then
             local item = self.dragging.item
-            local equipData = item and EquipmentData[item.id] or nil
+            local equipData = item and Items[item.id] or nil
 
             if equipData then
                 if self.dragging.source == "inventory" then
@@ -576,6 +548,10 @@ function InventoryScreen:keypressed(key)
             end
         end
     end
+end
+
+function InventoryScreen:wheelmoved(x, y)
+    self.statsPanel:wheelmoved(x, y)
 end
 
 return InventoryScreen

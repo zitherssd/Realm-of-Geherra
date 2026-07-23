@@ -2,24 +2,27 @@
 -- Skill definitions
 
 return {
-    ["slash"] = {
-        id = "slash",
-        name = "Slash",
+    ["attack"] = {
+        id = "attack",
+        name = "Attack",
         type = "melee",
         description = "Basic melee attack",
-        damageMultiplier = 1.0,
+        damageType = "slashing",
+        baseDamage = 5,
         windup = 40,
         cooldown = 10,
         cost = 0,
         range = 0.3,
     },
+
     
     ["bite"] = {
         id = "bite",
         name = "Bite",
         type = "melee",
         description = "Basic melee attack",
-        damageMultiplier = 1.0,
+        damageType = "piercing",
+        baseDamage = 5,
         windup = 15,
         cooldown = 22,
         cost = 0,
@@ -31,7 +34,8 @@ return {
         name = "Dagger",
         type = "melee",
         description = "Fast close-range stab",
-        damageMultiplier = 1.0,
+        damageType = "piercing",
+        baseDamage = 6,
         windup = 0,
         cooldown = 40,
         cost = 0,
@@ -43,20 +47,15 @@ return {
         name = "Fireball",
         type = "aoe",
         description = "Launch a fireball at a target cell",
-        damageMultiplier = 1.5,
+        damageType = "fire",
+        baseDamage = 15,
         targeted = true,
         aoe = 1,
         range = 8.0,
         windup = 40,
         cooldown = 60,
         cost = 30,
-        onHitStatuses = {
-            burn = {
-                duration = 120,
-                damagePerTick = 1,
-                tickEvery = 20
-            }
-        },
+        onHitStatuses = { "burn" },
         projectile = {
             speed = 24,
             arc = 0,
@@ -80,10 +79,12 @@ return {
         name = "Shield Bash",
         type = "melee",
         description = "Bash with shield, stun enemy",
-        damageMultiplier = 0.8,
-        stun = true,
+        damageType = "blunt",
+        baseDamage = 4,
+        windup = 16,
         cooldown = 40,
-        cost = 0
+        cost = 0,
+        onHitStatuses = { "stun" }
     },
 
     ["javelin_throw"] = {
@@ -91,7 +92,8 @@ return {
         name = "Javelin Throw",
         type = "ranged",
         description = "Throw a javelin (Limited uses)",
-        damageMultiplier = 2.0,
+        damageType = "piercing",
+        baseDamage = 18,
         range = 8.5,
         windup = 30,
         cooldown = 35,

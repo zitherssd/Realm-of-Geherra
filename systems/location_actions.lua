@@ -16,15 +16,23 @@ local DEFAULT_TAVERN_REST_COST = 20
 
 function LocationActions.exploreRuin(location)
     local enemyParty = Party.new("Ruin Guardians", nil)
-    enemyParty.faction = "bandits"
-    
-    -- Add random enemies
-    local count = math.random(2, 4)
-    for i = 1, count do
-        enemyParty:addActor(Troop.new("bandit"))
+    enemyParty.faction = "undead"
+
+    local swordCount = math.random(1, 4)
+    local spearCount = math.random(1, 4)
+    for _ = 1, swordCount do
+        enemyParty:addActor(Troop.new("skeleton_sword"))
     end
-    
-    StateManager.swap("battle", { enemyParty = enemyParty })
+    for _ = 1, spearCount do
+        enemyParty:addActor(Troop.new("skeleton_spear"))
+    end
+
+    StateManager.swap("battle", {
+        enemyParty = enemyParty,
+        onVictory = function()
+            location.lastExploreDay = TimeSystem.getDay()
+        end
+    })
 end
 
 function LocationActions.rest(location)
@@ -121,6 +129,22 @@ function LocationActions.trainTroops(location)
 
 end
 
+function LocationActions.pray(location)
+    local divinationLevel = AttributeSystem.getPartyMaxLevel("divination")
+    StateManager.push("dialogue", {
+        dialogueTree = {
+            speaker = "The Shrine",
+            lines = {
+                { text = "You kneel before the altar and offer your prayers to the old gods. (Effects based on divination level coming soon.)",
+                  options = {{ text = "Rise", next = "end" }} }
+            }
+        },
+        divinationLevel = divinationLevel,
+        location = location
+    })
+    location.lastPrayDay = TimeSystem.getDay()
+end
+
 
 
 function LocationActions.buySupplies(location)
@@ -141,10 +165,10 @@ end
 
 
 
-function LocationActions.getRecruitmentCooldown(location)
+function LocationActions.getCooldownRemaining(location, key, days)
     local currentDay = TimeSystem.getDay()
-    local lastRecruit = location.lastRecruitDay or -100
-    return math.max(0, (lastRecruit + 5) - currentDay)
+    local lastUsed = location[key] or -100
+    return math.max(0, (lastUsed + days) - currentDay)
 end
 
 function LocationActions.getRecruitmentCost()
@@ -170,7 +194,7 @@ function LocationActions.performRecruitment(location, favorCost)
 end
 
 function LocationActions.startRecruitmentDialogue(location)
-    if LocationActions.getRecruitmentCooldown(location) > 0 then
+    if LocationActions.getCooldownRemaining(location, "lastRecruitDay", 5) > 0 then
         StateManager.push("dialogue", {
             dialogueTree = {
                 speaker = "System",

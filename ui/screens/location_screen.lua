@@ -7,6 +7,7 @@ LocationScreen.__index = LocationScreen
 local Button = require("ui.widgets.button")
 local StateManager = require("core.state_manager")
 local LocationActions = require("systems.location_actions")
+local LocationSpawnRules = require("data.location_npc_spawn_rules")
 local DialogueData = require("data.dialogue")
 local QuestAvailabilitySystem = require("systems.quest_availability_system")
 
@@ -77,32 +78,28 @@ function LocationScreen:refreshButtons()
     local btnWidth = 300
     local btnHeight = 50
     
-    if location.type == "town" then
-        table.insert(self.buttons, Button.new("Visit Tavern", startX, optionsY, btnWidth, 50, function() LocationActions.visitTavern(location) end))
-        table.insert(self.buttons, Button.new("Trade Goods", startX, optionsY + 60, btnWidth, 50, function() LocationActions.tradeGoods(location) end))
-        table.insert(self.buttons, Button.new("Rest", startX, optionsY + 120, btnWidth, 50, function() 
-            LocationActions.rest(location)
-        end))
-    elseif location.type == "castle" then
-        table.insert(self.buttons, Button.new("Request Audience", startX, optionsY, btnWidth, 50, function() LocationActions.requestAudience(location) end))
-        table.insert(self.buttons, Button.new("Train Troops", startX, optionsY + 60, btnWidth, 50, function() LocationActions.trainTroops(location) end))
-    elseif location.type == "village" then
-        table.insert(self.buttons, Button.new("Buy Supplies", startX, optionsY, btnWidth, 50, function() LocationActions.buySupplies(location) end))
-        
-        local cooldown = LocationActions.getRecruitmentCooldown(location)
-        if cooldown > 0 then
-            local btn = Button.new("Recruit (" .. math.ceil(cooldown) .. "d)", startX, optionsY + 60, btnWidth, 50, function() end)
-            btn.disabled = true
+    local typeRules = LocationSpawnRules[location.type]
+    if typeRules and typeRules.actions then
+        for i, actionDef in ipairs(typeRules.actions) do
+            local label    = actionDef.label
+            local disabled = false
+
+            if actionDef.cooldown then
+                local cd = actionDef.cooldown
+                local remaining = LocationActions.getCooldownRemaining(location, cd.key, cd.days)
+                if remaining > 0 then
+                    label    = label .. " (" .. math.ceil(remaining) .. "d)"
+                    disabled = true
+                end
+            end
+
+            local handler = actionDef.action and LocationActions[actionDef.action] or function() end
+            local btn = Button.new(label, startX, optionsY + (i - 1) * 60, btnWidth, btnHeight, function()
+                handler(location)
+            end)
+            btn.disabled = disabled
             table.insert(self.buttons, btn)
-        else
-            table.insert(self.buttons, Button.new("Recruit Volunteers", startX, optionsY + 60, btnWidth, 50, function()
-                LocationActions.startRecruitmentDialogue(location)
-            end))
         end
-    elseif location.type == "ruins" then
-        table.insert(self.buttons, Button.new("Explore Ruin", startX, optionsY, btnWidth, 50, function()
-            LocationActions.exploreRuin(location)
-        end))
     end
 end
 

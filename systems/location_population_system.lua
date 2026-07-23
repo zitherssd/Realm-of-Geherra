@@ -73,7 +73,7 @@ local function spawnLocationNpcs(location, locationType, rng, spawnRules)
         return
     end
 
-    for _, rule in ipairs(rules) do
+    for _, rule in ipairs(rules.npcs or rules) do
         local chance = rule.chance or 1.0
         local count = math.max(0, rule.count or 1)
 

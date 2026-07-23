@@ -93,6 +93,7 @@ return {
     ["tavern_keeper_greeting"] = {
         id = "tavern_keeper_greeting",
         speaker = "Tavern Keeper",
+        showGold = true,
         lines = {
             {
                 text = "Welcome to the tavern. A warm bed is 20 gold for the night.",

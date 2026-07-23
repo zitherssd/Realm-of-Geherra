@@ -14,6 +14,7 @@ local MenuState = {
 
 function MenuState.enter()
     -- Initialize menu
+    Input.init()
     MenuState.selectedOption = 1
     MenuState.lastInputTime = 0
 end

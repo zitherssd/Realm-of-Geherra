@@ -5,17 +5,11 @@
 local BattleUnit = {}
 BattleUnit.__index = BattleUnit
 local Skills = require("data.skills")
-local EquipmentData = require("data.equipment")
+local Items = require("data.items")
 
 local DEFAULT_MOVE_STEP = 24
 local DEFAULT_COLLISION_RADIUS = 18
 local DEFAULT_ATTACK_REACH = 8
-local DEFAULT_VISUAL_RADIUS = 24
-
-local function getVisualRadiusScale(size)
-    if not size then return 1.0 end
-    return 0.7 + (size * 0.1)
-end
 
 function BattleUnit.new(actor, worldX, worldY, team)
     local self = {
@@ -31,7 +25,6 @@ function BattleUnit.new(actor, worldX, worldY, team)
         moveCooldown = 0,
         moveStep = DEFAULT_MOVE_STEP,
         collisionRadius = DEFAULT_COLLISION_RADIUS,
-        visualRadius = DEFAULT_VISUAL_RADIUS,
         attackRange = DEFAULT_ATTACK_REACH,
         moveTarget = nil,
         state = "idle",
@@ -48,6 +41,15 @@ function BattleUnit.new(actor, worldX, worldY, team)
         hp = 0,
         maxHp = 0,
         statusEffects = {}, -- Runtime statuses (e.g. burn, bleed, stun)
+        protections = {     -- Flat damage reduction per type (Innate + Equipment)
+            slashing = 0,
+            piercing = 0,
+            blunt = 0,
+            fire = 0,
+            ice = 0,
+            shock = 0,
+            poison = 0
+        },
         
         -- Action State
         intent = nil,       -- { type="MOVE", target={x,y} } or { type="SKILL", id="slash", target=unitId }
@@ -82,11 +84,6 @@ function BattleUnit.new(actor, worldX, worldY, team)
         for k, v in pairs(actor.stats) do self.stats[k] = v end
     end
 
-    -- Visual sizing is independent from gameplay collision.
-    if actor.size then
-        self.visualRadius = math.max(8, DEFAULT_VISUAL_RADIUS * getVisualRadiusScale(actor.size))
-    end
-    
     -- 2. Copy Learned Skills
     if actor.skills then
         for k, v in pairs(actor.skills) do self.skills[k] = v end
@@ -100,9 +97,10 @@ function BattleUnit.new(actor, worldX, worldY, team)
     end
     
     -- 3. Apply Equipment Bonuses & Granted Skills
+    -- 3. Apply Equipment Bonuses & Granted Skills
     if actor.equipment then
         for slot, itemId in pairs(actor.equipment) do
-            local item = EquipmentData[itemId]
+            local item = Items[itemId]
             if item then
                 -- Add Stats
                 if item.stats then
@@ -113,6 +111,24 @@ function BattleUnit.new(actor, worldX, worldY, team)
                 -- Grant Skill
                 if item.grantsSkill then
                     self.skills[item.grantsSkill] = {level = 1, source = "item"}
+                end
+            end
+        end
+    end
+    
+    -- 3b. Initialize Protections (Innate + Equipment)
+    if actor.innateProtections then
+        for damageType, value in pairs(actor.innateProtections) do
+            self.protections[damageType] = (self.protections[damageType] or 0) + value
+        end
+    end
+    
+    if actor.equipment then
+        for slot, itemId in pairs(actor.equipment) do
+            local item = Items[itemId]
+            if item and item.protections then
+                for damageType, value in pairs(item.protections) do
+                    self.protections[damageType] = (self.protections[damageType] or 0) + value
                 end
             end
         end

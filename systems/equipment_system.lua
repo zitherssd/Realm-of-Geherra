@@ -2,15 +2,15 @@
 -- Handle equipment and gear
 
 local EquipmentSystem = {}
-local EquipmentData = require("data.equipment")
+local Items = require("data.items")
 
-local function itemSupportsSlot(equipData, slot)
-    if not equipData then return false end
-    if equipData.slot then
-        return equipData.slot == slot
+local function itemSupportsSlot(item, slot)
+    if not item then return false end
+    if item.slot then
+        return item.slot == slot
     end
-    if equipData.slots then
-        for _, s in ipairs(equipData.slots) do
+    if item.slots then
+        for _, s in ipairs(item.slots) do
             if s == slot then
                 return true
             end
@@ -20,12 +20,12 @@ local function itemSupportsSlot(equipData, slot)
 end
 
 function EquipmentSystem.canEquip(actor, itemId, slot)
-    local equipData = EquipmentData[itemId]
-    if not equipData then
+    local item = Items[itemId]
+    if not item then
         return false, "unknown_item"
     end
 
-    if not itemSupportsSlot(equipData, slot) then
+    if not itemSupportsSlot(item, slot) then
         return false, "wrong_slot"
     end
 
@@ -42,7 +42,7 @@ function EquipmentSystem.canEquip(actor, itemId, slot)
         return false, "missing_slot"
     end
 
-    local requirements = equipData.requires
+    local requirements = item.requires
     if requirements and requirements.attributes then
         local attributes = actor.attributes or {}
         for attrName, minValue in pairs(requirements.attributes) do

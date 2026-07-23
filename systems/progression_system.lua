@@ -21,6 +21,7 @@ function ProgressionSystem.levelUp(actor)
     -- Increase stats
     if actor.stats then
         actor.stats.health = (actor.stats.health or 100) + 10
+        actor.maxHp = (actor.maxHp or actor.stats.health - 10) + 10
         actor.stats.strength = (actor.stats.strength or 10) + 1
     end
 end

@@ -127,9 +127,19 @@ function DialogueScreen:draw()
     -- Draw favor if enabled
     if self.options.showFavor then
         local favor = GameContext.data.favor or 0
-        love.graphics.setColor(0.8, 0.8, 1, 1) -- A light blue/purple color
+        love.graphics.setColor(0.8, 0.8, 1, 1)
         love.graphics.setFont(self.textFont)
         love.graphics.printf("Favor: " .. favor, 0, screenH - 200, screenW - 50, "right")
+    end
+
+    -- Draw gold if enabled
+    if self.options.showGold then
+        local playerParty = GameContext.data.playerParty
+        local gold = playerParty and playerParty:getTreasury() or 0
+        love.graphics.setColor(1, 0.85, 0.2, 1)
+        love.graphics.setFont(self.textFont)
+        local goldY = self.options.showFavor and (screenH - 225) or (screenH - 200)
+        love.graphics.printf("Gold: " .. gold, 0, goldY, screenW - 50, "right")
     end
     
     -- Draw Options

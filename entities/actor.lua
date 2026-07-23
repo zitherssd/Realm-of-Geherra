@@ -17,6 +17,8 @@ function Actor.new(id, actorType)
         speed = 10,        -- World map speed
         battle_speed = 10  -- Combat action speed (baseline 10)
     }
+    self.maxHp = self.stats.health
+    self.hp = self.maxHp
     
     self.level = 1
     self.experience = 0
@@ -29,7 +31,7 @@ function Actor.new(id, actorType)
     self.inventory = {}
     self.equipment = {}
     self.skills = {
-        ["slash"] = {learned = true} -- Default basic attack
+        ["attack"] = {learned = true} -- Default basic attack
     }
     self.attributes = {
         tracking = 0,
@@ -41,6 +43,17 @@ function Actor.new(id, actorType)
         navigation = 0
     }
     self.factions = {}
+    
+    -- Innate protections (flat damage reduction per type)
+    self.innateProtections = {
+        slashing = 0,
+        piercing = 0,
+        blunt = 0,
+        fire = 0,
+        ice = 0,
+        shock = 0,
+        poison = 0
+    }
     
     self.velocity = {x = 0, y = 0}
     self.ai = {state = "idle"}

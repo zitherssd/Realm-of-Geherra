@@ -7,6 +7,7 @@ BattleContext.data = {
     units = {},          -- Map of ID -> BattleUnit
     unitList = {},       -- Ordered list for iteration
     bounds = {width = 1260, height = 546},
+    playerUnit = nil,    -- Reference to the player's primary unit
 
     -- Time management
     paused = false,
@@ -27,7 +28,7 @@ BattleContext.data = {
     -- Camera + effects
     camera = {x = 0, y = 0, zoom = 1.3},
     debug = {
-        showCollisionCircles = true
+        showCollisionCircles = false
     },
     floatingTexts = {},
     projectiles = {},
@@ -42,6 +43,7 @@ function BattleContext.init(bounds)
         width = (bounds and bounds.width) or 1260,
         height = (bounds and bounds.height) or 546
     }
+    BattleContext.data.playerUnit = nil
     BattleContext.data.paused = false
     BattleContext.data.playerCommand = nil
     BattleContext.data.selectedUnitId = nil
@@ -82,7 +84,7 @@ function BattleContext.removeDeadUnits()
     end
 end
 
-function BattleContext.addFloatingText(x, y, text, color)
+function BattleContext.addFloatingText(x, y, text, color, centered)
     table.insert(BattleContext.data.floatingTexts, {
         x = x,
         y = y,
@@ -90,7 +92,8 @@ function BattleContext.addFloatingText(x, y, text, color)
         color = color or {1, 1, 1, 1},
         time = 0,
         duration = 1.0,
-        offsetY = 0
+        offsetY = 0,
+        centered = centered or false
     })
 end
 
