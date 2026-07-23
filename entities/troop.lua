@@ -51,6 +51,9 @@ function Troop.new(troopType, id)
         -- Apply Starting Equipment
         if data.equipment then
             for slot, itemId in pairs(data.equipment) do
+                if type(itemId) == "table" then
+                    itemId = itemId[math.random(#itemId)]
+                end
                 -- Direct assignment for initialization
                 self.equipment[slot] = itemId
             end

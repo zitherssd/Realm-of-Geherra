@@ -9,7 +9,7 @@ return {
         description = "Basic melee attack",
         damageType = "slashing",
         baseDamage = 5,
-        windup = 40,
+        windup = 30,
         cooldown = 10,
         cost = 0,
         range = 0.3,
@@ -23,8 +23,8 @@ return {
         description = "Basic melee attack",
         damageType = "piercing",
         baseDamage = 5,
-        windup = 15,
-        cooldown = 22,
+        windup = 10,
+        cooldown = 15,
         cost = 0,
         range = 0.2,
     },
@@ -93,11 +93,29 @@ return {
         type = "ranged",
         description = "Throw a javelin (Limited uses)",
         damageType = "piercing",
-        baseDamage = 18,
+        baseDamage = 17,
         range = 8.5,
-        windup = 30,
-        cooldown = 35,
+        windup = 20,
+        cooldown = 30,
         maxCharges = 2, -- Only usable 2 times per battle
+        projectile = {
+            sprite = "assets/sprites/projectiles/spear.png",
+            speed = 32,
+            arc = 30
+        }
+    },
+
+    ["javelin_throw_single"] = {
+        id = "javelin_throw_single",
+        name = "Single Javelin Throw",
+        type = "ranged",
+        description = "Throw one javelin with limited battle supply",
+        damageType = "piercing",
+        baseDamage = 16,
+        range = 8.5,
+        windup = 20,
+        cooldown = 30,
+        maxCharges = 1,
         projectile = {
             sprite = "assets/sprites/projectiles/spear.png",
             speed = 32,

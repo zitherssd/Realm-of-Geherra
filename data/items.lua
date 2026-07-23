@@ -72,7 +72,7 @@ return {
         maxDurability = 15
     },
 
-    ["spear"] = {
+["spear"] = {
         id = "spear",
         name = "Spear",
         type = "weapon",
@@ -86,7 +86,7 @@ return {
         skillModifiers = {
             damageType = "piercing",
             baseDamage = 8,
-            range = 0.9
+            range = 0.6
         }
     },
 
@@ -106,6 +106,24 @@ return {
         skillModifiers = {
             damageType = "piercing",
             baseDamage = 10
+        }
+    },
+
+    ["single_throw_javelin"] = {
+        id = "single_throw_javelin",
+        name = "Single-Throw Javelin",
+        type = "weapon",
+        description = "A light skirmisher javelin meant for one decisive throw",
+        weight = 1.2,
+        value = 45,
+        stats = {damage = 9},
+        slot = "rangedWeapon",
+        grantsSkill = "javelin_throw_single",
+        durability = 1,
+        maxDurability = 1,
+        skillModifiers = {
+            damageType = "piercing",
+            baseDamage = 9
         }
     },
 
@@ -205,6 +223,62 @@ return {
         maxDurability = 25
     },
 
+    ["furs_armor"] = {
+        id = "furs_armor",
+        name = "Furs Armor",
+        type = "armor",
+        description = "Layered furs offering modest padding and warmth",
+        weight = 3.0,
+        value = 60,
+        stats = {defense = 1},
+        slot = "body",
+        durability = 18,
+        maxDurability = 18,
+        protections = {
+            slashing = 1,
+            piercing = 0,
+            blunt = 0,
+            fire = 0,
+            ice = 0,
+            shock = 0,
+            poison = 0
+        }
+    },
+
+    ["fur_shoes"] = {
+        id = "fur_shoes",
+        name = "Fur Shoes",
+        type = "armor",
+        description = "Soft fur shoes that improve footing in a scuffle",
+        weight = 0.8,
+        value = 35,
+        stats = {defense = 1, attack = 1},
+        slot = "feet",
+        durability = 14,
+        maxDurability = 14
+    },
+
+    ["bronze_cap"] = {
+        id = "bronze_cap",
+        name = "Bronze Cap",
+        type = "armor",
+        description = "A simple bronze cap that protects vital areas",
+        weight = 1.4,
+        value = 70,
+        slot = "head",
+        durability = 20,
+        maxDurability = 20,
+        protections = {
+            slashing = 1,
+            piercing = 1,
+            blunt = 0,
+            fire = 0,
+            ice = 0,
+            shock = 0,
+            poison = 0
+        }
+    },
+
     ["club"] = {
         id = "club",
         name = "Club",
@@ -212,7 +286,7 @@ return {
         description = "A simple wooden club",
         weight = 2.0,
         value = 50,
-        stats = {damage = 6},
+        stats = {attack = 2},
         slot = "mainHand",
         grantsSkill = "attack",
         durability = 12,
@@ -323,8 +397,8 @@ return {
         stats = {defense = 10},
         slot = "offHand",
         grantsSkill = "shield_bash",
-        durability = 15,
-        maxDurability = 15,
+        durability = 18,
+        maxDurability = 18,
         protections = {
             slashing = 1,
             piercing = 1,

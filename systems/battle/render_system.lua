@@ -5,7 +5,7 @@ local RenderSystem = {}
 
 local SPRITE_FEET_OFFSET_DIAMETER_RATIO = 1 / 3
 local UNIT_HEALTH_BAR_WIDTH = 40
-local UNIT_GLOBAL_VISUAL_SCALE = 1.4
+local UNIT_GLOBAL_VISUAL_SCALE = 1.3
 
 local imageCache = {}
 
@@ -271,7 +271,7 @@ function RenderSystem.draw(context)
 
             if unit.visualEffects and unit.visualEffects.lungeTime > 0 then
                 local p = 1.0 - (unit.visualEffects.lungeTime / unit.visualEffects.lungeDuration)
-                local offset = math.sin(p * math.pi) * (collisionRadius * renderScale * 1.25)
+                local offset = math.sin(p * math.pi) * (collisionRadius * renderScale * 0.5)
                 drawX = drawX + unit.visualEffects.lungeX * offset
                 drawY = drawY + unit.visualEffects.lungeY * offset
             end

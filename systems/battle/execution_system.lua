@@ -405,6 +405,7 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
                 startY = unit.y,
                 targetX = castTargetX,
                 targetY = castTargetY,
+                targetUnitId = targetUnit and targetUnit.id or targetUnitId,
                 attackerUnit = unit,
                 skillId = skillId,
                 style = skillData.projectile.style,
@@ -448,8 +449,13 @@ function ExecutionSystem.applyAttackResult(result, target, context, skillData)
             context.addFloatingText(target.visualX, target.visualY, tostring(result.damage), {1, 0.2, 0.2, 1})
         end
     else
+        if result.action == "block" then
+            CombatSystem.applyBlockDurabilityLoss(target)
+        end
+
         if context.addFloatingText then
-            context.addFloatingText(target.visualX, target.visualY, "BLOCK", {0.8, 0.8, 0.8, 1})
+            local missText = result.action and string.upper(result.action) or "MISS"
+            context.addFloatingText(target.visualX, target.visualY, missText, {0.8, 0.8, 0.8, 1})
         end
     end
 end
@@ -499,21 +505,36 @@ function ExecutionSystem._updateProjectiles(context)
             if skillData and skillData.type == "aoe" and skillData.targeted == true then
                 ExecutionSystem._resolveAoeAtPoint(proj.attackerUnit, skillData, tx, ty, context)
             else
-                local impactRadius = 26
-                local impactRadiusSq = impactRadius * impactRadius
+                local selectedTarget = nil
+                if proj.targetUnitId and context.data.units then
+                    local intendedTarget = context.data.units[proj.targetUnitId]
+                    if intendedTarget and intendedTarget.hp > 0 and intendedTarget.team ~= proj.attackerUnit.team then
+                        selectedTarget = intendedTarget
+                    end
+                end
 
-                for _, targetUnit in ipairs(context.data.unitList) do
-                    if targetUnit.team ~= proj.attackerUnit.team and targetUnit.hp > 0 then
-                        local udx = targetUnit.x - tx
-                        local udy = targetUnit.y - ty
-                        local d2 = udx * udx + udy * udy
-                        local reach = impactRadius + (targetUnit.collisionRadius or 0)
-                        if d2 <= (reach * reach) then
-                            local impactSkill = Skills[proj.skillId]
-                            local result = CombatSystem.resolveAttack(proj.attackerUnit, targetUnit, impactSkill)
-                            ExecutionSystem.applyAttackResult(result, targetUnit, context, impactSkill)
+                if not selectedTarget then
+                    local bestDistSq = nil
+                    local impactRadius = 26
+
+                    for _, targetUnit in ipairs(context.data.unitList) do
+                        if targetUnit.team ~= proj.attackerUnit.team and targetUnit.hp > 0 then
+                            local udx = targetUnit.x - tx
+                            local udy = targetUnit.y - ty
+                            local d2 = udx * udx + udy * udy
+                            local reach = impactRadius + (targetUnit.collisionRadius or 0)
+                            if d2 <= (reach * reach) and (not bestDistSq or d2 < bestDistSq) then
+                                bestDistSq = d2
+                                selectedTarget = targetUnit
+                            end
                         end
                     end
+                end
+
+                if selectedTarget then
+                    local impactSkill = Skills[proj.skillId]
+                    local result = CombatSystem.resolveProjectileAttack(proj.attackerUnit, selectedTarget, impactSkill)
+                    ExecutionSystem.applyAttackResult(result, selectedTarget, context, impactSkill)
                 end
             end
 

@@ -2,6 +2,10 @@
 -- Handle combat mechanics, damage, and attack resolution
 
 local CombatSystem = {}
+local DEFAULT_TARGET_SIZE_BASELINE = 3
+local DEFAULT_PROJECTILE_HIT_CHANCE = 70
+local PROJECTILE_SIZE_ABOVE_BASE_BONUS = 5
+local PROJECTILE_SIZE_BELOW_BASE_MALUS = 15
 
 function CombatSystem.rollAttack(attacker, defender, skill)
     local attStats = attacker.stats or {}
@@ -14,7 +18,7 @@ function CombatSystem.rollAttack(attacker, defender, skill)
     
     local difference = attack - defense
     local hitChance = CombatSystem._interpolateHitChance(difference)
-    return math.max(5, math.min(hitChance, 95))
+    return hitChance
 end
 
 function CombatSystem._interpolateHitChance(difference)
@@ -56,6 +60,26 @@ function CombatSystem._interpolateHitChance(difference)
     
     -- Fallback (shouldn't reach here)
     return 50
+end
+
+function CombatSystem.rollProjectileHitChance(attacker, defender, skill)
+    local targetSize = DEFAULT_TARGET_SIZE_BASELINE
+    if defender then
+        if defender.size then
+            targetSize = defender.size
+        elseif defender.actor and defender.actor.size then
+            targetSize = defender.actor.size
+        end
+    end
+
+    local hitChance = DEFAULT_PROJECTILE_HIT_CHANCE
+    if targetSize > DEFAULT_TARGET_SIZE_BASELINE then
+        hitChance = hitChance + ((targetSize - DEFAULT_TARGET_SIZE_BASELINE) * PROJECTILE_SIZE_ABOVE_BASE_BONUS)
+    elseif targetSize < DEFAULT_TARGET_SIZE_BASELINE then
+        hitChance = hitChance - ((DEFAULT_TARGET_SIZE_BASELINE - targetSize) * PROJECTILE_SIZE_BELOW_BASE_MALUS)
+    end
+
+    return math.max(5, math.min(hitChance, 95))
 end
 
 function CombatSystem.calculateDamage(attacker, defender, skill)
@@ -334,6 +358,34 @@ function CombatSystem.resolveAttack(attacker, defender, skill)
         defender.visualEffects.shakeTime = 0.5 -- 0.5 seconds
     end
     
+    return {hit = false, damage = 0, defeated = false, action = action}
+end
+
+function CombatSystem.resolveProjectileAttack(attacker, defender, skill)
+    local hitChance = CombatSystem.rollProjectileHitChance(attacker, defender, skill)
+    local roll = math.random(100)
+    local isHit = roll <= hitChance
+
+    if isHit then
+        local damage = CombatSystem.calculateDamage(attacker, defender, skill)
+        local defeated = CombatSystem._applyBattleDamage(defender, damage)
+
+        if defender.visualEffects then
+            defender.visualEffects.flashTime = 0.3
+            defender.visualEffects.flashDuration = 0.3
+            defender.visualEffects.flashColor = {0.5, 0, 0}
+            defender.visualEffects.flashIntensity = 0.8
+        end
+
+        return {hit = true, damage = damage, defeated = defeated}
+    end
+
+    local action = CombatSystem._determineDefenseAction(attacker, defender, hitChance, roll)
+
+    if defender.visualEffects then
+        defender.visualEffects.shakeTime = 0.5
+    end
+
     return {hit = false, damage = 0, defeated = false, action = action}
 end
 

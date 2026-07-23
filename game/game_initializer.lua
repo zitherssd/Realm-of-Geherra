@@ -33,7 +33,9 @@ function GameInitializer.initNewGame(options)
     -- Create player party
     local playerParty = Party.new(options.playerName or "Wanderer", player.id, "party_player")
     playerParty:addActor(player)
-    playerParty:addActor(Troop.new("war_dog"))
+    playerParty:addActor(Troop.new("pelas_youth"))
+    playerParty:addActor(Troop.new("pelas_tribesman"))
+    playerParty:addActor(Troop.new("pelas_skirmisher"))
     playerParty:addTreasury(50)
 
     -- Starter inventory (for testing)
