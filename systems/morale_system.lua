@@ -1,3 +1,0 @@
--- systems/morale_system.lua
---
--- System for managing party morale.
