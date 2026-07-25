@@ -1,5 +1,6 @@
 -- game/states/dialogue_state.lua
 -- Dialogue interaction state
+-- Drives conversation flow: resolves trees, filters options, handles actions.
 
 local DialogueState = {}
 
@@ -7,6 +8,7 @@ local StateManager = require("core.state_manager")
 local UIManager = require("ui.ui_manager")
 local DialogueData = require("data.dialogue")
 local DialogueScreen = require("ui.screens.dialogue_screen")
+local DialogueSystem = require("systems.dialogue_system")
 local LocationActions = require("systems.location_actions")
 local QuestSystem = require("systems.quest_system")
 local QuestAvailabilitySystem = require("systems.quest_availability_system")
@@ -14,6 +16,10 @@ local RelationshipSystem = require("systems.relationship_system")
 local NpcIntroductions = require("data.npc_introductions")
 local GameContext = require("game.game_context")
 local WorldState = require("game.states.world_state")
+
+--------------------------------------------------------------------------------
+-- Helpers
+--------------------------------------------------------------------------------
 
 local function buildSystemDialogueTree(text, nextId, speaker)
     return {
@@ -29,14 +35,14 @@ local function buildSystemDialogueTree(text, nextId, speaker)
     }
 end
 
+--- Shallow-copy a dialogue tree, deep-copying only the options arrays
+-- so filterDialogueTreeOptions can safely mutate them.
 local function cloneDialogueTree(dialogueTree)
     if not dialogueTree then return nil end
 
     local copy = {}
     for key, value in pairs(dialogueTree) do
-        if key ~= "lines" then
-            copy[key] = value
-        end
+        copy[key] = value
     end
 
     copy.lines = {}
@@ -64,6 +70,11 @@ local function cloneDialogueTree(dialogueTree)
 end
 
 local function shouldShowDialogueOption(option, questDialogContext, relationshipContext)
+    -- Evaluate dialogue variable conditions (use ["if"] since "if" is a Lua keyword)
+    if option["if"] and not DialogueSystem.evaluateCondition(option["if"]) then
+        return false
+    end
+
     if option.requiresQuestPool and not questDialogContext.hasQuestPool then
         return false
     end
@@ -297,6 +308,9 @@ local function handleDialogueAction(choice, context)
     local speakerName = context.speakerName
     local dialogueQuestContext = context.dialogueQuestContext
 
+    -- Apply dialogue variable mutations from the choice
+    DialogueSystem.applySet(choice.set)
+
     local result = {
         handledNavigation = false,
         completionPopup = nil
@@ -427,14 +441,16 @@ function DialogueState.enter(params)
     end
     
     if dialogueTree then
+        -- Apply dialogue variable mutations from the tree itself (entering this node)
+        DialogueSystem.applySet(dialogueTree.set)
+
         dialogueTree = filterDialogueTreeOptions(dialogueTree, questDialogContext, relationshipContext)
         local speakerName, speakerId = resolveSpeaker(target, dialogueTree)
 
         -- Add speaker to the dialogue tree for rendering
         dialogueTree.speaker = speakerName
 
-        -- Create screen with a callback for choices
-        local screen = DialogueScreen.new(dialogueTree, function(choice)
+        local function onChoice(choice)
             local actionResult = handleDialogueAction(choice, {
                 target = target,
                 location = location,
@@ -463,7 +479,15 @@ function DialogueState.enter(params)
                     completionPopup = actionResult.completionPopup
                 })
             end
-        end, options)
+        end
+
+        local function onContinue()
+            -- Player advanced past the last line with no options: end conversation
+            StateManager.pop()
+        end
+
+        -- Create screen with callbacks for choices and multi-line continues
+        local screen = DialogueScreen.new(dialogueTree, onChoice, onContinue, options)
         
         UIManager.registerScreen("dialogue", screen)
         UIManager.showScreen("dialogue")
