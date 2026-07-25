@@ -1,173 +1,21 @@
 -- data/dialogue.lua
--- Dialogue tree definitions
+-- Dialogue tree registry composed from role-based dialogue files.
 
-return {
-    ["elder_greeting"] = {
-        id = "elder_greeting",
-        checkQuest = "hunt_dogs",
-        states = {
-            active = "elder_quest_active",
-            ready_to_turn_in = "elder_quest_ready_to_turn_in",
-            completed = "elder_quest_completed"
-        },
-        lines = {
-            {
-                text = "Welcome, traveler. I have a task for you.",
-                options = {
-                    {text = "What do you need?", next = "elder_request", requiresQuestPool = true, requiresQuestOffer = true},
-                    {text = "I'm not interested.", next = "end"}
-                }
-            }
-        }
-    },
-    
-    ["elder_request"] = {
-        id = "elder_request",
-        speaker = "Village Elder",
-        lines = {
-            {
-                text = "A pack of wild dogs has been attacking our livestock. We need someone to drive them off.",
-                options = {
-                    {text = "I will handle it.", action = "accept_available_quest", next = "elder_quest_accepted", requiresQuestPool = true, requiresQuestOffer = true},
-                    {text = "Not my problem.", next = "end"}
-                }
-            }
-        }
-    },
+local dialogueRegistry = {}
 
-    ["elder_quest_accepted"] = {
-        id = "elder_quest_accepted",
-        speaker = "Village Elder",
-        lines = {
-            {
-                text = "Thank you! They were last seen in the woods to the east.",
-                options = {
-                    {text = "I'll return when it is done.", next = "end"}
-                }
-            }
-        }
-    },
+local function mergeDialogueSet(target, source)
+    for dialogueId, dialogueTree in pairs(source) do
+        if target[dialogueId] then
+            error("Duplicate dialogue id in registry: " .. tostring(dialogueId))
+        end
+        target[dialogueId] = dialogueTree
+    end
+end
 
-    ["elder_quest_active"] = {
-        id = "elder_quest_active",
-        speaker = "Village Elder",
-        lines = {
-            {
-                text = "Have you driven off those dogs yet? The village is not safe until they are gone.",
-                options = {
-                    {text = "I am working on it.", next = "end"}
-                }
-            }
-        }
-    },
+mergeDialogueSet(dialogueRegistry, require("data.dialogues.common"))
+mergeDialogueSet(dialogueRegistry, require("data.dialogues.elder"))
+mergeDialogueSet(dialogueRegistry, require("data.dialogues.tavern_keeper"))
+mergeDialogueSet(dialogueRegistry, require("data.dialogues.trader"))
+mergeDialogueSet(dialogueRegistry, require("data.dialogues.soldier"))
 
-    ["elder_quest_ready_to_turn_in"] = {
-        id = "elder_quest_ready_to_turn_in",
-        speaker = "Village Elder",
-        lines = {
-            {
-                text = "Have you dealt with the wild dogs?",
-                options = {
-                    {text = "Yes. The pack is gone.", action = "turn_in_available_quest", next = "elder_quest_completed", requiresQuestPool = true, requiresReadyToTurnIn = true},
-                    {text = "Not yet.", next = "end"}
-                }
-            }
-        }
-    },
-
-    ["trader_greeting"] = {
-        id = "trader_greeting",
-        speaker = "Trader",
-        lines = {
-            {
-                text = "Good coin to you, traveler. If you seek work, I may have a contract.",
-                options = {
-                    {text = "Show me your contract.", action = "accept_available_quest", next = "end", requiresQuestPool = true, requiresQuestOffer = true},
-                    {text = "I have completed your contract.", action = "turn_in_available_quest", next = "end", requiresQuestPool = true, requiresReadyToTurnIn = true},
-                    {text = "Maybe later.", next = "end"}
-                }
-            }
-        }
-    },
-
-    ["tavern_keeper_greeting"] = {
-        id = "tavern_keeper_greeting",
-        speaker = "Tavern Keeper",
-        showGold = true,
-        lines = {
-            {
-                text = "Welcome to the tavern. A warm bed is 20 gold for the night.",
-                options = {
-                    {text = "Pay 20 gold and rest.", action = "pay_for_rest", cost = 20},
-                    {text = "Maybe later.", next = "end"}
-                }
-            }
-        }
-    },
-
-    ["npc_greeting"] = {
-        id = "npc_greeting",
-        speaker = "Local",
-        lines = {
-            {
-                text = "No work for you right now.",
-                options = {
-                    {text = "Understood.", next = "end"}
-                }
-            }
-        }
-    },
-
-    ["elder_quest_completed"] = {
-        id = "elder_quest_completed",
-        speaker = "Village Elder",
-        lines = {
-            {
-                text = "The village is safe again. We are in your debt, traveler.",
-                options = {
-                    {text = "Glad I could help.", next = "end"}
-                }
-            }
-        }
-    },
-
-    ["captain_mission"] = {
-        id = "captain_mission",
-        lines = {
-            {
-                text = "Bandits have been raiding our merchants. Will you stop them?",
-                options = {
-                    {text = "Consider it done.", next = "quest_accepted"},
-                    {text = "Not my problem.", next = "end"}
-                }
-            }
-        }
-    },
-
-    ["bandit_start"] = {
-        id = "bandit_start",
-        lines = {
-            {
-                text = "Well, well... looks like we caught ourselves a lost lamb. Hand over your coin or bleed!",
-                options = {
-                    {text = "I'll never surrender to scum like you! (Fight)", action = "battle"},
-                    {text = "I don't want any trouble... (Leave)", next = "end"} -- Placeholder for fleeing/paying
-                }
-            }
-        }
-    },
-
-    ["village_recruit"] = {
-        id = "village_recruit",
-        speaker = "Village Elder",
-        lines = {
-            {
-                text = "A few able-bodied villagers look eager to join a new cause.",
-                options = {
-                    {text = "Recruit them (10 favor).", action = "recruit_volunteers"},
-                    {text = "Leave them be.", next = "end"}
-                }
-            }
-        }
-    }
-}
+return dialogueRegistry

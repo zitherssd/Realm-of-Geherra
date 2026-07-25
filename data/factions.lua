@@ -43,5 +43,12 @@ return {
         name = "Bandit Clans",
         color = {r = 0.5, g = 0.2, b = 0.5},
         description = "Organized bandit groups"
+    },
+
+    ["pelasgians"] = {
+        id = "pelasgians",
+        name = "The Pelasgians",
+        color = {r = 0.58, g = 0.44, b = 0.24},
+        description = "Mountain and frontier tribal communities with strong local identity."
     }
 }

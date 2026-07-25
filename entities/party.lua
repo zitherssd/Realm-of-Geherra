@@ -112,7 +112,11 @@ function Party:addToInventory(item)
     -- Try to stack with existing items first
     for _, existing in ipairs(self.inventory) do
         if existing.id == item.id then
-            existing:addToStack(item.quantity)
+npx mdskills install Donchitos/claude-code-game-studiosy            if type(existing.addToStack) == "function" then
+                existing:addToStack(item.quantity or 1)
+            else
+                existing.quantity = (existing.quantity or 1) + (item.quantity or 1)
+            end
             return
         end
     end

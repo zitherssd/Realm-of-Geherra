@@ -271,6 +271,16 @@ function QuestSystem.activateQuest(templateId, giverRef)
             objective.target = objData.target
             objective.required = objData.required or 1
             objective.description = objData.description or ""
+
+            -- Resolve dynamic location target at activation time
+            if objData.pickTarget then
+                local resolved = QuestSystem._resolvePickTarget(objData.pickTarget, newQuest)
+                if resolved then
+                    objective.target = resolved.id
+                    objective.description = string.format("Travel to %s", resolved.name)
+                end
+            end
+
             newQuest:addObjective(objective)
         end
     end
@@ -405,6 +415,59 @@ end
 function QuestSystem.getQuestState(templateId, giverRef)
     local context = QuestSystem.getDialogueQuestContext(templateId, giverRef)
     return context.state
+end
+
+-- Finds a location on the current map matching criteria, preferring those nearest to the player.
+function QuestSystem._resolvePickTarget(pickTarget, quest)
+    local map = GameContext.data.currentMap
+    if not map then return nil end
+
+    local locationType = pickTarget.locationType
+    local candidates = {}
+
+    for _, loc in ipairs(map:getLocations()) do
+        if not locationType or loc.type == locationType then
+            table.insert(candidates, loc)
+        end
+    end
+
+    if #candidates == 0 then
+        print(string.format("QuestSystem: No locations of type '%s' found for pickTarget", tostring(locationType)))
+        return nil
+    end
+
+    -- Prefer nearest to the player party
+    local playerParty = GameContext.data.playerParty
+    if playerParty then
+        local px, py = playerParty.x or 0, playerParty.y or 0
+        table.sort(candidates, function(a, b)
+            local da = (a.x - px)^2 + (a.y - py)^2
+            local db = (b.x - px)^2 + (b.y - py)^2
+            return da < db
+        end)
+    end
+
+    return candidates[1]
+end
+
+-- Advance travel objectives when the player enters a location.
+function QuestSystem.onLocationEntered(location)
+    if not location or not GameContext.data.activeQuests then return end
+
+    for _, quest in pairs(GameContext.data.activeQuests) do
+        if quest:getState() == "active" then
+            for _, objective in ipairs(quest.objectives) do
+                if objective.type == "travel"
+                    and objective.target == location.id
+                    and not objective:isCompleted()
+                then
+                    objective:advance(1)
+                    print(string.format("Quest '%s': reached travel target '%s'", quest.title, location.id))
+                    QuestSystem.checkQuestCompletion(quest)
+                end
+            end
+        end
+    end
 end
 
 -- Internal handler for quest actions (spawning, etc.)

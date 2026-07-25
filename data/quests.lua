@@ -27,6 +27,30 @@ return {
         rewards = {gold = 100, unlock = "join_army"}
     },
 
+    ["pilgrimage"] = {
+        id = "pilgrimage",
+        title = "A Sacred Pilgrimage",
+        giver = nil, -- assigned dynamically
+        procedural = true,
+        repeatable = false,
+        description = "Carry the sacred offerings to a nearby shrine on behalf of the village.",
+        objectives = {
+            {
+                type = "travel",
+                -- target is resolved at activation time by pickTarget
+                pickTarget = { locationType = "shrine" },
+                required = 1,
+                description = "Deliver the offerings to a shrine"
+            },
+            {
+                type = "report_to_giver",
+                required = 1,
+                description = "Return to the Village Elder"
+            }
+        },
+        rewards = { gold = 30, favor = 60, reputation = { menari = 10 } }
+    },
+
     ["hunt_dogs"] = {
         id = "hunt_dogs",
         title = "The Wild Pack",

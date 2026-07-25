@@ -10,7 +10,7 @@ return {
         rollChance = 0.4,
         offerDurationDays = 7,
         cooldownDays = 7,
-        questPool = { "hunt_dogs" }
+        questPool = { "hunt_dogs", "pilgrimage" }
     },
 
     trader = {

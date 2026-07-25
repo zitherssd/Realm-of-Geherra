@@ -32,5 +32,13 @@ return {
         ["town"]    = {"knight"},
         ["castle"]  = {"knight"},
         ["default"] = {"knight"}
+    },
+
+    -- The Pelasgians (Tribal)
+    ["pelasgians"] = {
+        ["village"] = {"pelas_youth", "pelas_tribesman"},
+        ["town"]    = {"pelas_tribesman", "pelas_skirmisher"},
+        ["castle"]  = {"pelas_skirmisher"},
+        ["default"] = {"pelas_youth"}
     }
 }
