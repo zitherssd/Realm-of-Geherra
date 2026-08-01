@@ -1,0 +1,34 @@
+-- data/npc_name_pools.lua
+-- Given-name pools per NPC role, for generating "Ion the Elder" / "Maria the Tavern Keeper" style names.
+-- Names draw from a proto-Dacian / Mycenaean / Mediterranean palette fitting the Antediluvian Earth setting.
+
+return {
+    elder = {
+        "Ion", "Bogdan", "Dacian", "Alkimos", "Theron", "Kleon", "Myron",
+        "Nestor", "Basarab", "Cineas", "Dragomir", "Eudoros", "Glaucos"
+    },
+    tavern_keeper = {
+        "Maria", "Rada", "Anca", "Helene", "Klymene", "Danae", "Ilinca",
+        "Sorela", "Chloe", "Phaedra", "Oana", "Lysandra"
+    },
+    trader = {
+        "Luca", "Dimitri", "Xanthos", "Petros", "Kosmas", "Lykos",
+        "Stavros", "Tudor", "Nicodim", "Sarpedon", "Milos", "Dragan"
+    },
+    soldier = {
+        "Alexandru", "Hektor", "Patroklos", "Antipater", "Stefan",
+        "Leontios", "Brasidas", "Vlad", "Nicanor", "Razvan", "Tiberius"
+    },
+    knight = {
+        "Menelaos", "Agamemnon", "Iason", "Perseus", "Andrei",
+        "Hippolyta", "Lysimachos", "Radu", "Xenophon"
+    },
+    lord = {
+        "Kreon", "Aigeus", "Priam", "Codruț", "Erechtheus",
+        "Mircea", "Hyperenor", "Laomedon"
+    },
+    default = {
+        "Stranik", "Kalev", "Taras", "Vlasta", "Zoran",
+        "Branko", "Dobromir", "Gorazd", "Milan", "Ratimir"
+    }
+}

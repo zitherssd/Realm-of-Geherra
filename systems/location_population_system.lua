@@ -2,9 +2,21 @@ local Location = require("world.location")
 local Troop = require("entities.troop")
 local WorldGenerationConfig = require("data.world_generation")
 local LocationNpcSpawnRules = require("data.location_npc_spawn_rules")
+local NpcNamePools = require("data.npc_name_pools")
 
 local LocationPopulationSystem = {}
 
+--- Pick a random given name for an NPC based on their troopType.
+-- Returns "GivenName the RoleName" or falls back to the role name alone.
+local function generateNpcName(troopType, rng)
+    local pools = NpcNamePools[troopType] or NpcNamePools.default
+    local givenName = pools[rng(1, #pools)]
+    -- Capitalise the role for the title
+    local roleTitle = troopType:gsub("^%l", string.upper):gsub("_", " ")
+    return givenName .. " the " .. roleTitle
+end
+
+-- Keep this for deterministic RNG usage in other contexts
 local function makeRng(seed)
     local state = math.max(1, math.floor(seed or WorldGenerationConfig.defaultSeed))
     return function(min, max)
@@ -80,6 +92,8 @@ local function spawnLocationNpcs(location, locationType, rng, spawnRules)
         for _ = 1, count do
             if rng() <= chance then
                 local npc = Troop.new(rule.troopType)
+                -- Assign a given-name + title (e.g. "Ion the Elder")
+                npc.name = generateNpcName(rule.troopType, rng)
                 location:addNPC(npc)
             end
         end

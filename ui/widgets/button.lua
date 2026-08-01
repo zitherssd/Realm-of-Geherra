@@ -1,8 +1,17 @@
 -- ui/widgets/button.lua
--- Simple button widget
+-- Themed button — Antediluvian Earth palette (Terracotta, Amber, Ochre)
+-- Per art-bible: default = darkened Terracotta, hover = Amber glow, pressed = darker inset
 
 local Button = {}
 Button.__index = Button
+
+-- Palette constants
+local TERRA_DARK  = {0.50, 0.25, 0.15, 1}  -- darkened Terracotta
+local TERRA       = {0.71, 0.35, 0.22, 1}  -- Terracotta fill
+local AMBER       = {0.92, 0.65, 0.14, 1}  -- Amber glow
+local OCHRE_DIS   = {0.40, 0.32, 0.20, 1}  -- desaturated Ochre at ~40%
+local CHARCOAL    = {0.14, 0.14, 0.18, 1}  -- Charcoal
+local PARCHMENT   = {0.90, 0.84, 0.73, 1}  -- Parchment (text)
 
 function Button.new(text, x, y, w, h, callback)
     local self = setmetatable({}, Button)
@@ -47,27 +56,50 @@ function Button:update(dt)
 end
 
 function Button:draw()
-    local color
+    local fill, borderColor, textColor
+
     if self.disabled then
-        color = {0.1, 0.1, 0.1, 1}
+        fill = OCHRE_DIS
+        borderColor = {0.3, 0.25, 0.15, 1}
+        textColor = {0.6, 0.5, 0.35, 1}
+    elseif self.state == "active" then
+        fill = {0.35, 0.18, 0.10, 1}  -- darker inset
+        borderColor = AMBER
+        textColor = PARCHMENT
+    elseif self.state == "hover" then
+        fill = TERRA
+        borderColor = AMBER
+        textColor = AMBER
     else
-        color = (self.state == "active") and {0.3, 0.3, 0.3, 1} or (self.state == "hover") and {0.4, 0.4, 0.4, 1} or {0.2, 0.2, 0.2, 1}
+        fill = TERRA_DARK
+        borderColor = {0.6, 0.4, 0.15, 1}  -- bronze
+        textColor = PARCHMENT
     end
-    
-    love.graphics.setColor(unpack(color))
+
+    -- Button body
+    love.graphics.setColor(unpack(fill))
     love.graphics.rectangle("fill", self.x, self.y, self.w, self.h)
-    
-    -- Border
-    love.graphics.setColor(1, 1, 1, 1)
+
+    -- Outer border (carved stone — Charcoal, thick)
+    love.graphics.setColor(CHARCOAL)
+    love.graphics.setLineWidth(2)
     love.graphics.rectangle("line", self.x, self.y, self.w, self.h)
-    
+    love.graphics.setLineWidth(1)
+
+    -- Inner border (bronze inlay)
+    love.graphics.setColor(unpack(borderColor))
+    love.graphics.rectangle("line", self.x + 2, self.y + 2, self.w - 4, self.h - 4)
+
+    -- Corner rivets (bronze dots)
+    local r = 2
+    love.graphics.circle("fill", self.x + 3, self.y + 3, r)
+    love.graphics.circle("fill", self.x + self.w - 3, self.y + 3, r)
+    love.graphics.circle("fill", self.x + 3, self.y + self.h - 3, r)
+    love.graphics.circle("fill", self.x + self.w - 3, self.y + self.h - 3, r)
+
     -- Text
     local font = love.graphics.getFont()
-    if self.disabled then
-        love.graphics.setColor(0.5, 0.5, 0.5, 1)
-    else
-        love.graphics.setColor(1, 1, 1, 1)
-    end
+    love.graphics.setColor(unpack(textColor))
     local textH = font:getHeight()
     love.graphics.printf(self.text, self.x, self.y + (self.h - textH) / 2, self.w, "center")
 end

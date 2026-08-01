@@ -165,6 +165,8 @@ function QuestAvailabilitySystem.rollOfferForNpc(npc)
     state.templateId = offer.templateId
     state.generatedDay = day
     state.expiresDay = day + (profile.offerDurationDays or 7)
+    -- Resolve target name at offer time so dialogue can mention the location
+    state.targetName = QuestSystem.resolveQuestTargetName(offer.templateId)
 
     return state
 end
@@ -252,7 +254,8 @@ function QuestAvailabilitySystem.getNpcQuestContext(npc)
         activeQuestInstanceId = nil,
         readyToTurnIn = false,
         templateId = state.templateId,
-        expiresDay = state.expiresDay
+        expiresDay = state.expiresDay,
+        targetName = state.targetName
     }
 
     if state.status == "accepted" and state.questInstanceId then

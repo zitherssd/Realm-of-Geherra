@@ -13,7 +13,7 @@ local LocationActions = require("systems.location_actions")
 local QuestSystem = require("systems.quest_system")
 local QuestAvailabilitySystem = require("systems.quest_availability_system")
 local RelationshipSystem = require("systems.relationship_system")
-local NpcIntroductions = require("data.npc_introductions")
+-- npc_introductions was removed — all introductions now use introDialogue in dialogue trees
 local GameContext = require("game.game_context")
 local WorldState = require("game.states.world_state")
 
@@ -103,28 +103,10 @@ local function shouldShowDialogueOption(option, questDialogContext, relationship
         return false
     end
 
-    -- While unintroduced, only allow explicit intro or clearly marked early options.
-    if not relationshipContext.introduced and option.action ~= "introduce_self" then
-        local isExitOption = (option.next == "end" and not option.action)
-        if not option.allowBeforeIntroduction and not isExitOption then
-            return false
-        end
-    end
+    -- Introduction gating removed — all introductions handled via introDialogue in dialogue trees.
+    -- NPCs without introDialogue are treated as always-introduced (see buildNpcContexts).
 
     return true
-end
-
-local function getNpcIntroductionProfile(npc)
-    if not npc then
-        return NpcIntroductions.default or {}
-    end
-
-    local roleKey = npc.troopType or npc.type
-    if roleKey and NpcIntroductions[roleKey] then
-        return NpcIntroductions[roleKey]
-    end
-
-    return NpcIntroductions.default or {}
 end
 
 local function filterDialogueTreeOptions(dialogueTree, questDialogContext, relationshipContext)
@@ -133,26 +115,15 @@ local function filterDialogueTreeOptions(dialogueTree, questDialogContext, relat
     local filtered = cloneDialogueTree(dialogueTree)
     for _, line in ipairs(filtered.lines or {}) do
         local allowedOptions = {}
-        local hasIntroduceOption = false
 
         for _, option in ipairs(line.options or {}) do
             if shouldShowDialogueOption(option, questDialogContext, relationshipContext) then
                 table.insert(allowedOptions, option)
-                if option.action == "introduce_self" then
-                    hasIntroduceOption = true
-                end
             end
         end
 
-        if not relationshipContext.introduced and not hasIntroduceOption then
-            table.insert(allowedOptions, 1, {
-                text = relationshipContext.introOptionText or "Introduce yourself.",
-                action = "introduce_self",
-                returnDialogueId = filtered.id,
-                introResponseText = relationshipContext.introResponseText,
-                next = filtered.id or "end"
-            })
-        end
+        -- Auto-insertion of "Introduce yourself" removed — introductions are handled
+        -- exclusively via introDialogue in dialogue trees.
 
         if #allowedOptions == 0 then
             allowedOptions = {
@@ -232,40 +203,80 @@ local function buildNpcContexts(target)
         return questDialogContext, relationshipContext
     end
 
-    local introProfile = getNpcIntroductionProfile(target)
     RelationshipSystem.markMet(target)
     relationshipContext.introduced = RelationshipSystem.hasIntroduced(target)
     relationshipContext.relation = RelationshipSystem.getRelation(target)
-    relationshipContext.introOptionText = introProfile.optionText
-    relationshipContext.introResponseText = introProfile.responseText
-
-    if introProfile.skip then
-        RelationshipSystem.introduceToNpc(target)
-        relationshipContext.introduced = true
-    end
+    -- NPCs without introDialogue are always considered introduced.
+    -- Those with introDialogue get introduced via the intro dialogue flow.
 
     questDialogContext.hasQuestPool = QuestAvailabilitySystem.hasQuestPoolForNpc(target)
     local npcQuestContext = QuestAvailabilitySystem.getNpcQuestContext(target)
     questDialogContext.hasOffer = npcQuestContext.hasOffer
     questDialogContext.hasAcceptedQuest = npcQuestContext.state == "accepted"
     questDialogContext.readyToTurnIn = npcQuestContext.readyToTurnIn
+    questDialogContext.templateId = npcQuestContext.templateId
+    questDialogContext.targetName = npcQuestContext.targetName
 
     return questDialogContext, relationshipContext
 end
 
-local function resolveDialogueTree(params, questSpeakerRef)
+local function resolveDialogueTree(params, questSpeakerRef, questDialogContext)
     local dialogueTree = params.dialogueTree
     if not dialogueTree and params.dialogueId then
         dialogueTree = DialogueData[params.dialogueId]
     end
 
     local dialogueQuestContext
+
+    -- Quest-state routing: checkQuest routes to a node based on a specific quest template
     if dialogueTree and dialogueTree.checkQuest then
         dialogueQuestContext = QuestSystem.getDialogueQuestContext(dialogueTree.checkQuest, questSpeakerRef)
         local status = dialogueQuestContext.state
         if dialogueTree.states and dialogueTree.states[status] then
             local newId = dialogueTree.states[status]
             local newTree = DialogueData[newId]
+            if newTree then
+                dialogueTree = newTree
+            end
+        end
+    end
+
+    -- Active-quest routing: checks the NPC's quest offer state for ANY active quest.
+    -- Works with checkQuest — if checkQuest already routed (e.g. hunt_dogs matched),
+    -- checkActiveQuest won't fire because dialogueTree has changed.
+    if dialogueTree and dialogueTree.checkActiveQuest and questDialogContext then
+        if questDialogContext.readyToTurnIn then
+            local newId = dialogueTree.states and dialogueTree.states.ready_to_turn_in
+            if newId then
+                local newTree = DialogueData[newId]
+                if newTree then dialogueTree = newTree end
+            end
+        elseif questDialogContext.hasAcceptedQuest then
+            local newId = dialogueTree.states and dialogueTree.states.active
+            if newId then
+                local newTree = DialogueData[newId]
+                if newTree then dialogueTree = newTree end
+            end
+        end
+    end
+
+    -- Offer routing: checkOffer routes to quest-specific offer text
+    if dialogueTree and dialogueTree.checkOffer and questDialogContext then
+        local templateId = questDialogContext.templateId
+        if templateId and dialogueTree.checkOffer[templateId] then
+            local newId = dialogueTree.checkOffer[templateId]
+            local newTree = DialogueData[newId]
+            if newTree then
+                dialogueTree = newTree
+            end
+        end
+    end
+
+    -- No-offer routing: when the NPC has no offer and no active quest,
+    -- route to a "nothing to offer" dialogue node
+    if dialogueTree and dialogueTree.noOfferDialogue and questDialogContext then
+        if not questDialogContext.hasOffer and not questDialogContext.hasAcceptedQuest then
+            local newTree = DialogueData[dialogueTree.noOfferDialogue]
             if newTree then
                 dialogueTree = newTree
             end
@@ -339,6 +350,26 @@ local function handleDialogueAction(choice, context)
             dialogueTree = buildSystemDialogueTree(resultText),
             location = location
         })
+    elseif choice.action == "buy_drink" then
+        local playerParty = GameContext.data.playerParty
+        local cost = choice.cost or 5
+        if playerParty and playerParty:getTreasury() >= cost then
+            playerParty:withdrawTreasury(cost)
+            StateManager.swap("dialogue", {
+                dialogueTree = buildSystemDialogueTree("You slide " .. cost .. " gold across the worn counter. The tavern keeper fills a clay mug and pushes it toward you. The ale is dark, bitter, and welcome.", nil, "Tavern Keeper"),
+                location = location,
+                showGold = options.showGold
+            })
+            result.handledNavigation = true
+            return result
+        else
+            StateManager.swap("dialogue", {
+                dialogueTree = buildSystemDialogueTree("The tavern keeper eyes your empty purse. 'Come back when you've got coin to spend.'", nil, "Tavern Keeper"),
+                location = location
+            })
+            result.handledNavigation = true
+            return result
+        end
     elseif choice.action == "accept_quest" then
         local questId = choice.questId
         if questId then
@@ -355,35 +386,10 @@ local function handleDialogueAction(choice, context)
         if target then
             QuestAvailabilitySystem.acceptOfferForNpc(target)
         end
-    elseif choice.action == "introduce_self" then
+    elseif choice.action == "meet_npc" then
+        -- Simple introduction: mark as met and let normal navigation handle the rest
         if target then
             RelationshipSystem.introduceToNpc(target)
-        end
-
-        local introText = choice.introResponseText
-            or "You exchange names and a few words before continuing."
-        local returnDialogueId = choice.returnDialogueId or choice.next
-
-        if returnDialogueId and returnDialogueId ~= "end" then
-            StateManager.swap("dialogue", {
-                dialogueTree = {
-                    speaker = speakerName or "Local",
-                    lines = {
-                        {
-                            text = introText,
-                            options = {
-                                { text = "Continue", next = returnDialogueId }
-                            }
-                        }
-                    }
-                },
-                target = target,
-                location = location,
-                showFavor = options.showFavor,
-                showGold = options.showGold
-            })
-            result.handledNavigation = true
-            return result
         end
     elseif choice.action == "turn_in_quest" then
         local questIdOrTemplateId = choice.questInstanceId
@@ -425,14 +431,32 @@ function DialogueState.enter(params)
     local options = {
         showFavor = params.showFavor,
         showGold  = params.showGold,
-        completionPopup = params.completionPopup
+        completionPopup = params.completionPopup,
+        textVars = {}
     }
     local favorCost = params.favorCost
 
     local questSpeakerRef = buildSpeakerRefFromTarget(target)
     local questDialogContext, relationshipContext = buildNpcContexts(target)
 
-    local dialogueTree, dialogueQuestContext = resolveDialogueTree(params, questSpeakerRef)
+    -- Expose quest target name for {target} placeholder in dialogue text
+    if questDialogContext.targetName then
+        options.textVars.target = questDialogContext.targetName
+    end
+
+    -- Expose NPC sprite for the portrait
+    if target then
+        if target.getLeader then
+            local leader = target:getLeader()
+            if leader and leader.sprite then
+                options.npcSprite = leader.sprite
+            end
+        elseif target.sprite then
+            options.npcSprite = target.sprite
+        end
+    end
+
+    local dialogueTree, dialogueQuestContext = resolveDialogueTree(params, questSpeakerRef, questDialogContext)
 
     -- Inherit display flags from the dialogue tree definition
     if dialogueTree then
@@ -443,6 +467,16 @@ function DialogueState.enter(params)
     if dialogueTree then
         -- Apply dialogue variable mutations from the tree itself (entering this node)
         DialogueSystem.applySet(dialogueTree.set)
+
+        -- If the tree has a dedicated intro dialogue and player hasn't met the NPC yet,
+        -- show the intro node first instead of the normal greeting.
+        if dialogueTree.introDialogue and relationshipContext and not relationshipContext.introduced then
+            local introTree = DialogueData[dialogueTree.introDialogue]
+            if introTree then
+                introTree = cloneDialogueTree(introTree)
+                dialogueTree = introTree
+            end
+        end
 
         dialogueTree = filterDialogueTreeOptions(dialogueTree, questDialogContext, relationshipContext)
         local speakerName, speakerId = resolveSpeaker(target, dialogueTree)

@@ -59,22 +59,6 @@ end
 
 
 
-function LocationActions.visitTavern(location)
-
-    StateManager.push("dialogue", {
-
-        dialogueTree = {
-
-            speaker = "System",
-
-            lines = { { text = "The tavern is bustling, but there's nothing to do yet.", options = {{ text = "Leave", next = "end" }} } }
-
-        }
-
-    })
-
-end
-
 
 
 function LocationActions.tradeGoods(location)
@@ -127,6 +111,22 @@ function LocationActions.trainTroops(location)
 
     })
 
+end
+
+function LocationActions.attackBanditCamp(location)
+    local enemyParty = Party.new("Bandit Defenders", nil)
+    enemyParty.faction = "bandits"
+
+    local count = math.random(3, 6)
+    local types = {"bandit", "bandit", "bandit", "bandit", "peasant"}
+    for _ = 1, count do
+        enemyParty:addActor(Troop.new(types[math.random(#types)]))
+    end
+
+    StateManager.swap("battle", {
+        enemyParty = enemyParty,
+        location = location
+    })
 end
 
 function LocationActions.pray(location)

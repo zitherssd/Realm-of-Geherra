@@ -3,10 +3,8 @@ return {
         npcs = {
             { troopType = "elder",        count = 1, chance = 1.0  },
             { troopType = "trader",       count = 1, chance = 0.50 },
-            { troopType = "tavern_keeper",count = 1, chance = 1.0  }
         },
         actions = {
-            { label = "Buy Supplies",       action = "buySupplies"             },
             { label = "Recruit Volunteers",   action = "startRecruitmentDialogue",
               cooldown = { key = "lastRecruitDay", days = 5 }                     }
         }
@@ -14,14 +12,11 @@ return {
     town = {
         npcs = {
             { troopType = "elder",        count = 1, chance = 1.0  },
-            { troopType = "trader",       count = 2, chance = 0.60 },
+            { troopType = "trader",       count = 3, chance = 0.60 },
             { troopType = "soldier",      count = 2, chance = 0.15 },
             { troopType = "tavern_keeper",count = 1, chance = 1.0  }
         },
         actions = {
-            { label = "Visit Tavern", action = "visitTavern" },
-            { label = "Trade Goods",  action = "tradeGoods"  },
-            { label = "Rest",         action = "rest"        }
         }
     },
     castle = {
@@ -47,5 +42,17 @@ return {
         actions = {
             { label = "Pray", action = "pray", cooldown = { key = "lastPrayDay", days = 15 } }
         }
+    },
+    bandit_camp = {
+        npcs = {},
+        actions = {
+            { label = "Attack Bandit Camp", action = "attackBanditCamp" }
+        }
+    },
+    windmill = {
+        npcs = {
+            { troopType = "tavern_keeper", count = 1, chance = 1.0 }
+        },
+        actions = {}
     }
 }

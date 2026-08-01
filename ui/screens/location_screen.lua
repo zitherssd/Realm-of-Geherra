@@ -195,18 +195,28 @@ function LocationScreen:draw()
             local name = btn.npc.name or "Unknown"
             love.graphics.printf(name, btn.x + 2, btn.y + btn.h - 25, btn.w - 4, "center")
 
-            -- Draw tiny quest-available indicator
-            if questContext and questContext.hasOffer then
+            -- Draw quest status indicators
+            if questContext then
                 local markRadius = 10
                 local markX = btn.x + btn.w - markRadius - 6
                 local markY = btn.y + markRadius + 6
+                local smallFont = self.smallFont
 
-                love.graphics.setColor(0.9, 0.1, 0.1, 1)
-                love.graphics.circle("fill", markX, markY, markRadius)
-
-                love.graphics.setColor(1, 1, 1, 1)
-                love.graphics.setFont(self.smallFont)
-                love.graphics.printf("!", markX - 6, markY - 8, 12, "center")
+                if questContext.readyToTurnIn then
+                    -- Red "?" — quest ready to turn in
+                    love.graphics.setColor(0.9, 0.1, 0.1, 1)
+                    love.graphics.circle("fill", markX, markY, markRadius)
+                    love.graphics.setColor(1, 1, 1, 1)
+                    love.graphics.setFont(smallFont)
+                    love.graphics.printf("?", markX - 5, markY - 8, 12, "center")
+                elseif questContext.hasOffer then
+                    -- Red "!" — new quest available
+                    love.graphics.setColor(0.9, 0.1, 0.1, 1)
+                    love.graphics.circle("fill", markX, markY, markRadius)
+                    love.graphics.setColor(1, 1, 1, 1)
+                    love.graphics.setFont(smallFont)
+                    love.graphics.printf("!", markX - 6, markY - 8, 12, "center")
+                end
             end
         end
     end

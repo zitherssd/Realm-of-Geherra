@@ -450,6 +450,21 @@ function QuestSystem._resolvePickTarget(pickTarget, quest)
     return candidates[1]
 end
 
+-- For a quest template, resolve the pickTarget location name (used in dialogue text).
+-- This picks the target at offer-time so the NPC can mention it by name.
+function QuestSystem.resolveQuestTargetName(templateId)
+    local questData = QuestsData[templateId]
+    if not questData or not questData.objectives then return nil end
+
+    for _, obj in ipairs(questData.objectives) do
+        if obj.pickTarget then
+            local resolved = QuestSystem._resolvePickTarget(obj.pickTarget)
+            return resolved and resolved.name or nil
+        end
+    end
+    return nil
+end
+
 -- Advance travel objectives when the player enters a location.
 function QuestSystem.onLocationEntered(location)
     if not location or not GameContext.data.activeQuests then return end
@@ -494,6 +509,21 @@ function QuestSystem._handleQuestAction(action, quest)
             map:addParty(party)
             table.insert(quest.spawnedPartyIds, party.id)
             QuestSystem._bindSpawnedPartyToObjectives(quest, action.partyId, party.id)
+        end
+    elseif action.type == "give_item" then
+        local playerParty = GameContext.data.playerParty
+        if playerParty and action.itemId then
+            local itemData = ItemsData[action.itemId]
+            if itemData then
+                local item = Item.new(itemData.id, itemData.type)
+                item.name = itemData.name or itemData.id
+                item.description = itemData.description or ""
+                item.weight = itemData.weight or 1.0
+                item.value = itemData.value or 0
+                item.quantity = action.quantity or 1
+                playerParty:addToInventory(item)
+                print(string.format("QuestSystem: Granted item '%s' (x%d) for quest '%s'", action.itemId, action.quantity or 1, quest.instanceId))
+            end
         end
     end
 end

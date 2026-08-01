@@ -7,10 +7,10 @@ return {
     },
 
     elder = {
-        rollChance = 0.4,
+        rollChance = 0.6,
         offerDurationDays = 7,
-        cooldownDays = 7,
-        questPool = { "hunt_dogs", "pilgrimage" }
+        cooldownDays = 5,
+        questPool = { "hunt_dogs", "pilgrimage", "deliver_message", "deliver_item", "rescue_daughter" }
     },
 
     trader = {

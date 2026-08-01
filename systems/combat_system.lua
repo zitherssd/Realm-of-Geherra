@@ -7,59 +7,60 @@ local DEFAULT_PROJECTILE_HIT_CHANCE = 70
 local PROJECTILE_SIZE_ABOVE_BASE_BONUS = 5
 local PROJECTILE_SIZE_BELOW_BASE_MALUS = 15
 
-function CombatSystem.rollAttack(attacker, defender, skill)
-    local attStats = attacker.stats or {}
-    local defStats = defender.stats or {}
-    
-    local attack = attStats.attack or 10
-    local defense = defStats.defense or 10
-    
-    if defense <= 0 then return 95 end
-    
-    local difference = attack - defense
-    local hitChance = CombatSystem._interpolateHitChance(difference)
-    return hitChance
-end
+-- Break down a defender's total defense into base stats, armor, and shield components.
+-- The total returned always matches defender.stats.defense (which already includes
+-- equipment bonuses for BattleUnits). Returns: baseDefense, armorDefense, shieldDefense, totalDefense.
+function CombatSystem._getDefenseBreakdown(defender)
+    local totalDefense = 0
+    local armorDefense = 0
+    local shieldDefense = 0
 
-function CombatSystem._interpolateHitChance(difference)
-    local hitCurve = {
-        {-100, 3},
-        {-80, 7},
-        {-60, 10},
-        {-40, 15},
-        {-20, 20},
-        {-10, 32},
-        {0, 45},
-        {10, 70},
-        {20, 80},
-        {40, 88},
-        {60, 93},
-        {80, 97},
-        {100, 100},
-    }
-    
-    -- If difference is outside the curve, return the boundary value
-    if difference <= hitCurve[1][1] then
-        return hitCurve[1][2]
+    if not defender then
+        return 0, 0, 0, 0
     end
-    if difference >= hitCurve[#hitCurve][1] then
-        return hitCurve[#hitCurve][2]
-    end
-    
-    -- Find the two points to interpolate between
-    for i = 1, #hitCurve - 1 do
-        if difference >= hitCurve[i][1] and difference <= hitCurve[i + 1][1] then
-            local x0, y0 = hitCurve[i][1], hitCurve[i][2]
-            local x1, y1 = hitCurve[i + 1][1], hitCurve[i + 1][2]
-            
-            -- Linear interpolation between control points
-            local t = (difference - x0) / (x1 - x0)
-            return y0 + t * (y1 - y0)
+
+    -- Total defense from the unit's derived stats (already includes equipment for BattleUnits)
+    local defStats = defender.stats or {}
+    totalDefense = defStats.defense or 0
+
+    -- Sum equipment defense contributions so we can split them out
+    if defender.equipment then
+        local Items = require("data.items")
+        for slot, itemId in pairs(defender.equipment) do
+            if itemId then
+                local item = Items[itemId]
+                if item and item.type == "armor" and item.stats and item.stats.defense then
+                    if slot == "offHand" then
+                        shieldDefense = shieldDefense + item.stats.defense
+                    else
+                        armorDefense = armorDefense + item.stats.defense
+                    end
+                end
+            end
         end
     end
+
+    -- Base defense is what's left after removing equipment contributions
+    local baseDefense = math.max(0, totalDefense - armorDefense - shieldDefense)
+
+    return baseDefense, armorDefense, shieldDefense, totalDefense
+end
+
+function CombatSystem.rollAttack(attacker, defender, skill)
+    local attStats = attacker.stats or {}
     
-    -- Fallback (shouldn't reach here)
-    return 50
+    local attack = attStats.attack or 10
+    local baseDefense, armorDefense, shieldDefense, totalDefense = CombatSystem._getDefenseBreakdown(defender)
+    
+    local rawOffense = math.random(20)
+    local rawDefense = math.random(20)
+    local offenseTotal = rawOffense + attack
+    local defenseTotal = math.max(0, rawDefense + totalDefense)
+    
+    local margin = offenseTotal - defenseTotal
+    local isHit = margin > 0  -- Ties go to the defender
+    
+    return isHit, false, false, offenseTotal, defenseTotal, margin, baseDefense, armorDefense, shieldDefense
 end
 
 function CombatSystem.rollProjectileHitChance(attacker, defender, skill)
@@ -167,49 +168,23 @@ function CombatSystem.getEffectiveSkill(unit, skillId)
     return effectiveSkill
 end
 
--- Determine the type of defensive action based on roll margin and defender state
+-- Determine the type of defensive action based on how badly the attacker missed
 -- Returns: "dodge", "evade", "parry", or "block" with randomness
--- Prioritizes BLOCK if shield prevented the hit
-function CombatSystem._determineDefenseAction(attacker, defender, hitChance, roll)
-    local margin = roll - hitChance  -- Negative = missed by this amount
+-- closeThreshold/mediumThreshold define margin bands (varies by d20 vs d100 scale)
+function CombatSystem._determineDefenseAction(hasShield, margin, closeThreshold, mediumThreshold)
+    closeThreshold = closeThreshold or -7
+    mediumThreshold = mediumThreshold or -15
     
-    -- Check if defender has a shield equipped
-    local hasShield = false
-    local shieldDefense = 0
-    if defender.equipment and defender.equipment.offHand then
-        local Items = require("data.items")
-        local shieldItem = Items[defender.equipment.offHand]
-        if shieldItem and shieldItem.type == "armor" and shieldItem.slot == "offHand" then
-            hasShield = true
-            shieldDefense = shieldItem.stats.defense or 0
-        end
-    end
-    
-    -- Check if shield was the deciding factor (prevented the hit)
-    if hasShield and shieldDefense > 0 then
-        -- Calculate hit chance without shield defense
-        local defenderDefense = defender.stats.defense or 0
-        local defenderDefenseWithoutShield = defenderDefense - shieldDefense
-        local differenceWithoutShield = (attacker.stats.attack or 0) - defenderDefenseWithoutShield
-        local hitChanceWithoutShield = CombatSystem._interpolateHitChance(differenceWithoutShield)
-        
-        -- If it would have hit without shield but misses with shield, it's a BLOCK
-        if hitChanceWithoutShield > roll and hitChance <= roll then
-            return "block"  -- Shield successfully blocked the attack
-        end
-    end
-    
-    -- For regular misses, randomly determine action based on margin
     local actionRoll = math.random(0, 100)
     
     if hasShield then
         -- With shield equipped
-        if margin > -20 then
+        if margin > closeThreshold then
             -- Close miss: 50% dodge, 20% evade, 30% block, 0% parry
             if actionRoll < 50 then return "dodge"
             elseif actionRoll < 70 then return "evade"
             else return "block" end
-        elseif margin > -40 then
+        elseif margin > mediumThreshold then
             -- Medium miss: 10% dodge, 25% evade, 40% block, 20% parry
             if actionRoll < 10 then return "dodge"
             elseif actionRoll < 35 then return "evade"
@@ -224,12 +199,12 @@ function CombatSystem._determineDefenseAction(attacker, defender, hitChance, rol
         end
     else
         -- Without shield (weapon block only)
-        if margin > -20 then
+        if margin > closeThreshold then
             -- Close miss: 60% dodge, 20% evade, 20% block, 0% parry
             if actionRoll < 60 then return "dodge"
             elseif actionRoll < 80 then return "evade"
             else return "block" end
-        elseif margin > -40 then
+        elseif margin > mediumThreshold then
             -- Medium miss: 15% dodge, 30% evade, 30% block, 20% parry
             if actionRoll < 15 then return "dodge"
             elseif actionRoll < 45 then return "evade"
@@ -331,10 +306,7 @@ function CombatSystem.applyBlockDurabilityLoss(defender)
 end
 
 function CombatSystem.resolveAttack(attacker, defender, skill)
-    -- 1. Check for Hit
-    local hitChance = CombatSystem.rollAttack(attacker, defender, skill)
-    local roll = math.random(100)
-    local isHit = roll <= hitChance
+    local isHit, isCrit, isFumble, offenseTotal, defenseTotal, margin, baseDefense, armorDefense, shieldDefense = CombatSystem.rollAttack(attacker, defender, skill)
     
     if isHit then
         local damage = CombatSystem.calculateDamage(attacker, defender, skill)
@@ -342,7 +314,7 @@ function CombatSystem.resolveAttack(attacker, defender, skill)
         
         -- Visual: Damage Flash (Red)
         if defender.visualEffects then
-            defender.visualEffects.flashTime = 0.3 -- 0.3 seconds
+            defender.visualEffects.flashTime = 0.3
             defender.visualEffects.flashDuration = 0.3
             defender.visualEffects.flashColor = {0.5, 0, 0}
             defender.visualEffects.flashIntensity = 0.8
@@ -351,11 +323,24 @@ function CombatSystem.resolveAttack(attacker, defender, skill)
         return {hit = true, damage = damage, defeated = defeated}
     end
     
-    -- MISS: Determine defense action and apply visual effects
-    local action = CombatSystem._determineDefenseAction(attacker, defender, hitChance, roll)
+    -- MISS: Determine defense action
+    local action
+    local hasShield = shieldDefense > 0
+    
+    -- Check if shield was the deciding factor:
+    -- "would the attacker have hit without the shield's defense bonus?"
+    -- offenseTotal - (defenseTotal - shieldDefense) > 0  ⇔  margin + shieldDefense > 0
+    local isShieldBlock = hasShield and (margin + shieldDefense) > 0
+    
+    if isShieldBlock then
+        action = "block"
+        CombatSystem.applyBlockDurabilityLoss(defender)
+    else
+        action = CombatSystem._determineDefenseAction(hasShield, margin)
+    end
     
     if defender.visualEffects then
-        defender.visualEffects.shakeTime = 0.5 -- 0.5 seconds
+        defender.visualEffects.shakeTime = 0.5
     end
     
     return {hit = false, damage = 0, defeated = false, action = action}
@@ -365,6 +350,7 @@ function CombatSystem.resolveProjectileAttack(attacker, defender, skill)
     local hitChance = CombatSystem.rollProjectileHitChance(attacker, defender, skill)
     local roll = math.random(100)
     local isHit = roll <= hitChance
+    local baseDefense, armorDefense, shieldDefense = CombatSystem._getDefenseBreakdown(defender)
 
     if isHit then
         local damage = CombatSystem.calculateDamage(attacker, defender, skill)
@@ -380,7 +366,8 @@ function CombatSystem.resolveProjectileAttack(attacker, defender, skill)
         return {hit = true, damage = damage, defeated = defeated}
     end
 
-    local action = CombatSystem._determineDefenseAction(attacker, defender, hitChance, roll)
+    local hasShield = shieldDefense > 0
+    local action = CombatSystem._determineDefenseAction(hasShield, roll - hitChance, -20, -40)
 
     if defender.visualEffects then
         defender.visualEffects.shakeTime = 0.5

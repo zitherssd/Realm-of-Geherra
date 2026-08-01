@@ -27,10 +27,25 @@ function DialogueScreen.new(dialogueTree, onChoice, onContinue, options)
     self.completionPopupTimer = 0
     self.completionPopupDuration = 3
 
+    -- Text variables for {placeholder} substitution
+    self.textVars = self.options.textVars or {}
+
     -- Cache fonts once (not per frame)
     self.speakerFont = love.graphics.newFont(24)
     self.textFont = love.graphics.newFont(18)
     self.smallFont = love.graphics.newFont(14)
+
+    -- Load NPC portrait sprite if provided
+    self.npcImage = nil
+    if self.options.npcSprite then
+        local path = self.options.npcSprite
+        if love.filesystem.getInfo(path) then
+            self.npcImage = love.graphics.newImage(path)
+            if self.npcImage then
+                self.npcImage:setFilter("nearest", "nearest")
+            end
+        end
+    end
     
     return self
 end
@@ -131,18 +146,52 @@ function DialogueScreen:draw()
         self:_drawCompletionPopup(screenW, screenH)
     end
     
+    -- Portrait layout: portrait on the left, text area to the right
+    local portraitX = 40
+    local portraitY = screenH - 340
+    local portraitSize = 96
+    local textX = portraitX + portraitSize + 20
+    local textWidth = screenW - textX - 40
+
+    -- Draw NPC portrait if available
+    if self.npcImage then
+        -- Portrait frame background
+        love.graphics.setColor(0.15, 0.12, 0.08, 1)
+        love.graphics.rectangle("fill", portraitX - 4, portraitY - 4, portraitSize + 8, portraitSize + 8)
+
+        -- Frame border (bronze)
+        love.graphics.setColor(0.6, 0.4, 0.15, 1)
+        love.graphics.rectangle("line", portraitX - 4, portraitY - 4, portraitSize + 8, portraitSize + 8)
+
+        -- Inner gem accent at corners
+        love.graphics.setColor(0.75, 0.55, 0.2, 1)
+        love.graphics.rectangle("fill", portraitX - 2, portraitY - 2, 4, 4)
+        love.graphics.rectangle("fill", portraitX + portraitSize - 2, portraitY - 2, 4, 4)
+        love.graphics.rectangle("fill", portraitX - 2, portraitY + portraitSize - 2, 4, 4)
+        love.graphics.rectangle("fill", portraitX + portraitSize - 2, portraitY + portraitSize - 2, 4, 4)
+
+        -- Draw the sprite scaled to fit the portrait box
+        love.graphics.setColor(1, 1, 1, 1)
+        local sx = portraitSize / self.npcImage:getWidth()
+        local sy = portraitSize / self.npcImage:getHeight()
+        local scale = math.min(sx, sy) * 0.85
+        local drawW = self.npcImage:getWidth() * scale
+        local drawH = self.npcImage:getHeight() * scale
+        local drawX = portraitX + (portraitSize - drawW) / 2
+        local drawY = portraitY + (portraitSize - drawH) / 2
+        love.graphics.draw(self.npcImage, drawX, drawY, 0, scale, scale)
+    end
+    
     -- Draw Speaker Name
     if self.dialogueTree and self.dialogueTree.speaker then
         love.graphics.setColor(1, 0.8, 0.2)
         love.graphics.setFont(self.speakerFont)
-        love.graphics.printf(self.dialogueTree.speaker, 50, screenH - 300, screenW - 100, "left")
+        love.graphics.printf(self.dialogueTree.speaker, textX, screenH - 300, textWidth, "left")
     end
     
-    -- Draw Text
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.setFont(self.textFont)
+    -- Draw Text with variable substitution and color highlighting
     local text = line.text or ""
-    love.graphics.printf(text, 50, screenH - 260, screenW - 100, "left")
+    self:_drawFormattedText(text, textX, screenH - 260, textWidth)
 
     -- "Continue" hint when no options and more lines ahead
     if not self:hasOptions() and self:hasMoreLines() then
@@ -184,6 +233,23 @@ function DialogueScreen:draw()
             end
         end
     end
+end
+
+--- Replace {placeholder} tokens in text with their values from self.textVars.
+function DialogueScreen:_replaceVars(text)
+    if not text then return "" end
+    return text:gsub("{(%w+)}", function(key)
+        return self.textVars[key] ~= nil and tostring(self.textVars[key]) or "{" .. key .. "}"
+    end)
+end
+
+--- Draw text with {placeholder} values substituted.
+-- Uses love.graphics.printf for reliable word-wrapping.
+function DialogueScreen:_drawFormattedText(rawText, x, y, width)
+    local text = self:_replaceVars(rawText)
+    love.graphics.setFont(self.textFont)
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.printf(text, x, y, width, "left")
 end
 
 function DialogueScreen:_drawCompletionPopup(screenW, screenH)

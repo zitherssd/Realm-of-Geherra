@@ -71,5 +71,98 @@ return {
             troops = {"war_dog", "war_dog", "war_dog", "war_dog", "war_dog"},
             offset = {x = 100, y = 0}
         }
+    },
+
+    ["deliver_message"] = {
+        id = "deliver_message",
+        title = "Urgent Dispatch",
+        giver = nil,
+        procedural = true,
+        repeatable = true,
+        description = "The elder entrusts you with a sealed message for a nearby settlement.",
+        objectives = {
+            {
+                type = "travel",
+                pickTarget = { locationType = "village" },
+                required = 1,
+                description = "Deliver the message to a nearby village"
+            },
+            {
+                type = "report_to_giver",
+                required = 1,
+                description = "Return to the elder"
+            }
+        },
+        rewards = {gold = 25, favor = 25, reputation = {menari = 3}},
+        onStart = {
+            type = "give_item",
+            itemId = "sealed_message",
+            quantity = 1
+        }
+    },
+
+    ["deliver_item"] = {
+        id = "deliver_item",
+        title = "Barter Bundle",
+        giver = nil,
+        procedural = true,
+        repeatable = true,
+        description = "The elder sends trade goods to a neighbouring village. The bundle must arrive intact.",
+        objectives = {
+            {
+                type = "travel",
+                pickTarget = { locationType = "village" },
+                required = 1,
+                description = "Deliver the trade goods to a nearby village"
+            },
+            {
+                type = "report_to_giver",
+                required = 1,
+                description = "Return to the elder"
+            }
+        },
+        rewards = {gold = 40, favor = 35, reputation = {menari = 5}},
+        onStart = {
+            type = "give_item",
+            itemId = "bundled_goods",
+            quantity = 1
+        }
+    },
+
+    ["rescue_daughter"] = {
+        id = "rescue_daughter",
+        title = "Stolen Child",
+        giver = nil,
+        procedural = true,
+        repeatable = false,
+        description = "Bandits have taken a young girl from the village. The elder begs you to bring her back.",
+        objectives = {
+            {
+                type = "travel",
+                pickTarget = { locationType = "bandit_camp" },
+                required = 1,
+                description = "Track the bandits to their camp"
+            },
+            {
+                type = "kill_party",
+                target = "bandit_raiders",
+                required = 1,
+                description = "Defeat the bandit raiders"
+            },
+            {
+                type = "report_to_giver",
+                required = 1,
+                description = "Return the girl to the elder"
+            }
+        },
+        rewards = {gold = 80, favor = 80, reputation = {menari = 15}},
+        onStart = {
+            type = "spawn_party",
+            partyId = "bandit_raiders",
+            name = "Bandit Raiders",
+            faction = "bandits",
+            troops = {"bandit", "bandit", "bandit", "bandit", "bandit"},
+            offset = {x = 120, y = 40}
+        }
     }
 }
