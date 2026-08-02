@@ -71,4 +71,10 @@ function UIManager.keyreleased(key)
     end
 end
 
+function UIManager.wheelmoved(x, y)
+    if activeScreen and activeScreen.wheelmoved then
+        activeScreen:wheelmoved(x, y)
+    end
+end
+
 return UIManager

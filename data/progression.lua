@@ -12,7 +12,6 @@ return {
     
     levelUpBonuses = {
         health = 10,
-        strength = 1,
         defense = 1,
         speed = 0.5
     },

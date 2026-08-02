@@ -3,7 +3,6 @@
 
 local Input = require("core.input")
 local StateManager = require("core.state_manager")
-local GameInitializer = require("game.game_initializer")
 
 local MenuState = {
     selectedOption = 1,
@@ -65,12 +64,14 @@ end
 
 function MenuState._selectOption(optionIndex)
     if optionIndex == 1 then
-        -- New Game
-        GameInitializer.initNewGame({
-            playerName = "Wanderer",
-            difficulty = "normal"
+        -- New Game: show the world-generation splash (the painted map is built
+        -- step-by-step there, then it swaps to the world state).
+        StateManager.swap("world_generation", {
+            options = {
+                playerName = "Wanderer",
+                difficulty = "normal"
+            }
         })
-        StateManager.swap("world")
     elseif optionIndex == 2 then
         -- Load Game (not yet implemented)
         print("Load Game not yet implemented")

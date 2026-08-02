@@ -72,6 +72,27 @@ local function getBurnIntensity(unit)
     return 0
 end
 
+-- Generic status intensity (0..1) for any keyed runtime status (freeze, etc.)
+local function getStatusIntensity(unit, statusId)
+    if not unit or not unit.statusEffects then return 0 end
+    local status = unit.statusEffects[statusId]
+    if not status then return 0 end
+
+    if type(status) == "number" then
+        return math.max(0, math.min(1, status))
+    end
+
+    if type(status) == "table" then
+        local remaining = status.remaining or status.duration or 0
+        local duration = status.duration or 1
+        if duration <= 0 then return 0 end
+        return math.max(0, math.min(1, remaining / duration))
+    end
+
+    if status == true then return 1 end
+    return 0
+end
+
 local function getActorSizeScale(actor)
     local size = (actor and actor.size) or 3
     local scale = 1.0 + ((size - 3) * 0.1)
@@ -259,6 +280,8 @@ function RenderSystem.draw(context)
         local sprite = getImage(unit.actor.sprite)
         local drawX, drawY = unit.visualX, unit.visualY
         local burnIntensity = getBurnIntensity(unit)
+        local freezeIntensity = getStatusIntensity(unit, "freeze")
+        local paralyzeIntensity = getStatusIntensity(unit, "paralyze")
         local collisionRadius = unit.collisionRadius or 18
         local sizeScale = getActorSizeScale(unit.actor)
         local renderScale = sizeScale * UNIT_GLOBAL_VISUAL_SCALE
@@ -338,6 +361,28 @@ function RenderSystem.draw(context)
                 love.graphics.setBlendMode("alpha")
             end
 
+            if freezeIntensity > 0 then
+                local effectRadius = collisionRadius * renderScale
+                local pulse = 0.7 + 0.3 * math.sin(love.timer.getTime() * 10)
+                love.graphics.setBlendMode("add")
+                love.graphics.setColor(0.45, 0.7, 1, 0.4 * freezeIntensity)
+                love.graphics.circle("fill", drawX, drawY - effectRadius * 0.35, effectRadius * (1.15 + 0.15 * pulse))
+                love.graphics.setColor(0.7, 0.9, 1, 0.4 * freezeIntensity)
+                love.graphics.circle("line", drawX, drawY - effectRadius * 0.35, effectRadius * (1.3 + 0.15 * pulse))
+                love.graphics.setBlendMode("alpha")
+            end
+
+            if paralyzeIntensity > 0 then
+                local effectRadius = collisionRadius * renderScale
+                local pulse = 0.7 + 0.3 * math.sin(love.timer.getTime() * 26)
+                love.graphics.setBlendMode("add")
+                love.graphics.setColor(1, 0.9, 0.35, 0.4 * paralyzeIntensity)
+                love.graphics.circle("line", drawX, drawY - effectRadius * 0.35, effectRadius * (1.2 + 0.2 * pulse))
+                love.graphics.setColor(0.6, 0.85, 1, 0.3 * paralyzeIntensity)
+                love.graphics.circle("fill", drawX, drawY - effectRadius * 0.35, effectRadius * (0.9 + 0.2 * pulse))
+                love.graphics.setBlendMode("alpha")
+            end
+
             local barWidth = UNIT_HEALTH_BAR_WIDTH
             local barHeight = 4
             local barX = drawX - barWidth / 2
@@ -387,6 +432,28 @@ function RenderSystem.draw(context)
 
                 love.graphics.setColor(1, 0.5, 0.15, 0.26)
                 love.graphics.circle("line", proj.visualX, proj.visualY, 17)
+                love.graphics.setBlendMode("alpha")
+            elseif proj.style == "frostbolt" then
+                local pulse = 0.75 + 0.25 * math.sin(love.timer.getTime() * 18)
+                love.graphics.setBlendMode("add")
+                love.graphics.setColor(0.45, 0.8, 1, 0.35)
+                love.graphics.circle("fill", proj.visualX, proj.visualY, 13 * pulse)
+                love.graphics.setColor(0.75, 0.95, 1, 0.9)
+                love.graphics.circle("fill", proj.visualX, proj.visualY, 6 * pulse)
+                love.graphics.setColor(1, 1, 1, 1)
+                love.graphics.circle("fill", proj.visualX, proj.visualY, 2.5)
+                love.graphics.setColor(0.6, 0.85, 1, 0.3)
+                love.graphics.circle("line", proj.visualX, proj.visualY, 16)
+                love.graphics.setBlendMode("alpha")
+            elseif proj.style == "lightning" then
+                local pulse = 0.7 + 0.3 * math.sin(love.timer.getTime() * 32)
+                love.graphics.setBlendMode("add")
+                love.graphics.setColor(1, 0.95, 0.5, 0.45 * pulse)
+                love.graphics.circle("fill", proj.visualX, proj.visualY, 15 * pulse)
+                love.graphics.setColor(1, 1, 1, 0.95)
+                love.graphics.circle("fill", proj.visualX, proj.visualY, 7 * pulse)
+                love.graphics.setColor(0.7, 0.85, 1, 0.4)
+                love.graphics.circle("line", proj.visualX, proj.visualY, 18)
                 love.graphics.setBlendMode("alpha")
             elseif sprite then
                 local tx, ty = proj.targetX, proj.targetY

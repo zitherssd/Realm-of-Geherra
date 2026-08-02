@@ -16,6 +16,7 @@ mergeDialogueSet(dialogueRegistry, require("data.dialogues.common"))
 mergeDialogueSet(dialogueRegistry, require("data.dialogues.elder"))
 mergeDialogueSet(dialogueRegistry, require("data.dialogues.tavern_keeper"))
 mergeDialogueSet(dialogueRegistry, require("data.dialogues.trader"))
+mergeDialogueSet(dialogueRegistry, require("data.dialogues.debug_trader"))
 mergeDialogueSet(dialogueRegistry, require("data.dialogues.soldier"))
 
 return dialogueRegistry

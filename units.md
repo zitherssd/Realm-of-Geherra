@@ -5,7 +5,7 @@
 The Pelasgians. Descendants of the first men, strecthing their realm from the mountains of Cara all the way to the south banks of The Blue River.
 
 - Pelas Youth into Pelas Tribesman
-- Pelas Tribesman into Pelas Skirmisher, Pelas Slinger, Pelas Warrior into Pelas Comatzi 
+- Pelas Tribesman into Pelas Skirmisher, Pelas Slinger, Pelas Warrior into Pelas Comatzi
 - Pelas Comatzi into Hutzu Rider, Pelas Gaete (javelin + axe),
 - Pelas Tarabostes
 

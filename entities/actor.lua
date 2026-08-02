@@ -11,7 +11,6 @@ function Actor.new(id, actorType)
     
     self.stats = {
         health = 100,
-        strength = 10,
         attack = 10,
         defense = 10,
         speed = 10,        -- World map speed
@@ -54,6 +53,11 @@ function Actor.new(id, actorType)
         shock = 0,
         poison = 0
     }
+
+    -- Damage-type affinities (resistance/vulnerability multipliers).
+    -- Empty = neutral (1.0) for every type; e.g. fire = 0.5 resists fire,
+    -- ice = 1.5 is vulnerable to ice.
+    self.damageAffinities = {}
     
     self.velocity = {x = 0, y = 0}
     self.ai = {state = "idle"}

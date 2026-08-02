@@ -109,11 +109,11 @@ local function shouldShowDialogueOption(option, questDialogContext, relationship
     return true
 end
 
-local function filterDialogueTreeOptions(dialogueTree, questDialogContext, relationshipContext)
+local function filterDialogueTreeOptions(dialogueTree, questDialogContext, relationshipContext, target)
     if not dialogueTree then return nil end
 
     local filtered = cloneDialogueTree(dialogueTree)
-    for _, line in ipairs(filtered.lines or {}) do
+    for lineIndex, line in ipairs(filtered.lines or {}) do
         local allowedOptions = {}
 
         for _, option in ipairs(line.options or {}) do
@@ -129,6 +129,16 @@ local function filterDialogueTreeOptions(dialogueTree, questDialogContext, relat
             allowedOptions = {
                 { text = "Leave.", next = "end" }
             }
+        end
+
+        -- Any NPC merchant with stock gets a "Show me your wares." option on
+        -- the first (greeting) line. This is what makes trading reusable.
+        if lineIndex == 1 and target and target.inventory and #target.inventory > 0 then
+            table.insert(allowedOptions, 1, {
+                text = "Show me your wares.",
+                action = "open_shop",
+                next = "end"
+            })
         end
 
         line.options = allowedOptions
@@ -419,6 +429,17 @@ local function handleDialogueAction(choice, context)
                 result.completionPopup = buildQuestCompletionPopup(completedInstanceId)
             end
         end
+    elseif choice.action == "open_shop" then
+        -- Open the trading screen; return to the conversation when it closes.
+        StateManager.push("shop", { merchant = target, location = location })
+        result.handledNavigation = true
+        return result
+    elseif choice.action == "open_world_map" then
+        -- Debug: show the procedurally generated world map; return to the
+        -- conversation when it closes.
+        StateManager.push("world_map", {})
+        result.handledNavigation = true
+        return result
     end
 
     return result
@@ -478,7 +499,7 @@ function DialogueState.enter(params)
             end
         end
 
-        dialogueTree = filterDialogueTreeOptions(dialogueTree, questDialogContext, relationshipContext)
+        dialogueTree = filterDialogueTreeOptions(dialogueTree, questDialogContext, relationshipContext, target)
         local speakerName, speakerId = resolveSpeaker(target, dialogueTree)
 
         -- Add speaker to the dialogue tree for rendering
@@ -533,6 +554,11 @@ end
 
 function DialogueState.exit()
     UIManager.hideScreen()
+end
+
+function DialogueState.resume()
+    -- Re-show the dialogue screen when returning from a pushed state (e.g. shop)
+    UIManager.showScreen("dialogue")
 end
 
 function DialogueState.update(dt)

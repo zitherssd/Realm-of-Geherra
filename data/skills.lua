@@ -121,5 +121,43 @@ return {
             speed = 32,
             arc = 30
         }
+    },
+
+    ["frostbolt"] = {
+        id = "frostbolt",
+        name = "Frostbolt",
+        type = "ranged",
+        description = "Hurl a shard of ice that chills the target",
+        damageType = "ice",
+        baseDamage = 12,
+        range = 7.0,
+        windup = 30,
+        cooldown = 45,
+        cost = 20,
+        onHitStatuses = { "freeze" },
+        projectile = {
+            style = "frostbolt",
+            speed = 26,
+            arc = 0
+        }
+    },
+
+    ["lightning"] = {
+        id = "lightning",
+        name = "Lightning",
+        type = "ranged",
+        description = "Strike a foe with a bolt of lightning, paralyzing it",
+        damageType = "shock",
+        baseDamage = 14,
+        range = 6.0,
+        windup = 20,
+        cooldown = 50,
+        cost = 25,
+        onHitStatuses = { "paralyze" },
+        projectile = {
+            style = "lightning",
+            speed = 36,
+            arc = 0
+        }
     }
 }

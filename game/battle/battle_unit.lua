@@ -6,6 +6,7 @@ local BattleUnit = {}
 BattleUnit.__index = BattleUnit
 local Skills = require("data.skills")
 local Items = require("data.items")
+local Statuses = require("data.statuses")
 
 local DEFAULT_MOVE_STEP = 24
 local DEFAULT_COLLISION_RADIUS = 18
@@ -134,6 +135,14 @@ function BattleUnit.new(actor, worldX, worldY, team)
         end
     end
     
+    -- 3c. Copy damage-type affinities (resistance/vulnerability multipliers)
+    self.damageAffinities = {}
+    if actor.damageAffinities then
+        for damageType, value in pairs(actor.damageAffinities) do
+            self.damageAffinities[damageType] = value
+        end
+    end
+    
     -- 4. Finalize HP
     self.maxHp = self.stats.health or 100
     if actor.hp then
@@ -158,7 +167,23 @@ end
 
 -- Helper to check if unit can act
 function BattleUnit:canAct()
-    return self.hp > 0 and self.globalCooldown <= 0
+    if self.hp <= 0 or self.globalCooldown > 0 then
+        return false
+    end
+
+    -- Statuses with canAct = false (stun, paralyze) block acting entirely.
+    if self.statusEffects then
+        for effectId, effectData in pairs(self.statusEffects) do
+            if type(effectData) == "table" and effectData.remaining and effectData.remaining > 0 then
+                local config = Statuses[effectId]
+                if config and config.canAct == false then
+                    return false
+                end
+            end
+        end
+    end
+
+    return true
 end
 
 -- Sync visual position immediately to world position (teleport)

@@ -7,6 +7,7 @@ InventoryScreen.__index = InventoryScreen
 local InventoryGrid = require("ui.widgets.inventory_grid")
 local StatsPanel = require("ui.widgets.stats_panel")
 local EquipmentPanel = require("ui.widgets.equipment_panel")
+local AttributesPanel = require("ui.widgets.attributes_panel")
 local Button = require("ui.widgets.button")
 local Tooltip = require("ui.widgets.tooltip")
 local EquipmentSystem = require("systems.equipment_system")
@@ -56,6 +57,7 @@ function InventoryScreen.new(party, onClose)
 
     self.statsPanel = StatsPanel.new(self.leftPanelX, self.contentY, self.leftPanelW, 190)
     self.equipmentPanel = EquipmentPanel.new(self.leftPanelX, self.equipmentY, self.leftPanelW, EquipmentSystem, Items)
+    self.attributesPanel = AttributesPanel.new(self.leftPanelX, self.equipmentY + self.equipmentPanel:getHeight(self.actor) + 14, self.leftPanelW)
 
     -- Commander sprite buttons
     self.commanderButtons = {}
@@ -227,6 +229,8 @@ function InventoryScreen:draw()
     -- Draw Selected Commander Details
     if self.actor then
         self.slotRegions = self.equipmentPanel:draw(self.actor, self.navMode, self.selectedSlotIndex, self.dragging)
+        self.attributesPanel.y = self.equipmentPanel:getHeight(self.actor) + self.equipmentY + 14
+        self.attributesPanel:draw(self.actor)
         self.statsPanel:draw(self.actor)
     end
     
@@ -360,9 +364,14 @@ function InventoryScreen:_clickEquipFromInventory(index)
         return false
     end
 
-    table.remove(self.party.inventory, index)
+    -- Equipping consumes one from the stack; only remove the entry when it's empty
+    if item.quantity and item.quantity > 1 then
+        item.quantity = item.quantity - 1
+    else
+        table.remove(self.party.inventory, index)
+    end
     if unequippedId and Items[unequippedId] then
-        table.insert(self.party.inventory, Items[unequippedId])
+        self.party:addItemDefCopy(Items[unequippedId], 1)
     end
 
     self.navMode = "equipment"
@@ -379,7 +388,7 @@ function InventoryScreen:_clickUnequipSlot(slotId)
     if not self.actor then return false end
     local itemId = EquipmentSystem.unequip(self.actor, slotId)
     if itemId and Items[itemId] then
-        table.insert(self.party.inventory, Items[itemId])
+        self.party:addItemDefCopy(Items[itemId], 1)
         self.navMode = "inventory"
         self.selectedInventoryIndex = #self.party.inventory
         return true
@@ -460,9 +469,14 @@ function InventoryScreen:mousereleased(x, y, button)
                 if self.dragging.source == "inventory" then
                     local unequippedId = EquipmentSystem.equip(self.actor, item.id, region.slotId)
                     if unequippedId ~= false then
-                        table.remove(self.party.inventory, self.dragging.index)
+                        -- Equipping consumes one from the stack; only remove the entry when it's empty
+                        if item.quantity and item.quantity > 1 then
+                            item.quantity = item.quantity - 1
+                        else
+                            table.remove(self.party.inventory, self.dragging.index)
+                        end
                         if unequippedId and Items[unequippedId] then
-                            table.insert(self.party.inventory, Items[unequippedId])
+                            self.party:addItemDefCopy(Items[unequippedId], 1)
                         end
                         handled = true
                     end

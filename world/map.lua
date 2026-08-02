@@ -14,6 +14,7 @@ function Map.new(id, name)
         tiles = {},
         objects = {},
         locations = {},
+        spriteCache = {},   -- loaded marker sprite images (path -> Image | false)
         worldGen = nil,
         renderOptions = {
             showWater = true,
@@ -22,6 +23,7 @@ function Map.new(id, name)
         },
         visuals = {
             image = nil,
+            overlayImage = nil,
             tileSize = 32
         }
     }
@@ -67,6 +69,59 @@ function Map:getBiomeAt(worldX, worldY)
 
     local cell = grid.cells[cellY][cellX]
     return cell and cell.biomeId or nil
+end
+
+-- Return the centre of the nearest walkable navigation cell to (worldX, worldY)
+-- so entities never spawn/land on water (ocean or marsh lake). Returns the
+-- requested position unchanged when no navigation grid is present.
+function Map:nearestWalkable(worldX, worldY)
+    if not self.worldGen or not self.worldGen.navigationGrid then
+        return worldX, worldY
+    end
+
+    local grid = self.worldGen.navigationGrid
+    local cellSize = grid.cellSize
+    local cellX = math.floor(worldX / cellSize) + 1
+    local cellY = math.floor(worldY / cellSize) + 1
+
+    local function centerOf(cx, cy)
+        return (cx - 0.5) * cellSize, (cy - 0.5) * cellSize
+    end
+
+    -- Already inside a walkable cell
+    if cellX >= 1 and cellX <= grid.cols and cellY >= 1 and cellY <= grid.rows then
+        local cell = grid.cells[cellY][cellX]
+        if cell.walkable then
+            return centerOf(cellX, cellY)
+        end
+    end
+
+    -- Expanding-ring search for the nearest walkable cell
+    local maxR = math.max(grid.cols, grid.rows)
+    for r = 1, maxR do
+        local bestDist, bestX, bestY = math.huge, cellX, cellY
+        for dy = -r, r do
+            for dx = -r, r do
+                if math.max(math.abs(dx), math.abs(dy)) == r then
+                    local nx, ny = cellX + dx, cellY + dy
+                    if nx >= 1 and nx <= grid.cols and ny >= 1 and ny <= grid.rows then
+                        local c = grid.cells[ny][nx]
+                        if c.walkable then
+                            local d = dx * dx + dy * dy
+                            if d < bestDist then
+                                bestDist, bestX, bestY = d, nx, ny
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        if bestDist ~= math.huge then
+            return centerOf(bestX, bestY)
+        end
+    end
+
+    return worldX, worldY
 end
 
 -- Load the visual map image
@@ -123,6 +178,10 @@ function Map:drawMap()
     if self.visuals.image then
         love.graphics.setColor(1, 1, 1, 1)
         love.graphics.draw(self.visuals.image, 0, 0)
+        -- Painted glyph overlay (mountains + trees) on top of the terrain
+        if self.visuals.overlayImage then
+            love.graphics.draw(self.visuals.overlayImage, 0, 0)
+        end
     else
         -- Fallback: draw a simple background
         love.graphics.setColor(0.3, 0.5, 0.3, 1)
@@ -204,36 +263,91 @@ function Map:drawRoads()
     love.graphics.setLineWidth(1)
 end
 
--- Draw locations on the map
-function Map:drawLocations()
+-- Maximum on-screen marker size for world-map sprites (scaled down from the
+-- full unit/location sprite dimensions).
+local MARKER_SPRITE_SIZE = 26
+
+-- Load (and cache) a sprite image by file path. Returns nil when the path is
+-- missing or unloadable.
+function Map:getSpriteImage(path)
+    if not path then return nil end
+    if self.spriteCache[path] == nil then
+        local status, img = pcall(love.graphics.newImage, path)
+        if status then
+            img:setFilter("nearest", "nearest")
+            self.spriteCache[path] = img
+        else
+            self.spriteCache[path] = false
+        end
+    end
+    return self.spriteCache[path] or nil
+end
+
+-- Draw a sprite scaled down to the marker box, centred at the origin of the
+-- current (counter-scaled) transform so it stays a constant screen size.
+local function drawMarkerSprite(spriteImg)
+    local iw, ih = spriteImg:getDimensions()
+    local s = math.min(MARKER_SPRITE_SIZE / iw, MARKER_SPRITE_SIZE / ih)
+    s = math.min(s, 1)  -- only scale down, never upscale
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(spriteImg, -iw * s / 2, -ih * s / 2, 0, s, s)
+end
+
+-- Draw locations on the map. The optional inverseScale keeps markers a
+-- constant on-screen size when the camera is zoomed in. Locations render
+-- their `sprite` image (scaled down) when defined, else a green circle.
+function Map:drawLocations(inverseScale)
+    inverseScale = inverseScale or 1
     for _, location in ipairs(self.locations) do
-        -- Draw location icon/marker
-        love.graphics.setColor(1, 0.8, 0.2, 1)  -- Gold color
-        love.graphics.circle("fill", location.x, location.y, 12)
-        
+        love.graphics.push()
+        love.graphics.translate(location.x, location.y)
+        love.graphics.scale(inverseScale)
+
+        local spriteImg = self:getSpriteImage(location.sprite)
+        if spriteImg then
+            drawMarkerSprite(spriteImg)
+        else
+            -- Fallback: green circle marker
+            love.graphics.setColor(0.2, 0.8, 0.2, 1)
+            love.graphics.circle("fill", 0, 0, 12)
+        end
+
         -- Draw location name (optional, for debug/clarity)
         love.graphics.setColor(0, 0, 0, 1)
-        love.graphics.printf(location.name, location.x - 40, location.y - 25, 80, "center")
+        love.graphics.printf(location.name, -40, -25, 80, "center")
+        love.graphics.pop()
     end
 end
 
--- Draw parties on the map
-function Map:drawParties()
+-- Draw parties on the map. The optional inverseScale keeps markers a constant
+-- on-screen size when the camera is zoomed in. Each party is represented by
+-- its leader's sprite (scaled down), falling back to a green circle.
+function Map:drawParties(inverseScale)
+    inverseScale = inverseScale or 1
     for _, party in ipairs(self.parties) do
         if party then
-            -- Draw party marker (larger circle for parties)
-            love.graphics.setColor(0.2, 0.8, 0.2, 1)  -- Green for player/friendly parties
-            love.graphics.circle("fill", party.x, party.y, 10)
-            
-            -- Draw party size indicator
-            love.graphics.setColor(0.1, 0.6, 0.1, 1)
-            love.graphics.circle("line", party.x, party.y, 15)
-            
+            love.graphics.push()
+            love.graphics.translate(party.x, party.y)
+            love.graphics.scale(inverseScale)
+
+            local leader = party:getLeader()
+            local spriteImg = leader and self:getSpriteImage(leader.sprite)
+            if spriteImg then
+                drawMarkerSprite(spriteImg)
+            else
+                -- Fallback: green circle marker + size ring
+                love.graphics.setColor(0.2, 0.8, 0.2, 1)
+                love.graphics.circle("fill", 0, 0, 10)
+                love.graphics.setColor(0.1, 0.6, 0.1, 1)
+                love.graphics.circle("line", 0, 0, 15)
+            end
+
             -- Draw party name if available
             if party.name then
                 love.graphics.setColor(0, 0, 0, 1)
-                love.graphics.printf(party.name, party.x - 40, party.y - 25, 80, "center")
+                love.graphics.printf(party.name, -40, -25, 80, "center")
             end
+            love.graphics.pop()
         end
     end
 end

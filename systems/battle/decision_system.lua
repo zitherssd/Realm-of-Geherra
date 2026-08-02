@@ -4,14 +4,7 @@
 
 local DecisionSystem = {}
 local Skills = require("data.skills")
-local WORLD_RANGE_SCALE = 42
-
-local function effectiveSkillRange(unit, target, skillData)
-    local baseRange = ((skillData and skillData.range) or 1.5) * WORLD_RANGE_SCALE
-    local attackerRadius = unit.collisionRadius or 0
-    local targetRadius = (target and target.collisionRadius) or 0
-    return baseRange + attackerRadius + targetRadius
-end
+local RangeUtils = require("systems.battle.range_utils")
 
 function DecisionSystem.update(context)
     local units = context.data.unitList
@@ -55,7 +48,7 @@ function DecisionSystem._processAI(unit, context)
             local skillData = Skills[skillId]
             
             if skillData then
-                local range = effectiveSkillRange(unit, nearestTarget, skillData)
+                local range = RangeUtils.effectiveSkillRange(unit, nearestTarget, skillData)
                 local rangeSq = range * range
                 local onCooldown = (unit.cooldowns[skillId] or 0) > 0
                 local hasCharges = true

@@ -12,7 +12,6 @@ return {
         },
         stats = {
             health = 20,
-            strength = 8,
             defense = 20,
             attack = 28,
             speed = 8,
@@ -35,7 +34,6 @@ return {
         sprite = "assets/sprites/units/heavyinfantry.png",
         stats = {
             health = 35,
-            strength = 10,
             defense = 42,
             attack = 37,
             speed = 8
@@ -57,7 +55,6 @@ return {
         sprite = "assets/sprites/units/knight.png",
         stats = {
             health = 45,
-            strength = 12,
             defense = 75,
             attack = 70,
             speed = 6,
@@ -83,7 +80,6 @@ return {
         slots = {"collar"}, -- Can only wear body armor/collar
         stats = {
             health = 12,
-            strength = 6,
             defense = 18,
             attack = 11,
             speed = 10,
@@ -104,7 +100,6 @@ return {
         sprite = "assets/sprites/units/skeleton.png",
         stats = {
             health = 35,
-            strength = 9,
             attack = 28,
             defense = 26,
             speed = 8,
@@ -127,7 +122,6 @@ return {
         sprite = "assets/sprites/units/skeleton_spear.png",
         stats = {
             health = 35,
-            strength = 9,
             attack = 28,
             defense = 26,
             speed = 8,
@@ -153,7 +147,6 @@ return {
         },
         stats = {
             health = 20,
-            strength = 5,
             attack = 20,
             defense = 18,
             speed = 6,
@@ -175,7 +168,6 @@ return {
         sprite = "assets/sprites/units/ogre.png",
         stats = {
             health = 105,
-            strength = 16,
             attack = 70,
             defense = 45,
             speed = 5,
@@ -198,7 +190,6 @@ return {
         sprite = "assets/sprites/units/dragon.png",
         stats = {
             health = 250,
-            strength = 25,
             attack = 100,
             defense = 100,
             speed = 8,
@@ -215,6 +206,15 @@ return {
             ice = 0,
             shock = 0,
             poison = 0
+        },
+        damageAffinities = {
+            slashing = 1.0,
+            piercing = 1.0,
+            blunt = 1.0,
+            fire = 0.5,   -- Fire creature: resists fire
+            ice = 1.5,    -- ...but vulnerable to ice
+            shock = 1.25, -- ...and somewhat vulnerable to shock
+            poison = 1.0
         },
         loot = {
             {currency = "gold", chance = 1.0, min = 500, max = 1000},

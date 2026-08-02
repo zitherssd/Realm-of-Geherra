@@ -20,6 +20,7 @@ function InventoryGrid.new(title, items, x, y, w, h, cellSize, onItemClick, head
     self.h = h
     self.cellSize = cellSize or 64
     self.padding = 5
+    self.rowHeight = self.cellSize + self.padding
     self.onItemClick = onItemClick
     self.header = header
     self.headerFont = newPixelFont(18)
@@ -28,6 +29,10 @@ function InventoryGrid.new(title, items, x, y, w, h, cellSize, onItemClick, head
     self.hoveredItem = nil
     self.selectedIndex = nil
     self.wasDown = false
+
+    -- Optional scrolling (opt-in via :enableScroll())
+    self.scrollEnabled = false
+    self.scrollOffset = 0
     
     return self
 end
@@ -39,36 +44,74 @@ function InventoryGrid:_itemStartY()
     return self.y + self.padding
 end
 
+--------------------------------------------------------------------------------
+-- Optional scrolling
+--------------------------------------------------------------------------------
+
+function InventoryGrid:enableScroll()
+    self.scrollEnabled = true
+end
+
+function InventoryGrid:setScrollOffset(offset)
+    self.scrollOffset = offset or 0
+end
+
+-- Number of full rows that fit in the content area
+function InventoryGrid:_visibleRows()
+    local contentH = (self.y + self.h) - self:_itemStartY() - self.padding
+    return math.max(1, math.floor(contentH / self.rowHeight))
+end
+
+-- Total number of rows needed to render all items
+function InventoryGrid:_totalRows()
+    local cols = math.floor((self.w - self.padding) / self.rowHeight)
+    if cols < 1 then cols = 1 end
+    return math.ceil(#(self.items or {}) / cols)
+end
+
+function InventoryGrid:_maxScrollOffset()
+    return math.max(0, self:_totalRows() - self:_visibleRows())
+end
+
+function InventoryGrid:wheelmoved(dx, dy)
+    if not self.scrollEnabled then return end
+    local maxOffset = self:_maxScrollOffset()
+    self.scrollOffset = math.max(0, math.min(maxOffset, self.scrollOffset - dy))
+end
+
 function InventoryGrid:update(dt)
     local mx, my = love.mouse.getPosition()
     local isDown = love.mouse.isDown(1)
-    
+
     self.hoveredItem = nil
-    
-    local cols = math.floor((self.w - self.padding) / (self.cellSize + self.padding))
+
+    local cols = math.floor((self.w - self.padding) / self.rowHeight)
     if cols < 1 then cols = 1 end
-    
+
     for i, item in ipairs(self.items) do
         local col = (i - 1) % cols
         local row = math.floor((i - 1) / cols)
-        
-        local ix = self.x + self.padding + col * (self.cellSize + self.padding)
-        local iy = self:_itemStartY() + row * (self.cellSize + self.padding)
-        
-        -- Clipping
+
+        local ix = self.x + self.padding + col * self.rowHeight
+        local iy = self:_itemStartY() + (row - self.scrollOffset) * self.rowHeight
+
+        -- Clipping: stop once rows fall below the visible area
         if iy + self.cellSize > self.y + self.h then break end
-        
-        if mx >= ix and mx <= ix + self.cellSize and my >= iy and my <= iy + self.cellSize then
-            self.hoveredItem = item
-            
-            if isDown and not self.wasDown then
-                if self.onItemClick then
-                    self.onItemClick(item, i)
+
+        -- Skip rows scrolled above the visible area
+        if iy + self.cellSize > self.y then
+            if mx >= ix and mx <= ix + self.cellSize and my >= iy and my <= iy + self.cellSize then
+                self.hoveredItem = item
+
+                if isDown and not self.wasDown then
+                    if self.onItemClick then
+                        self.onItemClick(item, i)
+                    end
                 end
             end
         end
     end
-    
+
     self.wasDown = isDown
 end
 
@@ -96,16 +139,20 @@ function InventoryGrid:draw()
         love.graphics.setColor(1, 1, 1, 1)
         love.graphics.print(self.title, self.x, self.y - 25)
     end
-    
-    local cols = math.floor((self.w - self.padding) / (self.cellSize + self.padding))
+
+    local cols = math.floor((self.w - self.padding) / self.rowHeight)
     if cols < 1 then cols = 1 end
-    
+
+    -- Clip item rendering to the grid's content area
+    local contentTop = self:_itemStartY()
+    love.graphics.setScissor(self.x, contentTop, self.w, (self.y + self.h) - contentTop)
+
     for i, item in ipairs(self.items) do
         local col = (i - 1) % cols
         local row = math.floor((i - 1) / cols)
         
-        local ix = self.x + self.padding + col * (self.cellSize + self.padding)
-        local iy = self:_itemStartY() + row * (self.cellSize + self.padding)
+        local ix = self.x + self.padding + col * self.rowHeight
+        local iy = self:_itemStartY() + (row - self.scrollOffset) * self.rowHeight
         
         if iy + self.cellSize > self.y + self.h then break end
         
@@ -142,6 +189,8 @@ function InventoryGrid:draw()
             love.graphics.print(tostring(item.quantity), ix + 5, iy + self.cellSize - 20)
         end
     end
+
+    love.graphics.setScissor()
 end
 
 function InventoryGrid:getHoveredItem()

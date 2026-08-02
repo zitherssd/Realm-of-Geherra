@@ -13,7 +13,8 @@ local AttributeSystem = require("systems.attribute_system")
 local WorldState = {
     camera = nil,
     currentMap = nil,
-    playerPartySpeed = 200,  -- pixels per second
+    defaultZoom = 2.0,       -- world map shown 2x (zoomed in, slightly pixelated)
+    playerPartySpeed = 100,  -- pixels per second (halved to stay consistent at 2x zoom)
     passiveHealSecondsToFull = 300,
     restHealMultiplier = 10,
     nearbyParty = nil,       -- The party currently in interaction range
@@ -54,6 +55,7 @@ local function initializeWorldPresentation()
     local screenHeight = love.graphics.getHeight()
     WorldState.camera = Camera.new(screenWidth, screenHeight)
     WorldState.camera:setBounds(0, 0, WorldState.currentMap.width, WorldState.currentMap.height)
+    WorldState.camera:setZoom(WorldState.defaultZoom or 1.0)
 
     local playerParty = GameContext.data.playerParty
     if playerParty then
@@ -290,14 +292,18 @@ function WorldState.draw()
     -- Apply camera transformation
     WorldState.camera:apply()
     
-    -- Draw map
+    -- Draw map (scaled 2x by the camera zoom; nearest filter gives the
+    -- requested slightly-pixelated zoomed-in look)
     WorldState.currentMap:drawMap()
     
+    -- Markers are counter-scaled so they keep a constant on-screen size
+    local markerScale = 1 / WorldState.camera:getZoom()
+    
     -- Draw locations
-    WorldState.currentMap:drawLocations()
+    WorldState.currentMap:drawLocations(markerScale)
     
     -- Draw parties
-    WorldState.currentMap:drawParties()
+    WorldState.currentMap:drawParties(markerScale)
     
     -- Unapply camera transformation
     WorldState.camera:unapply()

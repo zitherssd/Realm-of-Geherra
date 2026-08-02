@@ -15,6 +15,12 @@ return {
         description = "Cannot act"
     },
 
+    ["paralyze"] = {
+        duration = 40,
+        canAct = false,
+        description = "Paralyzed by a shock, cannot act"
+    },
+
     ["freeze"] = {
         duration = 45,
         damagePerTick = 0,

@@ -17,6 +17,9 @@ function StateManager.init()
     states.location = require("game.states.location_state")
     states.inventory = require("game.states.inventory_state")
     states.quest_log = require("game.states.quest_log_state")
+    states.shop = require("game.states.shop_state")
+    states.world_map = require("game.states.world_map_state")
+    states.world_generation = require("game.states.world_generation_state")
 
     -- Initialize systems that subscribe to events
     require("systems.quest_system").init()

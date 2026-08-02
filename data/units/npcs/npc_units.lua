@@ -9,7 +9,6 @@ return {
         sprite = "assets/sprites/units/commander.png",
         stats = {
             health = 30,
-            strength = 10,
             attack = 30,
             defense = 25,
             speed = 10,
@@ -40,7 +39,6 @@ return {
         sprite = "assets/sprites/units/heavyinfantry.png",
         stats = {
             health = 30,
-            strength = 11,
             defense = 45,
             attack = 34,
             speed = 7
@@ -62,7 +60,6 @@ return {
         sprite = "assets/sprites/units/elder.png",
         stats = {
             health = 60,
-            strength = 11,
             defense = 110,
             attack = 120,
             speed = 7
@@ -84,7 +81,25 @@ return {
         },
         stats = {
             health = 28,
-            strength = 6,
+            defense = 4,
+            speed = 7
+        },
+        equipment = {
+            mainHand = "dagger"
+        }
+    },
+
+    ["debug_trader"] = {
+        id = "debug_trader",
+        name = "Debug Trader",
+        type = "debug_trader",
+        tags = {"civilian", "merchant"},
+        sprite = {
+            "assets/sprites/units/town.png",
+            "assets/sprites/units/town2.png"
+        },
+        stats = {
+            health = 28,
             defense = 4,
             speed = 7
         },
@@ -104,7 +119,6 @@ return {
         },
         stats = {
             health = 30,
-            strength = 6,
             defense = 4,
             speed = 7
         },

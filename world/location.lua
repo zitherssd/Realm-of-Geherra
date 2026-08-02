@@ -11,6 +11,7 @@ function Location.new(id, name)
         type = "town",
         x = 0,
         y = 0,
+        sprite = nil,   -- optional world-map marker sprite path (scaled down)
         faction = nil,
         owner = nil,
         population = 100,

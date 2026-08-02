@@ -1,5 +1,14 @@
 local WorldGeneration = {
-    defaultSeed = 1336,
+    defaultSeed = 1337,
+    -- Painted in-memory world map (systems/map_generator.lua).
+    -- These defaults feed systems/painted_map_loader.lua.
+    painted = {
+        seed = 1336,
+        sizeW = 3500,
+        sizeH = 2048,
+        detail = 2,
+        siteCount = 14,
+    },
     map = {
         visualPath = nil,
         terrainMaskPath = nil

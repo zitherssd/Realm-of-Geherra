@@ -11,7 +11,6 @@ return {
         },
         stats = {
             health = 20,
-            strength = 6,
             attack = 20,
             defense = 22,
             speed = 6,
@@ -34,7 +33,6 @@ return {
         sprite = "assets/sprites/units/dacian_tribesman.png",
         stats = {
             health = 24,
-            strength = 7,
             attack = 22,
             defense = 24,
             speed = 7,
@@ -59,7 +57,6 @@ return {
         sprite = "assets/sprites/units/dacian_skirmisher.png",
         stats = {
             health = 28,
-            strength = 8,
             attack = 24,
             defense = 23,
             speed = 8,

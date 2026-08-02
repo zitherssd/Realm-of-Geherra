@@ -17,10 +17,10 @@ local ExecutionSystem = require("systems.battle.execution_system")
 local RenderSystem = require("systems.battle.render_system")
 
 local GameContext = require("game.game_context")
+local RangeUtils = require("systems.battle.range_utils")
 
 local TICK_RATE = 1 / 20
 local MAX_FRAME_SKIP = 5
-local WORLD_RANGE_SCALE = 32
 local WORLD_BOUNDS = {
     width = 1260,
     height = 546
@@ -215,8 +215,7 @@ function BattleState.update(dt)
 
                             for _, other in ipairs(BattleContext.data.unitList) do
                                 if other.team ~= playerUnit.team and other.hp > 0 then
-                                    local baseRange = (skillData.range or 1.5) * WORLD_RANGE_SCALE
-                                    local effectiveRange = baseRange + (playerUnit.collisionRadius or 0) + (other.collisionRadius or 0)
+                                    local effectiveRange = RangeUtils.effectiveSkillRange(playerUnit, other, skillData)
                                     local rangeSq = effectiveRange * effectiveRange
 
                                     local tdx = playerUnit.x - other.x

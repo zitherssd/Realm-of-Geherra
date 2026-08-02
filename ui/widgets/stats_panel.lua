@@ -6,6 +6,13 @@ StatsPanel.__index = StatsPanel
 
 local Items = require("data.items")
 
+-- Damage types shown as resistances. Mirrors systems/combat_system.lua
+-- DEFAULT_DAMAGE_AFFINITIES; a multiplier below 1 resists, above 1 is a
+-- vulnerability (e.g. fire = 0.5 means the actor resists fire).
+local DAMAGE_TYPES = {
+    "slashing", "piercing", "blunt", "fire", "ice", "shock", "poison"
+}
+
 local function newPixelFont(size)
     local font = love.graphics.newFont(size)
     font:setFilter("nearest", "nearest")
@@ -68,24 +75,18 @@ function StatsPanel:draw(actor)
     local roundedMaxHealth = math.floor(maxHealth + 0.5)
     local statLines = {
         "HP: " .. tostring(roundedCurrentHealth) .. "/" .. tostring(roundedMaxHealth),
-        "STR: " .. tostring(stats.strength or 0),
         "ATK: " .. tostring(stats.attack or 0),
         "DEF: " .. tostring(stats.defense or 0),
         "SPEED: " .. tostring(stats.speed or 0),
         "B. SPEED: " .. tostring(stats.battle_speed or 0)
     }
 
-    local attributes = {
-        "command", "oratory", "navigation", "tracking",
-        "shadowcraft", "divination", "engineering"
-    }
-
     local lineHeight = 18
     local contentTop = self.y + 36 - self.scrollOffset
     local twoColumns = self.width >= 340
-    local attributesX = twoColumns and (self.x + self.width / 2) or (self.x + 10)
-    local attributesTop = twoColumns and (self.y + 10) or contentTop + (#statLines + 2) * lineHeight
-    self.contentHeight = twoColumns and (#statLines * lineHeight) or ((#statLines + 2 + #attributes) * lineHeight)
+    local resistX = twoColumns and (self.x + self.width / 2) or (self.x + 10)
+    local resistTop = twoColumns and (self.y + 10) or contentTop + (#statLines + 2) * lineHeight
+    self.contentHeight = twoColumns and (#statLines * lineHeight) or ((#statLines + 2 + #DAMAGE_TYPES) * lineHeight)
 
     love.graphics.setScissor(self.x, self.y, self.width, self.height)
     love.graphics.setFont(self.bodyFont)
@@ -96,22 +97,22 @@ function StatsPanel:draw(actor)
 
     love.graphics.setFont(self.titleFont)
     love.graphics.setColor(1, 0.8, 0.2, 1)
-    love.graphics.print("Attributes", attributesX, attributesTop)
+    love.graphics.print("Resistances", resistX, resistTop)
     love.graphics.setFont(self.bodyFont)
-    love.graphics.setColor(0.9, 0.9, 0.9, 1)
-    for index, attributeName in ipairs(attributes) do
-        local rowY = (twoColumns and contentTop or attributesTop + 24) + (index - 1) * lineHeight
-        love.graphics.print(string.upper(string.sub(attributeName, 1, 1)) .. string.sub(attributeName, 2), attributesX + 10, rowY)
 
-        local level = actor.attributes and actor.attributes[attributeName] or 0
-        for boxIndex = 1, 4 do
-            local boxX = attributesX + 105 + (boxIndex - 1) * 18
-            if boxIndex <= level then
-                love.graphics.rectangle("fill", boxX, rowY + 2, 14, 13)
-            else
-                love.graphics.rectangle("line", boxX, rowY + 2, 14, 13)
-            end
+    local affinities = actor.damageAffinities or {}
+    for index, damageType in ipairs(DAMAGE_TYPES) do
+        local rowY = (twoColumns and contentTop or resistTop + 24) + (index - 1) * lineHeight
+        local label = string.upper(string.sub(damageType, 1, 1)) .. string.sub(damageType, 2)
+        local multiplier = affinities[damageType] or 1.0
+        if multiplier < 0.95 then
+            love.graphics.setColor(0.3, 0.9, 0.3, 1)   -- resists
+        elseif multiplier > 1.05 then
+            love.graphics.setColor(0.9, 0.3, 0.3, 1)   -- vulnerable
+        else
+            love.graphics.setColor(0.9, 0.9, 0.9, 1)   -- neutral
         end
+        love.graphics.print(label .. " " .. tostring(math.floor(multiplier * 100)) .. "%", resistX + 10, rowY)
     end
     love.graphics.setScissor()
 end

@@ -25,6 +25,16 @@ function EquipmentPanel.new(x, y, width, equipmentSystem, items)
     return self
 end
 
+-- Computed panel height for the given actor, without drawing. Used to stack
+-- widgets directly below the equipment panel.
+function EquipmentPanel:getHeight(actor)
+    if not actor or not actor.availableSlots then return 30 end
+    local columns = math.floor((self.width - self.padding) / (self.cellSize + self.padding))
+    if columns < 1 then columns = 1 end
+    local rows = math.ceil(#actor.availableSlots / columns)
+    return 30 + rows * (self.cellSize + self.padding)
+end
+
 function EquipmentPanel:draw(actor, navMode, selectedSlotIndex, dragging)
     self.slotRegions = {}
     if not actor then return self.slotRegions end
@@ -34,6 +44,7 @@ function EquipmentPanel:draw(actor, navMode, selectedSlotIndex, dragging)
     if columns < 1 then columns = 1 end
     local rows = math.ceil(#slots / columns)
     local panelHeight = 30 + rows * (self.cellSize + self.padding)
+    self.panelHeight = panelHeight
     local startY = self.y + 30
 
     love.graphics.setColor(0.15, 0.15, 0.15, 1)

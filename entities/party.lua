@@ -107,20 +107,45 @@ function Party:hasActor(actor)
     return false
 end
 
--- Add items to party inventory
-function Party:addToInventory(item)
-    -- Try to stack with existing items first
-    for _, existing in ipairs(self.inventory) do
+-- Try to stack an item with an existing entry of the same id in a list.
+-- Returns true when merged; false when the caller should insert the item.
+local function mergeIntoStack(list, item)
+    for _, existing in ipairs(list) do
         if existing.id == item.id then
-             if type(existing.addToStack) == "function" then
+            if type(existing.addToStack) == "function" then
                 existing:addToStack(item.quantity or 1)
             else
                 existing.quantity = (existing.quantity or 1) + (item.quantity or 1)
             end
-            return
+            return true
         end
     end
-    table.insert(self.inventory, item)
+    return false
+end
+
+-- Add items to party inventory
+function Party:addToInventory(item)
+    if not mergeIntoStack(self.inventory, item) then
+        table.insert(self.inventory, item)
+    end
+end
+
+-- Add a fresh, independent copy of an item definition (e.g. Items[itemId]) to
+-- the party inventory. Never stores a reference to the shared data/items.lua
+-- catalog tables, and merges into an existing stack of the same id when present.
+function Party:addItemDefCopy(itemDef, quantity)
+    quantity = quantity or 1
+    if quantity <= 0 then return end
+
+    local copy = {}
+    for k, v in pairs(itemDef or {}) do
+        copy[k] = v
+    end
+    copy.quantity = quantity
+
+    if not mergeIntoStack(self.inventory, copy) then
+        table.insert(self.inventory, copy)
+    end
 end
 
 -- Remove item from party inventory
