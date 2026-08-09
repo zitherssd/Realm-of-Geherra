@@ -63,6 +63,22 @@ local function getNearestEnemyUnit(playerUnit)
     return nearestEnemy
 end
 
+-- Crude measure of a party's total combat strength. Used as a difficulty
+-- proxy so harder battles (bigger/stronger enemy parties) grant more favor.
+local function computePartyPower(party)
+    local power = 0
+    if party and party.actors then
+        for _, actor in ipairs(party.actors) do
+            local stats = actor.stats or {}
+            local hp = actor.maxHp or stats.health or 50
+            local attack = stats.attack or 10
+            local defense = stats.defense or 10
+            power = power + hp + (attack * 2) + (defense * 2)
+        end
+    end
+    return power
+end
+
 function BattleState.enter(params)
     params = params or {}
     local enemyParty = params.enemyParty
@@ -322,7 +338,16 @@ function BattleState.checkBattleEnd()
             EventBus.emit("party_killed", BattleState.enemyParty.id)
         end
 
-        local favorGained = playerAlive and (5 + #enemyCasualties) or 0
+        local favorGained = 0
+        if playerAlive then
+            -- Reward favor based on how hard the battle was: the stronger the
+            -- enemy party is relative to the player's party, the more favor.
+            local enemyPower = computePartyPower(BattleState.enemyParty)
+            local playerPower = math.max(1, computePartyPower(GameContext.data.playerParty))
+            local difficulty = enemyPower / playerPower
+            favorGained = math.floor(4 + difficulty * 8)
+            GameContext.data.favor = (GameContext.data.favor or 0) + favorGained
+        end
 
         if playerAlive then
             if BattleState.onVictory then

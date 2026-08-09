@@ -7,19 +7,19 @@ local RecruitmentData = require("data.recruitment")
 local Troop = require("entities.troop")
 local PartySystem = require("systems.party_system")
 
-function RecruitmentSystem.recruit(location, party)
+function RecruitmentSystem.roll(location)
     -- Determine faction and location type to select the correct pool
     local faction = location.faction or "neutral"
     local locType = location.type or "default"
-    
+
     -- Lookup recruitment pool from data/recruitment.lua
     local factionData = RecruitmentData[faction] or RecruitmentData["neutral"]
     local pool = factionData[locType] or factionData["default"] or {"soldier"}
-    
+
     local roll = math.random()
     local count = 0
     local text = ""
-    
+
     -- Determine success and count
     if roll < 0.4 then
         count = 0
@@ -31,13 +31,25 @@ function RecruitmentSystem.recruit(location, party)
         count = 3
         text = "You boast and try to impress. The crowd cheers! 3 eager volunteers pledge their swords."
     end
-    
-    -- Add troops if successful
+
+    -- Pick the units that would join (not added to the party until hired)
+    local unitTypes = {}
     for i = 1, count do
-        local unitType = pool[math.random(#pool)]
-        PartySystem.addActor(party, Troop.new(unitType))
+        unitTypes[i] = pool[math.random(#pool)]
     end
-    
+
+    return text, count, unitTypes
+end
+
+function RecruitmentSystem.hire(location, party, unitTypes)
+    for i = 1, #unitTypes do
+        PartySystem.addActor(party, Troop.new(unitTypes[i]))
+    end
+end
+
+function RecruitmentSystem.recruit(location, party)
+    local text, count, unitTypes = RecruitmentSystem.roll(location)
+    RecruitmentSystem.hire(location, party, unitTypes)
     return text, count
 end
 

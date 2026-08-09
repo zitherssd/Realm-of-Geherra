@@ -7,6 +7,15 @@ local StateManager = require("core.state_manager")
 local UIManager = require("ui.ui_manager")
 local BattleEndScreen = require("ui.screens.battle_end_screen")
 local LootScreen = require("ui.screens.loot_screen")
+local WorldState = require("game.states.world_state")
+
+-- Return to the world map, popping up the favor reward once we arrive.
+local function returnToWorld(favor)
+    if favor and favor > 0 then
+        WorldState.showFavorPopup(favor)
+    end
+    StateManager.swap("world")
+end
 
 function BattleEndState.enter(params)
     params = params or {}
@@ -17,7 +26,8 @@ function BattleEndState.enter(params)
         playerCasualties = params.playerCasualties or {},
         enemyCasualties = params.enemyCasualties or {},
         loot = params.loot or {},
-        gold = params.gold or 0
+        gold = params.gold or 0,
+        favor = params.favor or 0
     }
     
     -- Initialize the UI Screen with a callback for the continue button
@@ -25,12 +35,12 @@ function BattleEndState.enter(params)
         -- If there is loot, go to loot screen, otherwise world
         if #results.loot > 0 then
             local lootScreen = LootScreen.new(results.loot, function()
-                StateManager.swap("world")
+                returnToWorld(results.favor)
             end)
             UIManager.registerScreen("loot", lootScreen)
             UIManager.showScreen("loot")
         else
-            StateManager.swap("world")
+            returnToWorld(results.favor)
         end
     end)
     

@@ -7,20 +7,6 @@ local DEFAULT_PROJECTILE_HIT_CHANCE = 70
 local PROJECTILE_SIZE_ABOVE_BASE_BONUS = 5
 local PROJECTILE_SIZE_BELOW_BASE_MALUS = 15
 
--- Default damage-type affinities. These are resistance/vulnerability
--- multipliers applied AFTER flat protection. All neutral by default; units
--- override via `damageAffinities` (e.g. a fire creature resists fire with 0.5
--- but is vulnerable to ice with 1.5).
-local DEFAULT_DAMAGE_AFFINITIES = {
-    slashing = 1.0,
-    piercing = 1.0,
-    blunt = 1.0,
-    fire = 1.0,
-    ice = 1.0,
-    shock = 1.0,
-    poison = 1.0
-}
-
 -- Defense contributed by the equipped shield (offHand armor slot).
 function CombatSystem._getShieldDefense(defender)
     if not defender or not defender.equipment or not defender.equipment.offHand then
@@ -88,33 +74,11 @@ function CombatSystem.calculateDamage(defender, skill)
 
     local damage = math.max(0, baseDamage - totalProtection)
 
-    -- Apply damage-type affinity (resistance/vulnerability multiplier)
-    damage = damage * CombatSystem.getDamageMultiplier(defender, damageType)
-
     -- Apply 20% variance (±20%, range 0.8 to 1.2)
     local variance = 0.8 + math.random() * 0.4
     damage = damage * variance
 
     return math.floor(damage)
-end
-
--- Damage-type affinity multiplier for a defender (resistance < 1, vulnerability
--- > 1). Reads the optional `damageAffinities` table on the unit (or its actor),
--- defaulting to neutral 1.0 for every type.
-function CombatSystem.getDamageMultiplier(defender, damageType)
-    if not defender then return 1.0 end
-
-    local affinities = defender.damageAffinities
-    if not affinities and defender.actor and defender.actor.damageAffinities then
-        affinities = defender.actor.damageAffinities
-    end
-
-    local multiplier = affinities and affinities[damageType]
-    if multiplier == nil then
-        multiplier = DEFAULT_DAMAGE_AFFINITIES[damageType] or 1.0
-    end
-
-    return multiplier
 end
 
 -- Calculate total protection for a damage type (innate + equipment)

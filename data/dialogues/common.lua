@@ -36,5 +36,18 @@ return {
                 }
             }
         }
+    },
+
+    ["encounter_ambush"] = {
+        id = "encounter_ambush",
+        lines = {
+            {
+                text = "The wilds close in around you... a hostile force blocks your path!",
+                options = {
+                    { text = "Stand your ground! (Fight)", action = "battle" },
+                    { text = "Break away and flee. (Leave)", next = "end" }
+                }
+            }
+        }
     }
 }

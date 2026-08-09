@@ -89,6 +89,29 @@ local CONFIG = {
     roadWidthFrac  = 0.0016,    -- road line width as a fraction of map width
     siteRadiusFrac = 0.006,     -- site marker radius as a fraction of map width
 
+    -- Road pathfinding (A* over the sample grid). Roads follow the lay of the
+    -- land: they never cross impassable terrain (water, marsh lakes, snowy
+    -- peaks), prefer cheap easy ground (plains/forest/valleys), and only cut
+    -- through marsh/desert/mountains when there is no reasonable way around.
+    roadPath = {
+        blocked = { ocean = true, marsh_lake = true, snow = true },
+        cost = {
+            plains   = 1.00,
+            beach    = 1.10,
+            forest   = 1.15,
+            cliff    = 1.55,
+            hills    = 1.45,
+            mountain = 2.60,
+            desert   = 2.30,
+            marsh    = 2.90,
+        },
+        climbCost       = 2.2,     -- extra cost per unit of elevation climbed
+        heightCost      = 0.40,    -- extra cost per unit above the hills level
+        valleyBonus     = 0.45,    -- cost discount per unit of valley (flow)
+        shortcutMaxCost = 1.8,     -- straightening won't cut cells costing more
+        maxExpansions   = 400000,  -- A* safety cap per road
+    },
+
     -- art-bible palette (art-bible.md §4.1/4.3)
     palette = {
         ocean        = {  40,  50, 120 },  -- Deep Indigo
@@ -1189,30 +1212,6 @@ end
 -- Stage "sites": sites + roads on top of the finished world
 -- ---------------------------------------------------------------------------
 
--- Land lookup for road tracing. When a biome grid is supplied, marsh lakes
--- are treated as water so roads skirt them instead of crossing.
-local function makeLandLookup(height, sampleW, sampleH, targetW, targetH, biome)
-    return function(px, py)
-        local sx = (px - 0.5) / targetW * sampleW + 0.5
-        local sy = (py - 0.5) / targetH * sampleH + 0.5
-        local x = math.floor(sx)
-        local y = math.floor(sy)
-        if x < 1 or x > sampleW or y < 1 or y > sampleH then
-            return false
-        end
-        if height[y][x] < CONFIG.oceanLevel then
-            return false
-        end
-        if biome then
-            local b = biome[y][x]
-            if b == "marsh_lake" then
-                return false
-            end
-        end
-        return true
-    end
-end
-
 -- Place site markers on land. When a biome grid is supplied, cells that are
 -- "ocean" or "marsh_lake" are excluded so sites never spawn on water.
 local function placeSites(height, sampleW, sampleH, seed, biome, siteCount)
@@ -1304,74 +1303,271 @@ local function computeConnections(sites)
     return chosen
 end
 
--- Coast-hugging road trace: step toward the target, and when a step would
--- enter water, nudge to the nearest land cell instead of crossing.
-local function traceRoad(ax, ay, bx, by, isLand, targetW, targetH, sampleW, sampleH)
-    local points = { { x = ax, y = ay } }
-    local x, y = ax, ay
-    local step = math.max(1.5, targetW / sampleW)
-    local maxIter = math.floor((targetW + targetH) * 1.5)
-    local maxNudge = 10
+-- ---------------------------------------------------------------------------
+-- Road pathfinding
+--
+-- Real roads follow the lay of the land: they hug valleys and gentle ground,
+-- avoid marshes, deserts and mountains, and never cross impassable snowy
+-- peaks. A road between two sites is an A* search over the (coarse) sample
+-- grid that minimises a terrain-aware cost, instead of drawing a straight
+-- line and nudging around water.
+-- ---------------------------------------------------------------------------
 
-    for _ = 1, maxIter do
-        local dx, dy = bx - x, by - y
-        local dist = math.sqrt(dx * dx + dy * dy)
-        if dist <= step then
-            points[#points + 1] = { x = bx, y = by }
+local SQRT2 = math.sqrt(2)
+
+local ROAD_DIRS = {
+    { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 },
+    { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 },
+}
+
+-- Pixel coordinate -> 1-based sample cell (the same mapping the old water
+-- lookup used, so roads still start/end exactly on the sites' sample cells).
+local function roadCellOf(px, py, targetW, targetH, sampleW, sampleH)
+    local x = math.floor((px - 0.5) / targetW * sampleW + 0.5)
+    local y = math.floor((py - 0.5) / targetH * sampleH + 0.5)
+    return clamp(x, 1, sampleW), clamp(y, 1, sampleH)
+end
+
+-- Movement cost of entering a cell, or nil when the cell is impassable.
+-- Blocked: open water, marsh lakes and snowy peaks (all unwalkable in-game).
+-- Passable but avoided: marsh, desert and mountains. Valleys (high water
+-- flow) are cheaper, so roads naturally follow drainages.
+local function roadCellCost(x, y, height, biome, valley, cfg)
+    if height[y][x] < CONFIG.oceanLevel then
+        return nil
+    end
+    local b = biome and biome[y] and biome[y][x]
+    if not b then
+        return 1.0 -- no biome grid (file-export stage): keep it plain
+    end
+    if cfg.blocked[b] then
+        return nil
+    end
+    local c = cfg.cost[b] or 1.0
+    local e = height[y][x]
+    if e > CONFIG.hillsLevel then
+        c = c + (e - CONFIG.hillsLevel) * cfg.heightCost
+    end
+    if valley and valley[y] then
+        local v = valley[y][x] or 0
+        if v > 0 then
+            c = c - v * cfg.valleyBonus
+        end
+    end
+    return math.max(0.4, c)
+end
+
+-- Octile distance (8-connected grid), scaled below the cheapest real step so
+-- the heuristic stays roughly admissible and valley routes are not dismissed
+-- too early.
+local function roadHeuristic(dx, dy)
+    local adx, ady = math.abs(dx), math.abs(dy)
+    local diag = math.min(adx, ady)
+    return (adx + ady - diag + diag * SQRT2) * 0.5
+end
+
+local function heapPush(heap, node)
+    heap[#heap + 1] = node
+    local i = #heap
+    while i > 1 do
+        local p = math.floor(i / 2)
+        if heap[p].f <= heap[i].f then
             break
         end
+        heap[p], heap[i] = heap[i], heap[p]
+        i = p
+    end
+end
 
-        local nx, ny = x + dx / dist * step, y + dy / dist * step
-        if isLand(nx, ny) then
-            x, y = nx, ny
-            points[#points + 1] = { x = x, y = y }
-        else
-            -- search an expanding ring of sample cells for the nearest land
-            local sxc = (nx - 0.5) / targetW * sampleW + 0.5
-            local syc = (ny - 0.5) / targetH * sampleH + 0.5
-            local found = false
-            for r = 1, maxNudge do
-                for dy = -r, r do
-                    for dx = -r, r do
-                        if math.max(math.abs(dx), math.abs(dy)) == r then
-                            local px = (sxc + dx - 0.5) / sampleW * targetW + 0.5
-                            local py = (syc + dy - 0.5) / sampleH * targetH + 0.5
-                            if isLand(px, py) then
-                                x, y = px, py
-                                points[#points + 1] = { x = x, y = y }
-                                found = true
-                                break
+local function heapPop(heap)
+    local top = heap[1]
+    local last = heap[#heap]
+    heap[#heap] = nil
+    if #heap > 0 then
+        heap[1] = last
+        local i = 1
+        while true do
+            local l, r = i * 2, i * 2 + 1
+            local m = i
+            if l <= #heap and heap[l].f < heap[m].f then m = l end
+            if r <= #heap and heap[r].f < heap[m].f then m = r end
+            if m == i then break end
+            heap[i], heap[m] = heap[m], heap[i]
+            i = m
+        end
+    end
+    return top
+end
+
+-- Snap a sample cell to the nearest non-blocked cell (expanding ring). Used
+-- when a site sits on (or right against) a blocked cell after snapping.
+local function snapToOpenRoad(x, y, height, biome, valley, cfg, sampleW, sampleH)
+    if roadCellCost(x, y, height, biome, valley, cfg) then
+        return x, y
+    end
+    for r = 1, 8 do
+        for dy = -r, r do
+            for dx = -r, r do
+                if math.max(math.abs(dx), math.abs(dy)) == r then
+                    local nx, ny = x + dx, y + dy
+                    if nx >= 1 and nx <= sampleW and ny >= 1 and ny <= sampleH
+                        and roadCellCost(nx, ny, height, biome, valley, cfg) then
+                        return nx, ny
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- Sample the straight pixel segment A->B at ~4px intervals; returns false if
+-- any cell it crosses is impassable or costs more than the shortcut cap.
+local function roadShortcutClear(ax, ay, bx, by, height, biome, valley, cfg,
+                                 targetW, targetH, sampleW, sampleH)
+    local dx, dy = bx - ax, by - ay
+    local steps = math.max(1, math.ceil(math.sqrt(dx * dx + dy * dy) / 4))
+    for i = 1, steps do
+        local t = i / steps
+        local x, y = roadCellOf(ax + dx * t, ay + dy * t, targetW, targetH, sampleW, sampleH)
+        local c = roadCellCost(x, y, height, biome, valley, cfg)
+        if not c or c > cfg.shortcutMaxCost then
+            return false
+        end
+    end
+    return true
+end
+
+-- Terrain-following road between two pixel points. Returns a list of
+-- { x, y } pixel points (or nil when no path exists).
+local function traceRoad(ax, ay, bx, by, height, biome, valley,
+                         sampleW, sampleH, targetW, targetH)
+    local cfg = CONFIG.roadPath
+    local sx, sy = roadCellOf(ax, ay, targetW, targetH, sampleW, sampleH)
+    local gx, gy = roadCellOf(bx, by, targetW, targetH, sampleW, sampleH)
+    sx, sy = snapToOpenRoad(sx, sy, height, biome, valley, cfg, sampleW, sampleH)
+    gx, gy = snapToOpenRoad(gx, gy, height, biome, valley, cfg, sampleW, sampleH)
+    if not sx or not gx then
+        return nil
+    end
+
+    local function key(x, y) return (y - 1) * sampleW + x end
+
+    local startK, goalK = key(sx, sy), key(gx, gy)
+    if startK == goalK then
+        return { { x = bx, y = by } }
+    end
+
+    local gScore, parent, closed = {}, {}, {}
+    local heap = {}
+    gScore[startK] = 0
+    heapPush(heap, { f = roadHeuristic(gx - sx, gy - sy), g = 0, x = sx, y = sy })
+
+    local found, expansions = false, 0
+    while #heap > 0 do
+        expansions = expansions + 1
+        if expansions > cfg.maxExpansions then
+            break
+        end
+        local cur = heapPop(heap)
+        local ck = key(cur.x, cur.y)
+        if not closed[ck] then
+            closed[ck] = true
+            if ck == goalK then
+                found = true
+                break
+            end
+            local ce = height[cur.y][cur.x]
+            for _, d in ipairs(ROAD_DIRS) do
+                local nx, ny = cur.x + d[1], cur.y + d[2]
+                if nx >= 1 and nx <= sampleW and ny >= 1 and ny <= sampleH then
+                    local nc = roadCellCost(nx, ny, height, biome, valley, cfg)
+                    if nc then
+                        local nk = key(nx, ny)
+                        if not closed[nk] then
+                            local step = (d[1] ~= 0 and d[2] ~= 0) and SQRT2 or 1.0
+                            local climb = math.max(0, height[ny][nx] - ce) * cfg.climbCost
+                            local ng = cur.g + (nc + climb) * step
+                            if not gScore[nk] or ng < gScore[nk] then
+                                gScore[nk] = ng
+                                parent[nk] = ck
+                                heapPush(heap, {
+                                    f = ng + roadHeuristic(gx - nx, gy - ny),
+                                    g = ng, x = nx, y = ny,
+                                })
                             end
                         end
                     end
-                    if found then
-                        break
-                    end
                 end
-                if found then
-                    break
-                end
-            end
-            if not found then
-                break -- cannot cross open water
             end
         end
     end
 
-    -- light smoothing to reduce stair-stepping
-    if #points > 4 then
-        local smoothed = { points[1] }
-        for i = 2, #points - 1 do
-            local p0, p1, p2 = points[i - 1], points[i], points[i + 1]
-            smoothed[#smoothed + 1] = {
+    if not found then
+        return nil
+    end
+
+    -- Reconstruct the cell path (goal -> start), then reverse it.
+    local cells = {}
+    local ck = goalK
+    while ck do
+        local x = (ck - 1) % sampleW + 1
+        local y = math.floor((ck - 1) / sampleW) + 1
+        cells[#cells + 1] = { x = x, y = y }
+        if ck == startK then
+            break
+        end
+        ck = parent[ck]
+    end
+    local pts = {}
+    for i = #cells, 1, -1 do
+        pts[#pts + 1] = {
+            x = (cells[i].x - 0.5) / sampleW * targetW,
+            y = (cells[i].y - 0.5) / sampleH * targetH,
+        }
+    end
+    if #pts < 2 then
+        return pts
+    end
+    pts[1].x, pts[1].y = ax, ay
+    pts[#pts].x, pts[#pts].y = bx, by
+
+    -- String-pull: drop waypoints where a straight line stays on clear ground,
+    -- so the road straightens out along easy terrain instead of stair-stepping.
+    local pulled = { pts[1] }
+    for i = 2, #pts do
+        local last = pulled[#pulled]
+        if i == #pts then
+            if last ~= pts[i] then
+                pulled[#pulled + 1] = pts[i]
+            end
+        elseif not roadShortcutClear(last.x, last.y, pts[i].x, pts[i].y,
+                height, biome, valley, cfg, targetW, targetH, sampleW, sampleH) then
+            if last ~= pts[i - 1] then
+                pulled[#pulled + 1] = pts[i - 1]
+            end
+        end
+    end
+
+    -- Gentle 2-pass moving average so the polyline reads as a curved road.
+    local smoothed = pulled
+    for _ = 1, 2 do
+        if #smoothed < 3 then
+            break
+        end
+        local out = { smoothed[1] }
+        for i = 2, #smoothed - 1 do
+            local p0, p1, p2 = smoothed[i - 1], smoothed[i], smoothed[i + 1]
+            out[#out + 1] = {
                 x = (p0.x + p1.x * 2 + p2.x) / 4,
                 y = (p0.y + p1.y * 2 + p2.y) / 4,
             }
         end
-        smoothed[#smoothed + 1] = points[#points]
-        return smoothed
+        out[#out + 1] = smoothed[#smoothed]
+        smoothed = out
     end
-    return points
+
+    return smoothed
 end
 
 -- ---------------------------------------------------------------------------
@@ -1395,19 +1591,27 @@ local function placeSitesForMap(height, biome, sampleW, sampleH, targetW, target
     return sites
 end
 
-local function traceRoadsForMap(sites, height, biome, sampleW, sampleH, targetW, targetH)
+local function traceRoadsForMap(sites, height, biome, valley, sampleW, sampleH, targetW, targetH)
     local connections = computeConnections(sites)
-    local isLand = makeLandLookup(height, sampleW, sampleH, targetW, targetH, biome)
     local roads = {}
     for _, e in ipairs(connections) do
         local a, b = sites[e.a], sites[e.b]
-        local pts = traceRoad(a.px, a.py, b.px, b.py, isLand,
-            targetW, targetH, sampleW, sampleH)
-        if #pts >= 2 then
+        local pts = traceRoad(a.px, a.py, b.px, b.py, height, biome, valley,
+            sampleW, sampleH, targetW, targetH)
+        if pts and #pts >= 2 then
             table.insert(roads, { from = a.id, to = b.id, points = pts })
         end
     end
     return roads
+end
+
+-- Trace a road network connecting ONLY the given sites (each { id, px, py })
+-- across a finished world. Used to rebuild roads over just the road-worthy
+-- locations once their types are assigned (location_population_system.lua),
+-- since the generator traces roads over every site before types exist.
+local function traceRoads(sites, world)
+    return traceRoadsForMap(sites, world.height, world.biome, world.valley,
+        world.sampleW, world.sampleH, world.targetW, world.targetH)
 end
 
 -- Generate sites + roads from a finished generateWorld result.
@@ -1415,7 +1619,7 @@ local function generateSites(world, siteCount)
     local sites = placeSitesForMap(world.height, world.biome,
         world.sampleW, world.sampleH, world.targetW, world.targetH,
         world.seed, siteCount)
-    local roads = traceRoadsForMap(sites, world.height, world.biome,
+    local roads = traceRoadsForMap(sites, world.height, world.biome, world.valley,
         world.sampleW, world.sampleH, world.targetW, world.targetH)
     return { sites = sites, roads = roads }
 end
@@ -1478,7 +1682,7 @@ local function createGeneration(seed, targetW, targetH, detail, siteCount)
                 sampleW, sampleH, targetW, targetH, seed, siteCount)
         end },
         { name = "Tracing roads", run = function()
-            st.roads = traceRoadsForMap(st.sites, st.height, st.biome,
+            st.roads = traceRoadsForMap(st.sites, st.height, st.biome, st.valley,
                 sampleW, sampleH, targetW, targetH)
         end },
     }
@@ -1714,6 +1918,8 @@ MapGenerator.defaultSiteCount = CONFIG.siteCount
 MapGenerator.generateWorld    = generateWorld
 MapGenerator.generateSites    = generateSites
 MapGenerator.createGeneration = createGeneration
+
+MapGenerator.traceRoads       = traceRoads
 
 function MapGenerator.prepare(stage)
     stage = stage or "world"

@@ -54,11 +54,6 @@ function Actor.new(id, actorType)
         poison = 0
     }
 
-    -- Damage-type affinities (resistance/vulnerability multipliers).
-    -- Empty = neutral (1.0) for every type; e.g. fire = 0.5 resists fire,
-    -- ice = 1.5 is vulnerable to ice.
-    self.damageAffinities = {}
-    
     self.velocity = {x = 0, y = 0}
     self.ai = {state = "idle"}
     self.sprite = "assets/sprites/units/imp.png"

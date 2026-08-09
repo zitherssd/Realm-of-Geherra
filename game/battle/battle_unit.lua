@@ -135,14 +135,6 @@ function BattleUnit.new(actor, worldX, worldY, team)
         end
     end
     
-    -- 3c. Copy damage-type affinities (resistance/vulnerability multipliers)
-    self.damageAffinities = {}
-    if actor.damageAffinities then
-        for damageType, value in pairs(actor.damageAffinities) do
-            self.damageAffinities[damageType] = value
-        end
-    end
-    
     -- 4. Finalize HP
     self.maxHp = self.stats.health or 100
     if actor.hp then

@@ -7,6 +7,18 @@ QuestLogScreen.__index = QuestLogScreen
 local GameContext = require("game.game_context")
 local Button = require("ui.widgets.button")
 
+-- Compass direction from (fromX, fromY) to (toX, toY) on the world map.
+-- Map y grows downward on screen, so negate dy so north = +pi/2.
+local function compassDirection(fromX, fromY, toX, toY)
+    local dx = toX - fromX
+    local dy = toY - fromY
+    local angle = math.atan2(-dy, dx)
+    local dirs = { "east", "northeast", "north", "northwest", "west", "southwest", "south", "southeast" }
+    local index = math.floor((angle / (math.pi / 4)) + 0.5)
+    index = (index % 8) + 1
+    return dirs[index]
+end
+
 function QuestLogScreen.new(onClose)
     local self = setmetatable({}, QuestLogScreen)
     self.onClose = onClose
@@ -119,6 +131,15 @@ function QuestLogScreen:draw()
             local desc = obj.description or (obj.type .. " " .. (obj.target or "?"))
             if obj.required and obj.required > 1 then
                 desc = desc .. " (" .. obj.current .. "/" .. obj.required .. ")"
+            end
+
+            -- Point the way for travel objectives whose target is known, relative to
+            -- the place where the quest was accepted (not the player's live position),
+            -- so the player must still work out how to get there.
+            if obj.type == "travel" and obj.targetX and obj.targetY and not obj:isCompleted()
+                and q.giverLocationX and q.giverLocationY and q.giverLocationName then
+                local dir = compassDirection(q.giverLocationX, q.giverLocationY, obj.targetX, obj.targetY)
+                desc = desc .. " (" .. dir .. " of " .. q.giverLocationName .. ")"
             end
             
             if obj:isCompleted() then

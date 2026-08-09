@@ -9,12 +9,26 @@ local StateManager = require("core.state_manager")
 local Camera = require("world.camera")
 local TimeSystem = require("systems.time_system")
 local AttributeSystem = require("systems.attribute_system")
+local EncounterSystem = require("systems.encounter_system")
 
 local WorldState = {
     camera = nil,
     currentMap = nil,
     defaultZoom = 2.0,       -- world map shown 2x (zoomed in, slightly pixelated)
-    playerPartySpeed = 100,  -- pixels per second (halved to stay consistent at 2x zoom)
+    playerPartySpeed = 80,  -- pixels per second (halved to stay consistent at 2x zoom)
+    -- Travel speed multiplier per biome on the world map.
+    -- Biomes not listed here are travelled at full speed (1.0).
+    biomeSpeedModifiers = {
+        desert   = 0.6,
+        mountain = 0.4,
+        hills    = 0.7,
+        forest   = 0.75,
+        marsh    = 0.4,
+        cliff = 0.65,
+    },
+    -- Distance (world px) within which the party counts as travelling "on a
+    -- road". Roads halve the biome movement penalty (see onRoad below).
+    roadOnDistance = 12,
     passiveHealSecondsToFull = 300,
     restHealMultiplier = 10,
     nearbyParty = nil,       -- The party currently in interaction range
@@ -24,7 +38,8 @@ local WorldState = {
     isResting = false,
     restInputLock = 0,
     restModeRequested = false,
-    restStartTotalHour = nil  -- total game-hours when rest began
+    restStartTotalHour = nil,  -- total game-hours when rest began
+    popup = nil                -- transient floating notification (e.g. battle favor reward)
 }
 
 local function healPartyOverTime(dt, multiplier)
@@ -42,6 +57,46 @@ local function healPartyOverTime(dt, multiplier)
             actor.hp = math.min(maxHp, currentHp + healPerSecond * dt)
         end
     end
+end
+
+-- True when (x, y) is within WorldState.roadOnDistance of any road polyline
+-- on the map (roads live in map.worldGen.roads as { points = {{x,y},...} }).
+-- Uses squared distances so it's cheap enough to call every frame.
+local function onRoad(map, x, y)
+    local roads = map and map.worldGen and map.worldGen.roads
+    if not roads then
+        return false
+    end
+    local maxD2 = WorldState.roadOnDistance * WorldState.roadOnDistance
+    for _, road in ipairs(roads) do
+        local pts = road.points
+        for i = 1, #pts - 1 do
+            local a, b = pts[i], pts[i + 1]
+            local dx, dy = b.x - a.x, b.y - a.y
+            local len2 = dx * dx + dy * dy
+            local t = 0
+            if len2 > 0 then
+                t = ((x - a.x) * dx + (y - a.y) * dy) / len2
+                if t < 0 then t = 0 elseif t > 1 then t = 1 end
+            end
+            local cx, cy = a.x + dx * t, a.y + dy * t
+            local qx, qy = x - cx, y - cy
+            if qx * qx + qy * qy <= maxD2 then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- Roads halve the biome travel penalty: speed = base + (1 - base) * 0.5.
+-- A 0.6x biome becomes 0.8x on a road; an unpenalised biome stays 1.0x.
+local function speedWithRoad(map, biomeId, x, y)
+    local speedMod = WorldState.biomeSpeedModifiers[biomeId] or 1
+    if onRoad(map, x, y) then
+        speedMod = 1 - (1 - speedMod) * 0.5
+    end
+    return speedMod
 end
 
 local function initializeWorldPresentation()
@@ -73,6 +128,7 @@ function WorldState.enter()
     -- Initialize UI font
     WorldState.font = love.graphics.newFont(14)
     WorldState.interactionCooldowns = {}
+    EncounterSystem.reset()
     WorldState.isResting = WorldState.restModeRequested and true or false
     WorldState.restModeRequested = false
     WorldState.restInputLock = WorldState.isResting and 0.2 or 0
@@ -94,6 +150,7 @@ function WorldState.resume()
         WorldState.font = love.graphics.newFont(14)
     end
 
+    EncounterSystem.reset()
     WorldState.isResting = false
     WorldState.restInputLock = 0
 end
@@ -106,9 +163,29 @@ function WorldState.exit()
     WorldState.nearbyParty = nil
 end
 
+-- Show a transient floating favor notification on the world map (same style as
+-- the quest-completion popup in DialogueScreen). Fades in, drifts upward and
+-- auto-clears; it does not block world input.
+function WorldState.showFavorPopup(favor)
+    if not favor or favor <= 0 then return end
+    WorldState.popup = {
+        lines = { string.format("+%d Favor", favor) },
+        timer = 0,
+        duration = 3
+    }
+end
+
 function WorldState.update(dt)
     local playerParty = GameContext.data.playerParty
     if not playerParty or not WorldState.currentMap then return end
+
+    -- Advance the floating favor notification timer (non-blocking)
+    if WorldState.popup then
+        WorldState.popup.timer = WorldState.popup.timer + dt
+        if WorldState.popup.timer >= WorldState.popup.duration then
+            WorldState.popup = nil
+        end
+    end
 
     if WorldState.restInputLock > 0 then
         WorldState.restInputLock = math.max(0, WorldState.restInputLock - dt)
@@ -191,10 +268,13 @@ function WorldState.update(dt)
         moveY = moveY / magnitude
     end
     
-    -- Update party position based on input
+    -- Update party position based on input (biome modifies travel speed,
+    -- and roads halve that biome penalty)
     local currentX, currentY = playerParty:getPosition()
-    local newX = currentX + moveX * WorldState.playerPartySpeed * dt
-    local newY = currentY + moveY * WorldState.playerPartySpeed * dt
+    local biomeId = WorldState.currentMap:getBiomeAt(currentX, currentY)
+    local speedMod = speedWithRoad(WorldState.currentMap, biomeId, currentX, currentY)
+    local newX = currentX + moveX * WorldState.playerPartySpeed * speedMod * dt
+    local newY = currentY + moveY * WorldState.playerPartySpeed * speedMod * dt
     
     -- Clamp party position to map bounds
     newX = math.max(0, math.min(newX, WorldState.currentMap.width))
@@ -220,6 +300,15 @@ function WorldState.update(dt)
     
     -- Update camera to follow party
     WorldState.camera:update(dt, playerParty)
+
+    -- Random encounter rolls while traveling: accumulate the distance walked
+    -- and let the encounter system decide when to spawn a hostile party nearby.
+    if isMoving and not WorldState.isResting then
+        local ddx = newX - currentX
+        local ddy = newY - currentY
+        local distanceTraveled = math.sqrt(ddx * ddx + ddy * ddy)
+        EncounterSystem.update(dt, distanceTraveled)
+    end
 
     local interactionRadius = 30
 
@@ -255,10 +344,10 @@ function WorldState.update(dt)
             if dist < interactionRadius then
                 WorldState.nearbyParty = otherParty
                 
-                -- Check faction hostility
-                -- For now, we assume "bandits" faction is always hostile
-                -- In the future, use FactionSystem.getFactionStanding(player, otherParty.faction)
-                local isHostile = (otherParty.faction == "bandits")
+                -- Check faction hostility. Spawned encounter parties carry a
+                -- `hostile` flag (see systems/encounter_system.lua); bandits are
+                -- always hostile. In the future this could use FactionSystem.
+                local isHostile = otherParty.hostile == true or otherParty.faction == "bandits"
 
                 if isHostile then
                     -- Check cooldown to prevent immediate re-trigger
@@ -266,7 +355,8 @@ function WorldState.update(dt)
                         -- Set cooldown (3 seconds) so player has time to move away after leaving dialogue
                         WorldState.interactionCooldowns[otherParty.id] = 2.0
                         -- Force interaction immediately
-                        StateManager.push("dialogue", {dialogueId = "bandit_start", target = otherParty})
+                        local dialogueId = otherParty.dialogueId or "bandit_start"
+                        StateManager.push("dialogue", {dialogueId = dialogueId, target = otherParty})
                         return -- Stop update to prevent multiple triggers
                     end
                 elseif Input.isKeyDown("return") or Input.isKeyDown("kpenter") then
@@ -339,7 +429,11 @@ function WorldState.draw()
     local playerParty = GameContext.data.playerParty
     if playerParty and WorldState.currentMap then
         local biomeId = WorldState.currentMap:getBiomeAt(playerParty.x, playerParty.y)
+        local isOnRoad = onRoad(WorldState.currentMap, playerParty.x, playerParty.y)
+        local speedMod = speedWithRoad(WorldState.currentMap, biomeId, playerParty.x, playerParty.y)
         local biomeStr = "Biome: " .. (biomeId or "unknown")
+            .. " (" .. string.format("%.2g", speedMod) .. "x speed)"
+            .. (isOnRoad and " [road]" or "")
         local biomeWidth = WorldState.font:getWidth(biomeStr)
         love.graphics.setColor(0.7, 0.9, 0.7, 1)
         love.graphics.print(biomeStr, love.graphics.getWidth() - biomeWidth - 20, 40)
@@ -421,6 +515,38 @@ function WorldState.draw()
         love.graphics.setColor(1, 1, 0, 1)
         love.graphics.printf("Press ENTER to talk to " .. (WorldState.nearbyParty.name or "Party"), 
             0, love.graphics.getHeight() - 100, love.graphics.getWidth(), "center")
+    end
+
+    -- Draw floating favor notification (fades in/out, drifts upward) on top
+    local popupFont = WorldState.font or love.graphics.getFont()
+    if WorldState.popup then
+        local screenW = love.graphics.getWidth()
+        local screenH = love.graphics.getHeight()
+
+        local alpha = 1
+        local fadeDuration = 0.25
+        local remaining = WorldState.popup.duration - WorldState.popup.timer
+        if WorldState.popup.timer < fadeDuration then
+            alpha = WorldState.popup.timer / fadeDuration
+        elseif remaining < fadeDuration then
+            alpha = remaining / fadeDuration
+        end
+
+        local drift = math.min(WorldState.popup.timer * 24, 36)
+        local baseY = screenH - 120 - drift
+
+        love.graphics.setFont(popupFont)
+        for i, line in ipairs(WorldState.popup.lines) do
+            local lineY = baseY + ((i - 1) * 22)
+            local shadowOffset = 2
+
+            love.graphics.setColor(0, 0, 0, 0.8 * alpha)
+            love.graphics.printf(line, shadowOffset, lineY + shadowOffset, screenW, "center")
+
+            love.graphics.setColor(1, 0.9, 0.4, alpha)
+            love.graphics.printf(line, 0, lineY, screenW, "center")
+        end
+        love.graphics.setColor(1, 1, 1, 1)
     end
 end
 

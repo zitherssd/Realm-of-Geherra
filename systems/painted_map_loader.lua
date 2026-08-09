@@ -4,8 +4,8 @@
 --
 -- The painted PNG already contains terrain, water, rivers, roads, mountains
 -- and trees, so the runtime water/biome/road overlays are disabled. The
--- navigation grid is derived from the generator's biome grid: ocean and
--- marsh lakes are impassable.
+-- navigation grid is derived from the generator's biome grid: ocean, marsh
+-- lakes and snowy peaks are impassable.
 
 local Map = require("world.map")
 local MapGenerator = require("systems.map_generator")
@@ -97,7 +97,9 @@ function PaintedMapLoader.buildMap(result, options)
     map.visuals.overlayImage:setFilter("nearest", "nearest")
     map.renderOptions.showWater = false
     map.renderOptions.showBiomeOverlay = false
-    map.renderOptions.showRoads = false
+    -- Road polylines connect only road-worthy locations (rebuilt after typing
+    -- in location_population_system.populate), so draw them on the world map.
+    map.renderOptions.showRoads = true
 
     -- Navigation grid from the biome grid (ocean + marsh lakes impassable).
     local cellSize = o.cellSize
@@ -112,14 +114,15 @@ function PaintedMapLoader.buildMap(result, options)
             local sx = math.max(1, math.min(world.sampleW, math.floor(worldX / world.targetW * world.sampleW) + 1))
             local sy = math.max(1, math.min(world.sampleH, math.floor(worldY / world.targetH * world.sampleH) + 1))
             local b = world.biome[sy][sx]
-            local walkable = (b ~= "ocean" and b ~= "marsh_lake")
+            -- Snowy peaks are impassable along with water (ocean / marsh lake)
+            local walkable = (b ~= "ocean" and b ~= "marsh_lake" and b ~= "snow")
             grid[y][x] = {
                 x = x,
                 y = y,
                 worldX = worldX,
                 worldY = worldY,
                 walkable = walkable,
-                blockedReason = walkable and nil or "water",
+                blockedReason = walkable and nil or (b == "snow" and "snow" or "water"),
                 biomeId = b,
             }
         end
@@ -137,6 +140,7 @@ function PaintedMapLoader.buildMap(result, options)
 
     local generationData = {
         seed = world.seed,
+        world = world,          -- kept so roads can be rebuilt after typing
         sites = sites,
         roads = roads,
         biomeById = biomeById,

@@ -14,6 +14,10 @@ local AttributeSystem = require("systems.attribute_system")
 
 local DEFAULT_TAVERN_REST_COST = 20
 
+-- Costs for the two-step recruitment flow (see startRecruitmentDialogue)
+LocationActions.ROLL_FAVOR_COST = 5
+LocationActions.HIRE_FAVOR_COST = 30
+
 function LocationActions.exploreRuin(location)
     local enemyParty = Party.new("Ruin Guardians", nil)
     enemyParty.faction = "undead"
@@ -171,14 +175,55 @@ function LocationActions.getCooldownRemaining(location, key, days)
     return math.max(0, (lastUsed + days) - currentDay)
 end
 
-function LocationActions.getRecruitmentCost()
-    local oratoryLevel = AttributeSystem.getPartyMaxLevel("oratory")
-    if oratoryLevel >= 2 then
-        return 0
-    elseif oratoryLevel >= 1 then
-        return 5
+-- Roll for volunteers: costs ROLL_FAVOR_COST favor and stores the result on the
+-- location so the player can decide whether to hire them (HIRE_FAVOR_COST).
+function LocationActions.rollRecruitment(location)
+    GameContext.data.favor = (GameContext.data.favor or 0) - LocationActions.ROLL_FAVOR_COST
+
+    local playerParty = GameContext.data.playerParty
+    local text, count, unitTypes = RecruitmentSystem.roll(location)
+
+    -- The call for volunteers starts the cooldown regardless of the outcome,
+    -- so a failed roll still costs the village's goodwill for a while.
+    location.lastRecruitDay = TimeSystem.getDay()
+
+    if count > 0 then
+        location.pendingRecruitment = { count = count, unitTypes = unitTypes }
     else
-        return 10
+        location.pendingRecruitment = nil
+    end
+
+    return text, count
+end
+
+-- Hire the pending volunteers for HIRE_FAVOR_COST favor. Starts the recruit
+-- cooldown. Returns (success, message).
+function LocationActions.hireRecruits(location)
+    local currentDay = TimeSystem.getDay()
+    local currentFavor = GameContext.data.favor or 0
+    if currentFavor < LocationActions.HIRE_FAVOR_COST then
+        return false, string.format("You need %d favor to hire them, but only have %d.", LocationActions.HIRE_FAVOR_COST, currentFavor)
+    end
+
+    GameContext.data.favor = currentFavor - LocationActions.HIRE_FAVOR_COST
+
+    local pending = location.pendingRecruitment
+    local playerParty = GameContext.data.playerParty
+    local hired = 0
+    if pending and pending.unitTypes then
+        RecruitmentSystem.hire(location, playerParty, pending.unitTypes)
+        hired = #pending.unitTypes
+    end
+
+    location.pendingRecruitment = nil
+    location.lastRecruitDay = currentDay
+
+    return true, string.format("%d volunteers have sworn to follow you.", hired)
+end
+
+function LocationActions.clearPendingRecruitment(location)
+    if location then
+        location.pendingRecruitment = nil
     end
 end
 
@@ -205,24 +250,37 @@ function LocationActions.startRecruitmentDialogue(location)
         return
     end
 
-    local favorCost = LocationActions.getRecruitmentCost()
-    local currentFavor = GameContext.data.favor or 0
-    if currentFavor < favorCost then
+    -- If a previous roll left volunteers waiting, offer to hire them first
+    if location.pendingRecruitment and location.pendingRecruitment.count > 0 then
         StateManager.push("dialogue", {
             dialogueTree = {
-                speaker = "System",
-                lines = { { text = "You don't have enough favor to attract new recruits (requires " .. favorCost .. ").", options = {{ text = "Continue", next = "end" }} } }
+                speaker = "Village Elder",
+                lines = {
+                    {
+                        text = "The volunteers you called for are still waiting. Will you take them into your company?",
+                        options = {
+                            { text = "Hire them (" .. LocationActions.HIRE_FAVOR_COST .. " favor).", action = "hire_recruits" },
+                            { text = "Let them go.", action = "decline_recruits", next = "end" }
+                        }
+                    }
+                }
             },
+            location = location,
             showFavor = true
         })
         return
     end
 
-    local optionText = "Recruit them"
-    if favorCost > 0 then
-        optionText = optionText .. " (" .. favorCost .. " favor)."
-    else
-        optionText = optionText .. " (free)."
+    local currentFavor = GameContext.data.favor or 0
+    if currentFavor < LocationActions.ROLL_FAVOR_COST then
+        StateManager.push("dialogue", {
+            dialogueTree = {
+                speaker = "System",
+                lines = { { text = "You don't have enough favor to call for volunteers (requires " .. LocationActions.ROLL_FAVOR_COST .. ").", options = {{ text = "Continue", next = "end" }} } }
+            },
+            showFavor = true
+        })
+        return
     end
 
     StateManager.push("dialogue", {
@@ -230,17 +288,16 @@ function LocationActions.startRecruitmentDialogue(location)
             speaker = "Village Elder",
             lines = {
                 {
-                    text = "A few able-bodied villagers look eager to join a new cause.",
+                    text = "You could call for volunteers. Some may answer, but you'll need to win them over before they truly join.",
                     options = {
-                        {text = optionText, action = "recruit_volunteers"},
-                        {text = "Leave them be.", next = "end"}
+                        { text = "Call for volunteers (" .. LocationActions.ROLL_FAVOR_COST .. " favor).", action = "roll_recruitment" },
+                        { text = "Leave them be.", next = "end" }
                     }
                 }
             }
         },
         location = location,
-        showFavor = true,
-        favorCost = favorCost
+        showFavor = true
     })
 end
 

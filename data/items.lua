@@ -227,7 +227,7 @@ return {
         description = "Light leather protection",
         weight = 5.0,
         value = 150,
-        stats = {defense = 5},
+        stats = {defense = 3},
         slot = "body",
         durability = 30,
         maxDurability = 30
@@ -272,7 +272,7 @@ return {
         maxDurability = 18,
         protections = {
             slashing = 1,
-            piercing = 0,
+            piercing = 1,
             blunt = 0,
             fire = 0,
             ice = 0,
@@ -425,7 +425,7 @@ return {
         description = "A sturdy wooden shield for defense",
         weight = 3.0,
         value = 120,
-        stats = {defense = 10},
+        stats = {defense = 4},
         slot = "offHand",
         grantsSkill = "shield_bash",
         durability = 18,

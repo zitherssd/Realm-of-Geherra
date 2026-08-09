@@ -6,9 +6,8 @@ StatsPanel.__index = StatsPanel
 
 local Items = require("data.items")
 
--- Damage types shown as resistances. Mirrors systems/combat_system.lua
--- DEFAULT_DAMAGE_AFFINITIES; a multiplier below 1 resists, above 1 is a
--- vulnerability (e.g. fire = 0.5 means the actor resists fire).
+-- Damage types with flat protection (innate + equipment). Mirrors
+-- systems/combat_system.lua getTotalProtection.
 local DAMAGE_TYPES = {
     "slashing", "piercing", "blunt", "fire", "ice", "shock", "poison"
 }
@@ -56,6 +55,35 @@ local function buildEffectiveStats(actor)
     return effectiveStats
 end
 
+-- Total flat protection per damage type (innate + equipped items). Mirrors
+-- systems/combat_system.lua getTotalProtection.
+local function buildEffectiveProtections(actor)
+    local protections = {}
+    for _, damageType in ipairs(DAMAGE_TYPES) do
+        protections[damageType] = 0
+    end
+
+    local innate = actor.innateProtections or {}
+    for damageType, value in pairs(innate) do
+        protections[damageType] = (protections[damageType] or 0) + value
+    end
+
+    if actor.equipment then
+        for _, itemId in pairs(actor.equipment) do
+            if itemId then
+                local item = Items[itemId]
+                if item and item.protections then
+                    for damageType, value in pairs(item.protections) do
+                        protections[damageType] = (protections[damageType] or 0) + value
+                    end
+                end
+            end
+        end
+    end
+
+    return protections
+end
+
 function StatsPanel:draw(actor)
     if not actor then return end
 
@@ -84,8 +112,8 @@ function StatsPanel:draw(actor)
     local lineHeight = 18
     local contentTop = self.y + 36 - self.scrollOffset
     local twoColumns = self.width >= 340
-    local resistX = twoColumns and (self.x + self.width / 2) or (self.x + 10)
-    local resistTop = twoColumns and (self.y + 10) or contentTop + (#statLines + 2) * lineHeight
+    local protectX = twoColumns and (self.x + self.width / 2) or (self.x + 10)
+    local protectTop = twoColumns and (self.y + 10) or contentTop + (#statLines + 2) * lineHeight
     self.contentHeight = twoColumns and (#statLines * lineHeight) or ((#statLines + 2 + #DAMAGE_TYPES) * lineHeight)
 
     love.graphics.setScissor(self.x, self.y, self.width, self.height)
@@ -97,22 +125,20 @@ function StatsPanel:draw(actor)
 
     love.graphics.setFont(self.titleFont)
     love.graphics.setColor(1, 0.8, 0.2, 1)
-    love.graphics.print("Resistances", resistX, resistTop)
+    love.graphics.print("Protections", protectX, protectTop)
     love.graphics.setFont(self.bodyFont)
 
-    local affinities = actor.damageAffinities or {}
+    local protections = buildEffectiveProtections(actor)
     for index, damageType in ipairs(DAMAGE_TYPES) do
-        local rowY = (twoColumns and contentTop or resistTop + 24) + (index - 1) * lineHeight
+        local rowY = (twoColumns and contentTop or protectTop + 24) + (index - 1) * lineHeight
         local label = string.upper(string.sub(damageType, 1, 1)) .. string.sub(damageType, 2)
-        local multiplier = affinities[damageType] or 1.0
-        if multiplier < 0.95 then
-            love.graphics.setColor(0.3, 0.9, 0.3, 1)   -- resists
-        elseif multiplier > 1.05 then
-            love.graphics.setColor(0.9, 0.3, 0.3, 1)   -- vulnerable
+        local value = protections[damageType] or 0
+        if value > 0 then
+            love.graphics.setColor(0.9, 0.9, 0.9, 1)
         else
-            love.graphics.setColor(0.9, 0.9, 0.9, 1)   -- neutral
+            love.graphics.setColor(0.45, 0.45, 0.45, 1)
         end
-        love.graphics.print(label .. " " .. tostring(math.floor(multiplier * 100)) .. "%", resistX + 10, rowY)
+        love.graphics.print(label .. ": +" .. tostring(value), protectX + 10, rowY)
     end
     love.graphics.setScissor()
 end

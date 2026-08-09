@@ -3,6 +3,7 @@ local Troop = require("entities.troop")
 local WorldGenerationConfig = require("data.world_generation")
 local LocationNpcSpawnRules = require("data.location_npc_spawn_rules")
 local NpcNamePools = require("data.npc_name_pools")
+local MapGenerator = require("systems.map_generator")
 
 local LocationPopulationSystem = {}
 
@@ -135,11 +136,36 @@ function LocationPopulationSystem.populate(map, generationData, options)
         location.prosperity = randomRange(rng, populationConfig.prosperityByType[locationType])
         location.biomeId = site.biomeId
         location.siteId = site.id
+        site.locationType = locationType
 
         spawnLocationNpcs(location, locationType, rng, LocationNpcSpawnRules)
 
         map:addLocation(location)
         table.insert(locations, location)
+    end
+
+    -- Roads are traced over ALL sites before types are known, so rebuild the
+    -- network now to connect ONLY the road-worthy locations to each other
+    -- (configurable via locationPopulation.roadWorthyTypes; default keeps
+    -- village/town/castle linked). Other types get no roads at all.
+    local roadTypes = populationConfig.roadWorthyTypes or { "village", "town", "castle" }
+    local roadSet = {}
+    for _, t in ipairs(roadTypes) do
+        roadSet[t] = true
+    end
+    local world = generationData.world
+    if world then
+        local roadWorthy = {}
+        for _, site in ipairs(generationData.sites or {}) do
+            if roadSet[site.locationType] and site.px and site.py then
+                table.insert(roadWorthy, site)
+            end
+        end
+        if #roadWorthy >= 2 then
+            generationData.roads = MapGenerator.traceRoads(roadWorthy, world)
+        else
+            generationData.roads = {}
+        end
     end
 
     return locations

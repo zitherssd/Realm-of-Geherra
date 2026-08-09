@@ -23,6 +23,7 @@ function StateManager.init()
 
     -- Initialize systems that subscribe to events
     require("systems.quest_system").init()
+    require("systems.encounter_system").init()
 end
 
 function StateManager.push(stateName, ...)

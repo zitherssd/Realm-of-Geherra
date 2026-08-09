@@ -35,6 +35,26 @@ local function buildSystemDialogueTree(text, nextId, speaker)
     }
 end
 
+--- Result dialogue after rolling for recruits: offer to hire if any stepped forward.
+local function buildRecruitmentResultTree(text, count)
+    if count > 0 then
+        return {
+            speaker = "Village Elder",
+            lines = {
+                {
+                    text = text .. " Will you take them into your company?",
+                    options = {
+                        { text = "Hire them (" .. LocationActions.HIRE_FAVOR_COST .. " favor).", action = "hire_recruits" },
+                        { text = "Let them go.", action = "decline_recruits", next = "end" }
+                    }
+                }
+            }
+        }
+    end
+
+    return buildSystemDialogueTree(text)
+end
+
 --- Shallow-copy a dialogue tree, deep-copying only the options arrays
 -- so filterDialogueTreeOptions can safely mutate them.
 local function cloneDialogueTree(dialogueTree)
@@ -347,6 +367,22 @@ local function handleDialogueAction(choice, context)
             showFavor = true,
             favorCost = favorCost
         })
+    elseif choice.action == "roll_recruitment" then
+        local resultText, count = LocationActions.rollRecruitment(location)
+        StateManager.swap("dialogue", {
+            dialogueTree = buildRecruitmentResultTree(resultText, count),
+            location = location,
+            showFavor = true
+        })
+    elseif choice.action == "hire_recruits" then
+        local hired, resultText = LocationActions.hireRecruits(location)
+        StateManager.swap("dialogue", {
+            dialogueTree = buildSystemDialogueTree(resultText, nil, "Village Elder"),
+            location = location,
+            showFavor = true
+        })
+    elseif choice.action == "decline_recruits" then
+        LocationActions.clearPendingRecruitment(location)
     elseif choice.action == "pay_for_rest" then
         local paid, resultText = LocationActions.payForTavernRest(location, choice.cost)
         if paid then

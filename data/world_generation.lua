@@ -52,6 +52,10 @@ local WorldGeneration = {
     locationPopulation = {
         majorTypes = { "village", "town", "castle", "shrine", "ruins", "bandit_camp", "windmill" },
         typeWeights = { village = 4, town = 3, castle = 2, shrine = 3, ruins = 2, bandit_camp = 2, windmill = 2 },
+        -- Location types connected by roads on the world map. The road network
+        -- is rebuilt after types are assigned (location_population_system), so
+        -- only these types are linked to each other; all others get no roads.
+        roadWorthyTypes = { "village", "town", "castle" },
         namePools = {
             ruins = {
                 "The Hollow Keep", "Gravenwall", "Ashfeld Remnants", "Crestfall Ruins",

@@ -261,6 +261,16 @@ function QuestSystem.activateQuest(templateId, giverRef)
     newQuest.giverId = normalizedGiver.id
     newQuest.giverName = normalizedGiver.name or questData.giver
     newQuest.giver = newQuest.giverName
+
+    -- Remember where the quest was accepted so the quest log can point the way
+    -- from the settlement, rather than acting as a live radar for the player.
+    local giverLocation = QuestSystem._findGiverLocation(normalizedGiver)
+    if giverLocation then
+        newQuest.giverLocationName = giverLocation.name or "the village"
+        newQuest.giverLocationX = giverLocation.x
+        newQuest.giverLocationY = giverLocation.y
+    end
+
     newQuest.rewards = questData.rewards
     newQuest:setState("active")
 
@@ -278,6 +288,10 @@ function QuestSystem.activateQuest(templateId, giverRef)
                 if resolved then
                     objective.target = resolved.id
                     objective.description = string.format("Travel to %s", resolved.name)
+                    -- Remember where the target is so the quest log can point the way
+                    objective.targetName = resolved.name
+                    objective.targetX = resolved.x
+                    objective.targetY = resolved.y
                 end
             end
 
@@ -415,6 +429,29 @@ end
 function QuestSystem.getQuestState(templateId, giverRef)
     local context = QuestSystem.getDialogueQuestContext(templateId, giverRef)
     return context.state
+end
+
+-- Finds the location on the current map whose NPC roster contains the quest
+-- giver, so the quest log can reference the place where the quest was accepted.
+function QuestSystem._findGiverLocation(normalizedGiver)
+    local map = GameContext.data.currentMap
+    if not map or not normalizedGiver then return nil end
+
+    for _, loc in ipairs(map:getLocations()) do
+        for _, npc in ipairs(loc.npcs or {}) do
+            local isGiver = false
+            if normalizedGiver.id and npc.id == normalizedGiver.id then
+                isGiver = true
+            elseif not normalizedGiver.id and normalizedGiver.name and npc.name == normalizedGiver.name then
+                isGiver = true
+            end
+            if isGiver then
+                return loc
+            end
+        end
+    end
+
+    return nil
 end
 
 -- Finds a location on the current map matching criteria, preferring those nearest to the player.

@@ -93,6 +93,49 @@ return {
         },
     },
 
+    ["wolf"] = {
+        id = "wolf",
+        name = "Wolf",
+        type = "beast",
+        tags = {"beast", "hostile_wildlife"},
+        sprite = "assets/sprites/units/direwolf.png",
+        stats = {
+            health = 18,
+            defense = 12,
+            attack = 22,
+            speed = 12,
+            battle_speed = 18
+        },
+        size = 3,
+        equipment = {},
+        skills = {"bite"},
+        loot = {
+            {currency = "gold", chance = 0.2, min = 1, max = 5}
+        }
+    },
+
+    ["bear"] = {
+        id = "bear",
+        name = "Bear",
+        type = "beast",
+        tags = {"beast", "hostile_wildlife"},
+        -- Placeholder sprite until a dedicated bear sprite exists.
+        sprite = "assets/sprites/units/bear.png",
+        stats = {
+            health = 60,
+            defense = 30,
+            attack = 45,
+            speed = 7,
+            battle_speed = 10
+        },
+        size = 4,
+        equipment = {},
+        skills = {"bite"},
+        loot = {
+            {currency = "gold", chance = 0.5, min = 10, max = 30}
+        }
+    },
+
     ["skeleton_sword"] = {
         id = "skeleton_sword",
         name = "Skeleton",
@@ -206,15 +249,6 @@ return {
             ice = 0,
             shock = 0,
             poison = 0
-        },
-        damageAffinities = {
-            slashing = 1.0,
-            piercing = 1.0,
-            blunt = 1.0,
-            fire = 0.5,   -- Fire creature: resists fire
-            ice = 1.5,    -- ...but vulnerable to ice
-            shock = 1.25, -- ...and somewhat vulnerable to shock
-            poison = 1.0
         },
         loot = {
             {currency = "gold", chance = 1.0, min = 500, max = 1000},
