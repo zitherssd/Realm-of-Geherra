@@ -595,3 +595,101 @@ Atlases use the same prefix with `_atlas` suffix: `units_pelasgian_atlas.png` wi
 | The Dig | Megalithic stone pixel technique | — |
 | Akrotiri frescoes | Historical colour system & decorative rules | — |
 | Sword & Sworcery | Screen language, pacing, transition weight | — |
+
+---
+
+## Section 10: Dialogue Writing Direction
+
+### 10.1 Voice Target
+
+Dialogue should combine:
+- **Sophoclean elevation**: dignified, fateful, morally charged speech in moments of crisis
+- **Xenophontic clarity**: direct, practical language for tactics, travel, trade, and command
+
+The result is **formal but readable**: ancient in spirit, never opaque.
+
+### 10.2 Core Tone Rules
+
+1. **Speak in stakes, not chatter.** Even small talk should reveal duty, danger, reputation, hunger, weather, omens, or debt.
+2. **Use concrete nouns.** Prefer "spear," "grain," "bronze," "oath," "river" over abstract filler.
+3. **Keep lines compact.** Most lines should be 6-18 words. Reserve long lines for vows, prophecies, and turning points.
+4. **Favor moral framing.** Characters weigh honor vs survival, oath vs expedience, kin vs glory.
+5. **Avoid modern idiom.** No slang, sarcasm memes, therapy-speak, or corporate phrasing.
+
+### 10.3 Diction Palette
+
+Use frequently:
+- oath, witness, fate, measure, debt, house, hearth, bronze, salt, grain, storm, omen
+- captain, companion, herald, elder, supplicant, envoy, raider
+- stand fast, yield, bear witness, pay the price, keep faith
+
+Use sparingly (high-intensity scenes only):
+- doom, curse, oracle, sacrilege, divine wrath
+
+Avoid entirely:
+- modern contractions-heavy banter and casual filler ("kinda," "sort of," "you know")
+- fantasy faux-archaic clutter ("forsooth," "mayhaps")
+
+### 10.4 Syntax & Rhythm
+
+- **Default cadence (Xenophon-inspired):** Subject -> action -> consequence.
+	- Example: "We cross at dawn, or we lose the ford by noon."
+- **High drama cadence (Sophocles-inspired):** image -> judgment -> imperative.
+	- Example: "The hills drink smoke already; choose now, and stand by it."
+- **Balanced antithesis:** use paired contrasts for emphasis.
+	- Example: "Better a scar with honor than soft hands in shame."
+- **Rhetorical questions:** use for pressure, not decoration.
+	- Example: "Will you guard your name, or sell it for one safe night?"
+
+### 10.5 Character-Class Voice Guide
+
+| Role | Style | Rule of Thumb | Example Line |
+|---|---|---|---|
+| Elder / Priest | Ritual, proverbial, image-heavy | Speak as if memory is older than the speaker | "No wall falls in one blow; it falls where vows were first neglected." |
+| Captain / Officer | Crisp, tactical, duty-bound | Command through consequences | "Shields high on the left; the slope will break their charge." |
+| Trader / Artisan | Exact, value-aware, worldly | Tie every choice to cost and scarcity | "Bronze I can weigh; promises I cannot store." |
+| Scout / Ranger | Observational, spare, unsentimental | Report what is seen, then recommend action | "Three riders, no banner; they avoid the road and watch our fires." |
+| Noble / Envoy | Formal, strategic, reputation-focused | Treat speech as negotiation | "I offer grain today and memory tomorrow; do not make me choose between them." |
+
+### 10.6 Dialogue Structure Patterns
+
+For pivotal scenes, use a 4-beat pattern:
+1. **Claim**: what the speaker wants or believes
+2. **Counterclaim**: the opposing duty/fact
+3. **Cost**: what will be lost either way
+4. **Choice**: a clear demanded action
+
+For routine interactions (shops, travel, camp), use a 2-beat pattern:
+1. **Situation**: concrete present condition
+2. **Decision hook**: what the player can do now
+
+### 10.7 Register by Screen Context
+
+- **Battle barks:** 2-7 words, imperative, no ornament.
+	- "Hold line."
+	- "Spears forward."
+	- "Right flank, brace."
+- **World map travel lines:** observational + omen/weather + intent.
+	- "Wind from the east; we make the pass before dusk."
+- **Town dialogue:** warmer but still formal; include reciprocity, memory, obligation.
+	- "Eat first, then speak; a hungry tongue breeds poor bargains."
+- **Quest decisions:** explicit tradeoffs, no ambiguity about risk.
+	- "Take the ford and lose men, or wait and lose the harvest."
+
+### 10.8 Implementation Guardrails For Writers
+
+- Keep player choices semantically distinct: honor, pragmatism, mercy, threat.
+- Do not write "good/evil" caricatures; write conflicting obligations.
+- Replace exposition dumps with contested dialogue where possible.
+- One striking metaphor per scene is enough; do not stack poetic images.
+- If a line can be said in plain words without losing force, prefer the plain line.
+
+### 10.9 Quality Check (Pass/Fail)
+
+A dialogue line passes if it is:
+- **Clear in one read**
+- **Rooted in material reality** (food, terrain, steel/bronze, weather, kinship, oath)
+- **Value-loaded** (duty, cost, risk, reputation)
+- **Tonally ancient without parody**
+
+If a line sounds theatrical but says nothing actionable or meaningful, rewrite it.

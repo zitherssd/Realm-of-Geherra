@@ -5,12 +5,12 @@ return {
         showGold = true,
         lines = {
             {
-                text = "Welcome to the tavern! A warm bed is 20 gold for the night, and a mug of ale is 5.",
+                text = "Welcome to my hearth. A bed for the night is 20 gold; an ale is 5.",
                 options = {
-                    { text = "Pay 20 gold and rest.", action = "pay_for_rest", cost = 20 },
-                    { text = "Buy a mug of ale — 5 gold.", action = "buy_drink", cost = 5 },
-                    { text = "Heard any news?", next = "tavern_keeper_rumors" },
-                    { text = "Maybe later.", next = "end" }
+                    { text = "Pay 20 gold and take rest.", action = "pay_for_rest", cost = 20 },
+                    { text = "Buy one ale for 5 gold.", action = "buy_drink", cost = 5 },
+                    { text = "What news walks the roads?", next = "tavern_keeper_rumors" },
+                    { text = "Not now.", next = "end" }
                 }
             }
         }
@@ -21,9 +21,9 @@ return {
         speaker = "Tavern Keeper",
         lines = {
             {
-                text = "Word travels slow these days, but I heard the old roads are getting more dangerous. Folk say there's movement in the hills — bandits, maybe worse. Keep your wits about you out there.",
+                text = "Word comes slow, but it comes. The old roads are turning cruel: movement in the hills, raiders perhaps, perhaps worse. Keep measure in your steps beyond the gate.",
                 options = {
-                    { text = "Good to know. Thanks.", next = "tavern_keeper_greeting" }
+                    { text = "You have my thanks.", next = "tavern_keeper_greeting" }
                 }
             }
         }

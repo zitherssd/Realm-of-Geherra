@@ -7,12 +7,12 @@ return {
         speaker = "Merchant of Everything",
         lines = {
             {
-                text = "Welcome, traveler. I carry a little of everything — and I pay fair coin for what you no longer need.",
+                text = "Welcome, traveler. I carry near everything under the sun, and I pay fair coin for what leaves your hand.",
                 options = {
                     -- "Show me your wares." is auto-injected by dialogue_state.lua
                     -- whenever this NPC has a non-empty inventory.
                     { text = "Show me the world map (debug).", action = "open_world_map", next = "end" },
-                    { text = "Maybe later.", next = "end" }
+                    { text = "Another time.", next = "end" }
                 }
             }
         }

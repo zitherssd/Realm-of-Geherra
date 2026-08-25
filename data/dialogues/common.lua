@@ -4,9 +4,9 @@ return {
         speaker = "Local",
         lines = {
             {
-                text = "No work for you right now.",
+                text = "No task waits for you now.",
                 options = {
-                    { text = "Understood.", next = "end" }
+                    { text = "I understand.", next = "end" }
                 }
             }
         }
@@ -16,10 +16,10 @@ return {
         id = "captain_mission",
         lines = {
             {
-                text = "Bandits have been raiding our merchants. Will you stop them?",
+                text = "Raiders have taken our roads. Will you break them?",
                 options = {
-                    { text = "Consider it done.", next = "quest_accepted" },
-                    { text = "Not my problem.", next = "end" }
+                    { text = "I will do it.", next = "quest_accepted" },
+                    { text = "I will not take this burden.", next = "end" }
                 }
             }
         }
@@ -29,10 +29,10 @@ return {
         id = "bandit_start",
         lines = {
             {
-                text = "Well, well... looks like we caught ourselves a lost lamb. Hand over your coin or bleed!",
+                text = "A stray lamb on an empty road. Lay down your coin, or feed the dust with blood.",
                 options = {
-                    { text = "I will never surrender to scum like you! (Fight)", action = "battle" },
-                    { text = "I do not want any trouble... (Leave)", next = "end" }
+                    { text = "I yield nothing to raiders. (Fight)", action = "battle" },
+                    { text = "Keep your road. I withdraw. (Leave)", next = "end" }
                 }
             }
         }
@@ -42,10 +42,10 @@ return {
         id = "encounter_ambush",
         lines = {
             {
-                text = "The wilds close in around you... a hostile force blocks your path!",
+                text = "The wild closes around you; armed foes bar the way.",
                 options = {
-                    { text = "Stand your ground! (Fight)", action = "battle" },
-                    { text = "Break away and flee. (Leave)", next = "end" }
+                    { text = "Stand and answer steel with steel. (Fight)", action = "battle" },
+                    { text = "Break away and live. (Leave)", next = "end" }
                 }
             }
         }

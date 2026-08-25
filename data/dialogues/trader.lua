@@ -10,10 +10,10 @@ return {
         },
         lines = {
             {
-                text = "Good coin to you, traveler. I may have a contract if you are available.",
+                text = "Fair measure to you, traveler. I hold a contract, if your hands are free.",
                 options = {
-                    { text = "Show me your contract.", action = "accept_available_quest", next = "end", requiresQuestPool = true, requiresQuestOffer = true },
-                    { text = "Maybe later.", next = "end" }
+                    { text = "Speak the contract.", action = "accept_available_quest", next = "end", requiresQuestPool = true, requiresQuestOffer = true },
+                    { text = "Another hour, perhaps.", next = "end" }
                 }
             }
         }
@@ -24,9 +24,9 @@ return {
         speaker = "Trader",
         lines = {
             {
-                text = "I trust you're making progress on that contract?",
+                text = "Does that contract move, or stand still?",
                 options = {
-                    { text = "Working on it.", next = "end" }
+                    { text = "It is in motion.", next = "end" }
                 }
             }
         }
@@ -37,10 +37,10 @@ return {
         speaker = "Trader",
         lines = {
             {
-                text = "Have you completed the contract? My goods are waiting.",
+                text = "Is the contract complete? My goods wait on your word.",
                 options = {
-                    { text = "Delivered and done.", action = "turn_in_available_quest", next = "trader_quest_completed", requiresQuestPool = true, requiresReadyToTurnIn = true },
-                    { text = "Almost there.", next = "end" }
+                    { text = "Delivered and complete.", action = "turn_in_available_quest", next = "trader_quest_completed", requiresQuestPool = true, requiresReadyToTurnIn = true },
+                    { text = "Not yet.", next = "end" }
                 }
             }
         }
@@ -51,9 +51,9 @@ return {
         speaker = "Trader",
         lines = {
             {
-                text = "Business well handled. I'll remember your name.",
+                text = "Well weighed and well done. Your name holds value with me.",
                 options = {
-                    { text = "Pleasure doing business.", next = "end" }
+                    { text = "May our bargains stay honest.", next = "end" }
                 }
             }
         }

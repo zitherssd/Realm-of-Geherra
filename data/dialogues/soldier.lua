@@ -10,10 +10,10 @@ return {
         },
         lines = {
             {
-                text = "The roads are dangerous. If you can fight, I might have patrol work for you.",
+                text = "The roads bite hard. If you can hold a line, I have patrol work.",
                 options = {
-                    { text = "Any patrol contracts available?", action = "accept_available_quest", next = "end", requiresQuestPool = true, requiresQuestOffer = true },
-                    { text = "Stay vigilant.", next = "end" }
+                    { text = "Set the patrol terms.", action = "accept_available_quest", next = "end", requiresQuestPool = true, requiresQuestOffer = true },
+                    { text = "Stand fast.", next = "end" }
                 }
             }
         }
@@ -24,9 +24,9 @@ return {
         speaker = "Soldier",
         lines = {
             {
-                text = "Those patrols won't complete themselves. Any progress?",
+                text = "Patrols do not walk themselves. What progress?",
                 options = {
-                    { text = "I'm still working on it.", next = "end" }
+                    { text = "Still at work.", next = "end" }
                 }
             }
         }
@@ -37,7 +37,7 @@ return {
         speaker = "Soldier",
         lines = {
             {
-                text = "You're back. Did you finish the patrol assignment?",
+                text = "You return. Is the patrol assignment complete?",
                 options = {
                     { text = "The job is done.", action = "turn_in_available_quest", next = "soldier_quest_completed", requiresQuestPool = true, requiresReadyToTurnIn = true },
                     { text = "Not yet.", next = "end" }
@@ -51,9 +51,9 @@ return {
         speaker = "Soldier",
         lines = {
             {
-                text = "Good work. The roads will be safer because of you.",
+                text = "Good work. The road is steadier for your labor.",
                 options = {
-                    { text = "Glad I could help.", next = "end" }
+                    { text = "Keep the watchfires lit.", next = "end" }
                 }
             }
         }

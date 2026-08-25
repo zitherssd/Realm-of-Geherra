@@ -19,11 +19,11 @@ return {
         noOfferDialogue = "elder_no_offers",
         lines = {
             {
-                text = "Welcome, traveler. How can I help you?",
+                text = "Welcome, traveler. Speak what you seek.",
                 options = {
-                    { text = "Ask about work.", next = "elder_ask_about_quest", requiresQuestPool = true, requiresQuestOffer = true, allowBeforeIntroduction = true },
-                    { text = "Heard any rumours?", next = "elder_rumors" },
-                    { text = "I must be going.", next = "end" }
+                    { text = "What task stands before this village?", next = "elder_ask_about_quest", requiresQuestPool = true, requiresQuestOffer = true, allowBeforeIntroduction = true },
+                    { text = "What word runs along the roads?", next = "elder_rumors" },
+                    { text = "I take my leave.", next = "end" }
                 }
             }
         }
@@ -35,10 +35,10 @@ return {
         speaker = "Village Elder",
         lines = {
             {
-                text = "I am Bogdan the Elder, keeper of this village. And you are?",
+                text = "I am Bogdan, elder of this hearth. Name yourself.",
                 options = {
-                    { text = "I am but a humble traveler, seeking coin and purpose.", action = "meet_npc", set = { "introduced_humble" }, next = "elder_greeting" },
-                    { text = "I am a warrior of renown. My name will echo in these hills.", action = "meet_npc", set = { "introduced_boastful" }, next = "elder_greeting" }
+                    { text = "A plain traveler, seeking fair coin and worthy labor.", action = "meet_npc", set = { "introduced_humble" }, next = "elder_greeting" },
+                    { text = "A proven spear. My name will stand in these hills.", action = "meet_npc", set = { "introduced_boastful" }, next = "elder_greeting" }
                 }
             }
         }
@@ -50,9 +50,9 @@ return {
         speaker = "Village Elder",
         lines = {
             {
-                text = "It's quiet around these parts at the moment. The gods willing, something will turn up.",
+                text = "No burden calls today. If the gods will, need will rise again.",
                 options = {
-                    { text = "I'll check back later.", next = "end" }
+                    { text = "Then I will return in due time.", next = "end" }
                 }
             }
         }
@@ -71,9 +71,9 @@ return {
         },
         lines = {
             {
-                text = "Let me see what needs doing...",
+                text = "Let us weigh what must be done.",
                 options = {
-                    { text = "Go on.", next = "end" }
+                    { text = "Speak.", next = "end" }
                 }
             }
         }
@@ -85,9 +85,9 @@ return {
         speaker = "Village Elder",
         lines = {
             {
-                text = "Strange times, stranger still. Folk say the old roads are stirring with trouble — bandits in the hills, creatures driven from the deep woods by something darker. Keep your blade sharp and your wits sharper.",
+                text = "These are lean days. Men speak of raiders in the hills and beasts driven from deep timber by a darker thing. Keep edge on your blade, and measure in your mind.",
                 options = {
-                    { text = "Good advice.", next = "elder_greeting" }
+                    { text = "Your counsel is sound.", next = "elder_greeting" }
                 }
             }
         }
@@ -100,10 +100,10 @@ return {
         speaker = "Village Elder",
         lines = {
             {
-                text = "A pack of wild dogs came down from the eastern woods three nights ago. Old Marek's sheep are gone, and the children cannot play beyond the fence anymore. The villagers are scared, and I cannot blame them. Drive the pack off before they grow bolder — or we start losing more than livestock.",
+                text = "Three nights past, wild dogs came out of the eastern wood. Marek's sheep are gone, and children no longer cross the fence. Drive the pack off before they learn to hunt closer to our hearths.",
                 options = {
-                    { text = "I will track them down.", action = "accept_available_quest", next = "elder_quest_accepted", requiresQuestPool = true, requiresQuestOffer = true },
-                    { text = "Not my concern.", next = "elder_greeting" }
+                    { text = "I will track them.", action = "accept_available_quest", next = "elder_quest_accepted", requiresQuestPool = true, requiresQuestOffer = true },
+                    { text = "This burden is not mine.", next = "elder_greeting" }
                 }
             }
         }
@@ -114,10 +114,10 @@ return {
         speaker = "Village Elder",
         lines = {
             {
-                text = "The shrine at {target} has not received tribute since before the first frost. The goddess remembers — and if we neglect her, she will neglect our fields come spring. I have prepared the offerings: bundles of herbs, a clay amphora of oil, and a spiralled token carved by my own hand. They must be placed upon the altar before the new moon. Our legs are old and the roads are not safe. Will you carry the offerings for the village?",
+                text = "The shrine at {target} has stood without tribute since before first frost. If we forget the goddess, she may forget our fields. Herbs, oil, and a carved token are prepared. Set them on the altar before new moon.",
                 options = {
                     { text = "I will carry the offerings.", action = "accept_available_quest", next = "elder_quest_accepted", requiresQuestPool = true, requiresQuestOffer = true },
-                    { text = "I cannot take this on now.", next = "elder_greeting" }
+                    { text = "I cannot bear this errand now.", next = "elder_greeting" }
                 }
             }
         }
@@ -128,10 +128,10 @@ return {
         speaker = "Village Elder",
         lines = {
             {
-                text = "A sealed message must reach the elders of {target}. I have written of the strange lights flickering in the hills, of the livestock found with their throats torn out by no natural beast, of the earth trembling beneath the old barrows. The elder there is an old friend — if the same troubles plague them, we must share what we know before the snows seal the passes. Our runners are few and the roads grow perilous. Will you carry my dispatch?",
+                text = "A sealed dispatch must reach the elders of {target}. I have written of hill-lights, torn flocks, and trembling earth beneath old barrows. If they suffer the same, we must share counsel before snow closes the passes.",
                 options = {
-                    { text = "I'll deliver the message.", action = "accept_available_quest", next = "elder_quest_accepted", requiresQuestPool = true, requiresQuestOffer = true },
-                    { text = "Find someone else.", next = "elder_greeting" }
+                    { text = "I will carry your dispatch.", action = "accept_available_quest", next = "elder_quest_accepted", requiresQuestPool = true, requiresQuestOffer = true },
+                    { text = "Find another courier.", next = "elder_greeting" }
                 }
             }
         }
@@ -142,10 +142,10 @@ return {
         speaker = "Village Elder",
         lines = {
             {
-                text = "We have finished a run of bronze tools — axe-heads, ploughshares, knife blanks — and a pouch of crushed gem-dust bound for {target}. Their forge has been cold since winter took their master smith. Without these goods, their children will go without warm cloaks when the next frost comes, and their fields will lie fallow for Want of a ploughshare. The bundle is valuable and I need someone trustworthy to see it there safely. Will you carry it?",
+                text = "We have finished bronze axe-heads, ploughshares, knife blanks, and a pouch of gem-dust for {target}. Their forge has been cold since winter took their smith. Without these goods, fields fail and children shiver. The bundle must travel under trustworthy hands.",
                 options = {
-                    { text = "I'll transport the goods.", action = "accept_available_quest", next = "elder_quest_accepted", requiresQuestPool = true, requiresQuestOffer = true },
-                    { text = "Too risky for me.", next = "elder_greeting" }
+                    { text = "I will carry the goods.", action = "accept_available_quest", next = "elder_quest_accepted", requiresQuestPool = true, requiresQuestOffer = true },
+                    { text = "The risk is too great for me.", next = "elder_greeting" }
                 }
             }
         }
@@ -156,10 +156,10 @@ return {
         speaker = "Village Elder",
         lines = {
             {
-                text = "The gods have abandoned us... Bandits took my daughter at dawn. They came through the mist like wolves — seven or eight of them, armed with iron and wearing scraps of old uniforms. They dragged her into the wilds, toward {target}. She is only twelve summers old. She has her mother's eyes and her mother's courage, but she is just a child. I have no one else to turn to. Please — I am begging you — bring her back before they move on and I lose her forever.",
+                text = "At dawn, raiders took my daughter. Seven or eight, iron-armed, out of the mist. They drove her toward {target}. She is twelve summers only. I have no stronger hand to call. Bring her back before their trail is lost.",
                 options = {
-                    { text = "I will find her. I swear it.", action = "accept_available_quest", next = "elder_quest_accepted", requiresQuestPool = true, requiresQuestOffer = true },
-                    { text = "I am sorry, but I cannot.", next = "elder_greeting" }
+                    { text = "I swear by hearth and steel: I will find her.", action = "accept_available_quest", next = "elder_quest_accepted", requiresQuestPool = true, requiresQuestOffer = true },
+                    { text = "Forgive me. I cannot take this vow.", next = "elder_greeting" }
                 }
             }
         }
@@ -171,10 +171,10 @@ return {
         speaker = "Village Elder",
         lines = {
             {
-                text = "I have a task that needs doing. The village will be grateful for your help.",
+                text = "A burden stands before us, and this village needs a steady hand.",
                 options = {
                     { text = "I will do what I can.", action = "accept_available_quest", next = "elder_quest_accepted", requiresQuestPool = true, requiresQuestOffer = true },
-                    { text = "Not my concern.", next = "elder_greeting" }
+                    { text = "This matter is not mine.", next = "elder_greeting" }
                 }
             }
         }
@@ -187,7 +187,7 @@ return {
         speaker = "Village Elder",
         lines = {
             {
-                text = "Thank you. The village is counting on you. Return to me when the deed is done.",
+                text = "You have our thanks. Return when the deed is complete.",
                 options = {
                     { text = "I will return when it is done.", next = "end" }
                 }
@@ -200,9 +200,9 @@ return {
         speaker = "Village Elder",
         lines = {
             {
-                text = "Have you made any progress? The village still needs your help.",
+                text = "What word do you bring? This village still leans on your labor.",
                 options = {
-                    { text = "I am still working on it.", next = "end" }
+                    { text = "The work is still in motion.", next = "end" }
                 }
             }
         }
@@ -213,7 +213,7 @@ return {
         speaker = "Village Elder",
         lines = {
             {
-                text = "You have returned. Was your task successful?",
+                text = "You have returned. Did the work hold true?",
                 options = {
                     { text = "Yes. It is done.", action = "turn_in_available_quest", next = "elder_quest_completed", requiresQuestPool = true, requiresReadyToTurnIn = true },
                     { text = "Not yet.", next = "end" }
@@ -227,9 +227,9 @@ return {
         speaker = "Village Elder",
         lines = {
             {
-                text = "You have our deepest thanks. The village will not forget what you have done.",
+                text = "You have our deep thanks. This village will remember your deed.",
                 options = {
-                    { text = "Glad I could help.", next = "end" }
+                    { text = "May your hearth stand secure.", next = "end" }
                 }
             }
         }
@@ -240,10 +240,10 @@ return {
         speaker = "Village Elder",
         lines = {
             {
-                text = "A few able-bodied villagers look eager to join a new cause.",
+                text = "A few strong villagers ask to bind their lot to yours.",
                 options = {
-                    { text = "Recruit them (10 favor).", action = "recruit_volunteers" },
-                    { text = "Leave them be.", next = "end" }
+                    { text = "Take them into the warband (10 favor).", action = "recruit_volunteers" },
+                    { text = "Leave them to their homes.", next = "end" }
                 }
             }
         }
