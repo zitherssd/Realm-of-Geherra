@@ -14,6 +14,7 @@ local QuestSystem = require("src.systems.quest_system")
 local QuestAvailabilitySystem = require("src.systems.quest_availability_system")
 local RelationshipSystem = require("src.systems.relationship_system")
 local PartySystem = require("src.systems.party_system")
+local TraderSystem = require("src.systems.trader_system")
 -- npc_introductions was removed — all introductions now use introDialogue in dialogue trees
 local GameContext = require("src.game.game_context")
 local WorldState = require("src.game.states.world_state")
@@ -158,6 +159,16 @@ local function filterDialogueTreeOptions(dialogueTree, questDialogContext, relat
             table.insert(allowedOptions, 1, {
                 text = "Show me your wares.",
                 action = "open_shop",
+                next = "end"
+            })
+        end
+
+        -- Travelling trader parties (see systems/trader_travel_system.lua)
+        -- additionally offer to attack the caravan.
+        if lineIndex == 1 and target and target.isTraderParty then
+            table.insert(allowedOptions, {
+                text = "Attack the caravan!",
+                action = "battle",
                 next = "end"
             })
         end
@@ -468,6 +479,7 @@ local function handleDialogueAction(choice, context)
         end
     elseif choice.action == "open_shop" then
         -- Open the trading screen; return to the conversation when it closes.
+        TraderSystem.maybeRefreshStock(target)
         StateManager.push("shop", { merchant = target, location = location })
         result.handledNavigation = true
         return result

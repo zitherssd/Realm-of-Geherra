@@ -18,6 +18,7 @@ local LocationSystem = require("src.systems.location_system")
 local Items = require("src.data.items")
 local PaintedMapLoader = require("src.systems.painted_map_loader")
 local LocationPopulationSystem = require("src.systems.location_population_system")
+local PartyAiSystem = require("src.systems.party_ai_system")
 
 -- Debug trader: spawns in the starter location and sells every item (for testing)
 local DEBUG_TRADER_ENABLED = true
@@ -142,6 +143,11 @@ function GameInitializer._createStarterParties(map)
     local banditParty = Party.create(EcsWorld.campaign, "Forest Bandits", banditLeader.id)
     PartySystem.setPosition(banditParty, spawnX, spawnY)
     banditParty.faction = "bandits"
+
+    -- Roam near the spawn point and chase once the player is spotted.
+    banditParty.state = "wander"
+    banditParty.wanderOriginX, banditParty.wanderOriginY = spawnX, spawnY
+    banditParty.wanderRadius = PartyAiSystem.wanderRadiusDefault
     
     -- Add members
     PartySystem.addActor(banditParty, banditLeader)

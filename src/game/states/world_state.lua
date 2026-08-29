@@ -12,6 +12,9 @@ local AttributeSystem = require("src.systems.attribute_system")
 local EncounterSystem = require("src.systems.encounter_system")
 local PartySystem = require("src.systems.party_system")
 local PlayerSystem = require("src.systems.player_system")
+local VisibilitySystem = require("src.systems.visibility_system")
+local PartyAiSystem = require("src.systems.party_ai_system")
+local TraderTravelSystem = require("src.systems.trader_travel_system")
 
 local WorldState = {
     camera = nil,
@@ -131,6 +134,7 @@ function WorldState.enter()
     WorldState.font = love.graphics.newFont(14)
     WorldState.interactionCooldowns = {}
     EncounterSystem.reset()
+    TraderTravelSystem.resetDayTick()
     WorldState.isResting = WorldState.restModeRequested and true or false
     WorldState.restModeRequested = false
     WorldState.restInputLock = WorldState.isResting and 0.2 or 0
@@ -318,18 +322,27 @@ function WorldState.update(dt)
         return
     end
 
+    -- Wandering/chasing hostiles and travelling traders keep acting whether
+    -- or not the player is moving.
+    PartyAiSystem.update(dt, WorldState.currentMap, playerParty)
+    TraderTravelSystem.update(dt, WorldState.currentMap)
+
+    VisibilitySystem.update(playerParty, WorldState.currentMap)
+
     -- Check for locations
     WorldState.nearbyLocation = nil
     for _, location in ipairs(WorldState.currentMap.locations) do
-        local dx = location.x - playerParty.x
-        local dy = location.y - playerParty.y
-        local dist = math.sqrt(dx*dx + dy*dy)
-        
-        if dist < interactionRadius then
-            WorldState.nearbyLocation = location
-            if Input.isKeyDown("return") or Input.isKeyDown("kpenter") then
-                StateManager.push("location", { location = location })
-                return -- Stop update
+        if location.discovered then
+            local dx = location.x - playerParty.x
+            local dy = location.y - playerParty.y
+            local dist = math.sqrt(dx*dx + dy*dy)
+
+            if dist < interactionRadius then
+                WorldState.nearbyLocation = location
+                if Input.isKeyDown("return") or Input.isKeyDown("kpenter") then
+                    StateManager.push("location", { location = location })
+                    return -- Stop update
+                end
             end
         end
     end
@@ -338,7 +351,7 @@ function WorldState.update(dt)
     WorldState.nearbyParty = nil
 
     for _, otherParty in ipairs(WorldState.currentMap.parties) do
-        if otherParty.id ~= playerParty.id then
+        if otherParty.id ~= playerParty.id and otherParty.visible then
             local dx = otherParty.x - playerParty.x
             local dy = otherParty.y - playerParty.y
             local dist = math.sqrt(dx*dx + dy*dy)
@@ -363,7 +376,7 @@ function WorldState.update(dt)
                     end
                 elseif Input.isKeyDown("return") or Input.isKeyDown("kpenter") then
                     -- Player initiated interaction
-                    StateManager.push("dialogue", {dialogueId = "elder_greeting", target = otherParty}) -- Default to elder for now
+                    StateManager.push("dialogue", {dialogueId = otherParty.dialogueId or "elder_greeting", target = otherParty})
                 end
             end
         end

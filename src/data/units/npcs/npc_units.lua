@@ -67,6 +67,15 @@ return {
         equipment = {
             mainHand = "iron_sword",
             body = "leather_armor"
+        },
+        buysFromPlayers = true,
+        sellPriceFactor = 0.3,
+        restockIntervalDays = 15,
+        stock = {
+            { id = "bread", quantity = 6 },
+            { id = "dried_meat", quantity = 4 },
+            { id = "cheese_wedge", quantity = 4 },
+            { id = "health_potion", quantity = 2 }
         }
     },
 
@@ -86,6 +95,16 @@ return {
         },
         equipment = {
             mainHand = "dagger"
+        },
+        buysFromPlayers = true,
+        sellPriceFactor = 0.6,
+        stock = {
+            { id = "short_sword", quantity = 3 },
+            { id = "club", quantity = 3 },
+            { id = "leather_armor", quantity = 2 },
+            { id = "boots", quantity = 3 },
+            { id = "health_potion", quantity = 5 },
+            { id = "bread", quantity = 5 }
         }
     },
 

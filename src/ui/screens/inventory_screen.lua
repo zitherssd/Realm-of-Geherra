@@ -90,7 +90,7 @@ function InventoryScreen.new(party, onClose)
         title = "Inventory",
         capacity = "Capacity",
         gold = function()
-            return self.party.getTreasury and self.party:getTreasury() or self.party.treasury or 0
+            return PartySystem.getTreasury(self.party)
         end
     })
     

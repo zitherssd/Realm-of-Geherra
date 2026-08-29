@@ -37,7 +37,7 @@ love . --generate-map world --seed 1336 --size 4096 --detail 4
 love . --generate-map sites --seed 1336 --sites 14
 ```
 
-Writes into `assets/map/generated/<seed>/`:
+Writes into `src/assets/map/generated/<seed>/`:
 
 | File | Contents |
 | --- | --- |
@@ -47,7 +47,7 @@ Writes into `assets/map/generated/<seed>/`:
 | `map_with_sites.png` | World + roads + site markers. |
 | `sites_roads.lua` | `{ seed, size, sites[], roads[] }` so location sprites can be placed later. |
 
-Progress is mirrored to `assets/map/generated/run.log` (LÖVE is a GUI app, so
+Progress is mirrored to `src/assets/map/generated/run.log` (LÖVE is a GUI app, so
 `print` alone is invisible).
 
 ### 2.2 In-memory generation (runtime)
@@ -105,6 +105,7 @@ All tunables live in the `CONFIG` table near the top of the file. Highlights:
 | Ranges | `mountainRanges` (18), `hillRanges` (18), `rangeMinRidge`/`rangeMinHeight`/`rangeMaxSteps`, glyph step config | Traced crest lines → drawn glyphs. |
 | Density | `forestDensity` (0.17), `marshDensity` (0.04) | Tree coverage in the overlay. |
 | Sites | `siteCount` (14), `siteMinDist` (32), `sitePadding` (5), `roadWidthFrac`, `siteRadiusFrac` | Settlement + road layout. |
+| `roadPath` | `blocked` (ocean/marsh_lake/snow), `cost` per biome (plains 1.00 … marsh 2.90), `climbCost` (2.2), `heightCost` (0.40), `valleyBonus` (0.45), `shortcutMaxCost` (1.8), `maxExpansions` (400000) | Terrain-aware A* road pathfinding tuning (see §10.3). |
 | `palette` | art-bible colours | Every colour used by `pxColor`, glyphs, rivers, roads, sites. |
 
 ---
@@ -271,10 +272,16 @@ every site — the cheapest road network that links the whole map.
 
 ### 10.3 Roads (`traceRoad`)
 
-Each MST edge is walked from site A to site B. When a step would enter water,
-a ring search nudges to the nearest land cell instead of crossing, so roads
-**hug coastlines** and never cross open water or marsh lakes. The polyline is
-lightly smoothed to remove stair-stepping.
+Each MST edge is walked from site A to site B via an **A\* search over the
+sample grid** (`CONFIG.roadPath`), not a straight line nudged around water.
+The cost of entering a cell is its biome cost (plains cheapest, marsh/desert
+expensive, `ocean`/`marsh_lake`/`snow` fully blocked) plus a climb penalty
+proportional to the elevation gained and a discount for high valley/flow
+cells — so roads hug valleys and gentle ground, avoid marshes/deserts/
+mountains, and never cross impassable peaks or water. After the search, a
+string-pull pass drops waypoints wherever a straight shortcut stays on cheap
+ground (`shortcutMaxCost`), then a 2-pass moving-average smooths the polyline
+so it reads as a curved road instead of stair-stepping.
 
 ---
 
@@ -318,6 +325,7 @@ the debug view and the file-based stages.
 | `generateWorld(seed, W, H, detail)` | Synchronous world generation → `{ base, overlay, rivers, biome, height, moisture, ridge, sand, valley, patch, … }` (no sites). |
 | `generateSites(world, siteCount)` | Sites + roads from a generated world → `{ sites, roads }`. |
 | `createGeneration(seed, W, H, detail, siteCount)` | Async 10-step generator → stepper object (§11). |
+| `traceRoads(sites, world)` | Re-traces a road network connecting only the given sites (each `{ id, px, py }`) over an already-generated `world` — used to rebuild roads once real location types are known (see §13). |
 | `prepare(stage)` / `runFrame()` | Standalone export CLI plumbing (`world` / `sites` stages). |
 
 ### Site shape
@@ -345,7 +353,12 @@ the debug view and the file-based stages.
 - `game/states/world_map_state.lua` (debug) uses `generateWorld` in-memory to
   render a full-screen pan/zoom view.
 - Sites become enterable `Location` entities via
-  `LocationPopulationSystem.populate(map, map.worldGen)`.
+  `LocationPopulationSystem.populate(map, map.worldGen)`. Roads are traced
+  once for all sites during generation, but `populate` then calls
+  `MapGenerator.traceRoads` a second time to rebuild the network connecting
+  only "road-worthy" location types (`locationPopulation.roadWorthyTypes`,
+  default `village`/`town`/`castle`) — other location types end up with no
+  roads at all.
 
 ---
 

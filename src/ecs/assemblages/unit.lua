@@ -27,6 +27,8 @@ local function unitAssemblage(e, troopType, id)
     e.level = 1
     e.experience = 0
     e.size = 3
+    e.profile = e.size * 10  -- how noticeable the unit is (spotting/scouting)
+    e.sight = e.size * 10    -- how good the unit is at spotting others
 
     -- Default Humanoid Slots
     e.availableSlots = {
@@ -83,6 +85,16 @@ local function unitAssemblage(e, troopType, id)
 
         if data.size then
             e.size = data.size
+            e.profile = e.size * 10
+            e.sight = e.size * 10
+        end
+
+        if data.profile then
+            e.profile = data.profile
+        end
+
+        if data.sight then
+            e.sight = data.sight
         end
 
         if data.slots then

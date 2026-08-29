@@ -108,6 +108,17 @@ local WorldGeneration = {
             bandit_camp = { min = 0, max = 0 },
             windmill = { min = 25, max = 45 }
         },
+        -- How easy each location type is to spot (see systems/visibility_system.lua).
+        -- Hidden types (ruins/bandit_camp/shrine) get low values on purpose.
+        profileByType = {
+            village = { min = 60, max = 90 },
+            town    = { min = 80, max = 110 },
+            castle  = { min = 90, max = 130 },
+            shrine  = { min = 15, max = 30 },
+            ruins   = { min = 10, max = 25 },
+            bandit_camp = { min = 10, max = 25 },
+            windmill = { min = 40, max = 60 }
+        },
         defaultFactions = { "menari", "dacians", "hyperboreans", "neutral" }
     }
 }

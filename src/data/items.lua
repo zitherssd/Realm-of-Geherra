@@ -2,6 +2,33 @@
 -- Item definitions
 
 return {
+    ["bread"] = {
+        id = "bread",
+        name = "Loaf of Bread",
+        type = "food",
+        description = "Plain, filling bread",
+        weight = 0.5,
+        value = 5
+    },
+
+    ["dried_meat"] = {
+        id = "dried_meat",
+        name = "Dried Meat",
+        type = "food",
+        description = "Salted strips of preserved meat",
+        weight = 0.4,
+        value = 8
+    },
+
+    ["cheese_wedge"] = {
+        id = "cheese_wedge",
+        name = "Cheese Wedge",
+        type = "food",
+        description = "A wedge of hard, aged cheese",
+        weight = 0.3,
+        value = 6
+    },
+
     ["iron_sword"] = {
         id = "iron_sword",
         name = "Iron Sword",

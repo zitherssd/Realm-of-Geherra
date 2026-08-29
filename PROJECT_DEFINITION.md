@@ -49,6 +49,7 @@ project/
 │
 ├─ core/
 ├─ game/
+├─ ecs/
 ├─ systems/
 ├─ entities/
 ├─ world/
@@ -59,6 +60,10 @@ project/
 ├─ utils/
 └─ debug/
 ```
+
+`ecs/` holds the Concord ECS layer (components/assemblages/systems/world) that
+represents actors, parties, locations, quests, and battle units as entities.
+See the `ecs/` section below.
 
 ---
 
@@ -99,9 +104,9 @@ game/
 │  └─ location_state.lua
 │
 ├─ battle/
-│  ├─ battle_context.lua     -- Battle-specific blackboard
-│  ├─ battle_grid.lua        -- Tactical grid data
-│  └─ battle_unit.lua        -- Battle entity wrapper
+│  └─ battle_context.lua     -- Battle-specific blackboard (units/casualties/
+│                                camera/vfx/projectiles; battle units
+│                                themselves are Concord entities, see ecs/)
 │
 ├─ game_context.lua          -- Shared blackboard
 └─ game_initializer.lua      -- New game setup and initialization
@@ -109,15 +114,18 @@ game/
 
 ### game_context.lua
 
-Acts as a **shared blackboard** containing:
+Acts as a **shared blackboard** containing session-level bookkeeping (not
+game entities themselves, which live in the Concord campaign world):
 
-* Player party
+* Reference to the player entity / player party entity
 * Current world / map
-* Active quests
-* Global flags
-* Difficulty or rulesets
+* NPC relations, dialogue flags, global flags
+* Instance-id counters (quest instances/offers)
+* Difficulty, playtime
 
-This is the *only* globally shared mutable state in the game.
+Actors, parties, locations, and quests are **not** stored here — they are
+Concord entities in `EcsWorld.campaign` (see `ecs/`). This is the *only*
+globally shared mutable session state in the game.
 
 ### game_initializer.lua
 
@@ -139,12 +147,15 @@ Called when transitioning from the main menu to world state.
 ```
 systems/
 ├─ battle/
-│  ├─ decision_system.lua    -- AI & Player intent processing
-│  ├─ execution_system.lua   -- Action resolution & state updates
+│  ├─ battle_unit_system.lua -- Plain helpers on battle-unit entities (canAct, snapToWorld)
 │  └─ render_system.lua      -- Battle visualization
+│  (decision_system.lua/execution_system.lua moved to ecs/systems/, see below)
 │
 ├─ movement_system.lua
 ├─ party_system.lua
+├─ player_system.lua      -- Player-only resources (e.g. favor)
+├─ location_system.lua    -- Plain helpers on location entities
+├─ quest_objective_system.lua -- Plain advance()/isCompleted() on objective data
 ├─ combat_system.lua
 ├─ ai_system.lua
 ├─ animation_system.lua
@@ -285,9 +296,13 @@ This project uses a two-layer quest model:
     * May be marked as procedural/repeatable for generator-based NPC quest handouts
 
 2.  **Quest Instances (Runtime State):**
-    * Created by `systems/quest_system.lua` when accepted
+    * Created by `systems/quest_system.lua` when accepted, as Concord entities
+      (tag `"quest"`) in `EcsWorld.campaign` via `ecs/assemblages/quest.lua`
     * Assigned unique instance IDs (for example `hunt_dogs#12`)
-    * Stored in `GameContext.data.activeQuests` keyed by instance ID
+    * Active and completed quests are the **same** entity pool, distinguished
+      only by the flat `quest.state` field ("active"/"completed"/"failed") --
+      looked up via `QuestSystem.findQuestByInstanceId`/`getActiveQuests`/
+      `getCompletedQuests` (an ad hoc `EcsWorld.campaign:query({"quest"})`)
     * Keep giver identity (`giverId`, `giverName`) and runtime bindings (for example spawned party IDs)
 
 #### End-to-End Runtime Sequence
@@ -301,9 +316,9 @@ This project uses a two-layer quest model:
     * Procedural flow: `accept_procedural_quest` requests an offer from a template pool, then accepts that offer
 
 3.  **Quest instance is created**
-    * QuestSystem clones template data into a runtime quest object
-    * A unique instance ID is generated and stored in `activeQuests`
-    * Objectives are copied as runtime objective objects
+    * QuestSystem clones template data into a new quest entity (`quest.state = "active"`)
+    * A unique instance ID is generated and stored on the entity
+    * Objectives are copied as plain runtime objective tables
 4.  **onStart actions bind runtime targets**
     * If the template has spawn actions (for example enemy party spawn), QuestSystem creates runtime entities with unique IDs
     * Objective targets are rebound from template target IDs to runtime IDs
@@ -318,7 +333,8 @@ This project uses a two-layer quest model:
     * Reward payout is deferred until player reports to the correct giver
 
 7.  **Completion and archival**
-    * Completed instance moves from `activeQuests` to `completedQuests`
+    * Completed instance's `quest.state` is set to `"completed"` (the entity
+      stays in the same Concord pool; nothing physically "moves")
     * Rewards are granted by QuestSystem
     * `quest_completed` event is emitted with instance and template identifiers
 
@@ -375,36 +391,88 @@ Procedural quest offers are owned by NPC runtime state, not UI state:
 
 ---
 
-## 🧍 entities/ — Persistent Actors and Objects
+## 🧩 ecs/ — Concord ECS Layer
 
-**Purpose:** Define *what exists* independently of systems.
+**Purpose:** Represent actors, parties, locations, quests, and battle units as
+Concord entities. This is the primary "what exists" layer for the game (it
+supersedes most of the old `entities/` OOP classes).
+
+```
+ecs/
+├─ world.lua               -- EcsWorld.campaign (persistent) + EcsWorld.battle
+│                             (ephemeral, created/destroyed per battle)
+├─ components/
+│  ├─ init.lua             -- requires every component file below
+│  ├─ unit.lua, player.lua, npc.lua   -- actor tag components
+│  ├─ party.lua, location.lua, quest.lua, battle_unit.lua
+│
+├─ assemblages/            -- entity-creation factories (Concord "assemble" fns)
+│  ├─ unit.lua             -- Unit.create(world, troopType) -- player/NPC/troop
+│  ├─ party.lua, location.lua, quest.lua, battle_unit.lua
+│
+└─ systems/                -- genuine Concord.system({pool=...}) pool-iterating
+   │                          systems only (battle world, per-frame)
+   ├─ decision_system.lua  -- AI & player intent processing
+   └─ execution_system.lua -- Action resolution & state updates
+```
+
+### Design Conventions
+
+* Component data is kept **flat** on the entity (e.g. `entity.stats.health`,
+  `entity.hp`, `entity.x`) rather than nested per-component, matching the
+  data shape of the old Actor/Party classes. Concord components named
+  `"player"`, `"npc"`, `"unit"`, `"party"`, `"location"`, `"quest"`,
+  `"battleUnit"` are used mainly as **tag/marker** components for identity and
+  pool queries (`world:query({"quest"})`).
+* Genuine `Concord.system()` classes belong in `ecs/systems/` and are reserved
+  for real per-frame pool-iterating logic — currently only the battle world's
+  `decision_system.lua`/`execution_system.lua`.
+* Call/event-driven logic that reads or mutates entities (quest advancement,
+  location population, dialogue, recruitment, etc.) stays in `systems/*.lua`
+  as **plain function modules** (e.g. `PartySystem.getTreasury(party)`), not
+  Concord systems — this matches the pre-existing repo convention of systems
+  as plain logic modules and avoids forcing every interaction through a pool.
+* Items stay plain data (catalog id + instance overrides), embedded in
+  inventory/equipment fields — not entities, since nothing queries loose
+  items independently today.
+* Two Concord worlds: the persistent `EcsWorld.campaign` (parties, actors,
+  locations, quests) and an ephemeral `EcsWorld.battle` created by
+  `EcsWorld.startBattle()` and torn down by `EcsWorld.endBattle()` per fight.
+  Battle-world unit entities hold a direct reference to their campaign actor
+  entity, so HP/death changes are visible without an explicit sync step.
+
+---
+
+## 🧍 entities/ — Legacy Non-ECS Objects
+
+**Purpose:** A small set of plain-data classes that predate the Concord ECS
+rewrite and were kept as-is because nothing about them needed to change.
 
 ```
 entities/
-├─ entity.lua          -- Base entity schema
-├─ actor.lua           -- Living, acting entities
-├─ player.lua          -- Player-controlled actor
-├─ npc.lua             -- AI- or dialogue-driven actor
-├─ troop.lua           -- Mass-produced combat actor
-├─ mount.lua           -- Actor-attached entity
-├─ item.lua            -- Inventory and equipment entities
-└─ party.lua           -- Persistent group of actors
+├─ entity.lua          -- Base class for item.lua/mount.lua below
+├─ item.lua            -- Loose item instances (loot, quest rewards)
+└─ mount.lua           -- Actor-attached entity
 ```
 
-### Entity Design Guidelines
-
-* Entities have **identity and persistence**
-* Entities store **data only** (stats, tags, references)
-* Entities never contain gameplay logic
-* Entities are manipulated exclusively by systems
+Actors (player/NPC/troop), parties, locations, and quests are **not** here —
+they are Concord entities defined in `ecs/` (see below). The old
+`actor.lua`/`player.lua`/`npc.lua`/`troop.lua`/`party.lua` OOP classes were
+deleted once their Concord replacements were wired in.
 
 ### Actor Specialization
 
-An **actor** represents any living being capable of action. Player characters, NPCs, and troops are all actors differentiated by **data, tags, control source, and non-combat attributes (e.g., Oratory, Tracking)**, not by unique logic.
+An **actor** (Concord entity tagged `"unit"`, plus `"player"` or `"npc"`)
+represents any living being capable of action. Player characters, NPCs, and
+troops are all actors differentiated by **data, tags, control source, and
+non-combat attributes (e.g., Oratory, Tracking)**, not by unique logic.
+See `ecs/assemblages/{unit,player,npc}.lua`.
 
 ### Party Structure
 
-A **party** represents a **persistent group of actors** traveling and acting together on the world map.
+A **party** (Concord entity tagged `"party"`, see `ecs/assemblages/party.lua`
++ `systems/party_system.lua`) represents a **persistent group of actors**
+traveling and acting together on the world map.
 
 Parties are entities because they:
 
@@ -414,7 +482,7 @@ Parties are entities because they:
 
 A party typically contains:
 
-* A list of member actor IDs
+* A list of member actor entities
 * A leader (actor reference)
 * Inventory and shared resources
 * Movement speed modifiers
@@ -441,11 +509,14 @@ world/
 ├─ world.lua
 ├─ map.lua
 ├─ camera.lua           -- Camera system for viewport management
-├─ node.lua             -- Travel nodes / regions
-├─ location.lua         -- Persistent world locations
-├─ encounter.lua
 └─ scene_loader.lua
 ```
+
+Locations are Concord entities (`ecs/assemblages/location.lua` +
+`systems/location_system.lua`), created at runtime by
+`systems/location_population_system.lua` and also registered on `map.locations`
+for spatial lookup. `world/node.lua` and `world/encounter.lua` were deleted as
+confirmed dead code (never required anywhere).
 
 ### Camera System
 
@@ -466,13 +537,13 @@ Enhanced with visual rendering:
 * Stores `worldGen` runtime payload (navigation grid, biome ownership, road paths)
 * Provides walkability checks (`isWalkable`) and biome lookup (`getBiomeAt`)
 
-### Settlements and Locations
+### Locations
 
-Settlements are **persistent world-scoped objects**, not actors.
+Locations are **persistent world-scoped objects**, not actors.
 
 They:
 
-* Have identity and long-term state
+* Have identity and long-term state (Concord entity, tag `"location"`)
 * Are referenced by quests, factions, and systems
 * Define context rather than moment-to-moment action
 
@@ -481,22 +552,27 @@ They do **not**:
 * Act independently
 * Participate directly in combat or AI systems
 
-Settlements belong to the **world layer**, not the entity layer.
+Locations belong to the **ecs/ + world layer**, not the legacy entity layer.
+(`world/settlement.lua` was a near-duplicate, confirmed dead code, and was
+deleted alongside `node.lua`/`encounter.lua`.)
 
 ---
 
 ## 📜 quests/ — Narrative Structure & Objectives
 
-**Purpose:** Define quest structure without embedding gameplay logic.
+**Purpose:** Define quest objective data without embedding gameplay logic.
 
 ```
 quests/
-├─ quest.lua           -- Quest data schema
-├─ objective.lua       -- Objective definitions
-├─ condition.lua       -- Reusable conditions
-├─ reward.lua          -- Reward definitions
-└─ quest_registry.lua
+└─ objective.lua       -- Plain objective-table factory (id, type, current/required)
 ```
+
+Quest instances themselves are Concord entities (tag `"quest"`), assembled by
+`ecs/assemblages/quest.lua` and managed by `systems/quest_system.lua` +
+`systems/quest_objective_system.lua` — see `ecs/` and the Quest Runtime Flow
+section above. `quest.lua`, `condition.lua`, `reward.lua`, and
+`quest_registry.lua` (the old OOP quest/condition/reward classes) were deleted
+once quests became Concord entities.
 
 ### Quest Design Rules
 
@@ -602,6 +678,8 @@ core
 game
  ↓
 systems
+ ↓
+ecs
  ↓
 entities
  ↓

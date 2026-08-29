@@ -21,6 +21,7 @@ return {
             mainHand = "iron_sword",
         },
         size = 3,
+        profile = 15,  -- stealthier than a size-3 default (30); harder to spot
         loot = {
             {currency = "gold", chance = 0.6, min = 1, max = 15},
             {id = "iron_sword", chance = 0.1, min = 1, max = 1}

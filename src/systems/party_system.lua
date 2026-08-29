@@ -248,6 +248,34 @@ function PartySystem.getPartyStrength(party)
     return totalStrength
 end
 
+-- Party sight: sum of the 5 best sighters (actors with the highest `sight`)
+function PartySystem.getPartySight(party)
+    if not party or #party.actors == 0 then return 0 end
+
+    local sights = {}
+    for _, actor in ipairs(party.actors) do
+        table.insert(sights, actor.sight or 0)
+    end
+    table.sort(sights, function(a, b) return a > b end)
+
+    local total = 0
+    for i = 1, math.min(5, #sights) do
+        total = total + sights[i]
+    end
+    return total
+end
+
+-- Party profile: sum of every actor's `profile` (how noticeable the party is)
+function PartySystem.getPartyProfile(party)
+    if not party or #party.actors == 0 then return 0 end
+
+    local total = 0
+    for _, actor in ipairs(party.actors) do
+        total = total + (actor.profile or 0)
+    end
+    return total
+end
+
 -- Move the party to a new location
 function PartySystem.movePartyTo(party, x, y)
     if not party then return false end

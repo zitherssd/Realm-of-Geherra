@@ -19,6 +19,7 @@ local EcsWorld = require("src.ecs.world")
 local Party = require("src.ecs.assemblages.party")
 local Unit = require("src.ecs.assemblages.unit")
 local PartySystem = require("src.systems.party_system")
+local PartyAiSystem = require("src.systems.party_ai_system")
 
 local EncounterSystem = {}
 
@@ -252,6 +253,11 @@ function EncounterSystem.spawnEncounterParty(template)
             party.isEncounter = true
             party.dialogueId = template.dialogueId or "encounter_ambush"
             PartySystem.setPosition(party, sx, sy)
+
+            -- Roam near the spawn point and chase once the player is spotted.
+            party.state = "wander"
+            party.wanderOriginX, party.wanderOriginY = sx, sy
+            party.wanderRadius = PartyAiSystem.wanderRadiusDefault
 
             for _, spec in ipairs(template.enemies or {}) do
                 local count = math.random(spec.min or 1, spec.max or 1)

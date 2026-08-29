@@ -6,6 +6,9 @@ local WorldGenerationConfig = require("src.data.world_generation")
 local LocationNpcSpawnRules = require("src.data.location_npc_spawn_rules")
 local NpcNamePools = require("src.data.npc_name_pools")
 local MapGenerator = require("src.systems.map_generator")
+local VisibilityConfig = require("src.data.visibility")
+local TroopsData = require("src.data.troops")
+local TraderSystem = require("src.systems.trader_system")
 
 local LocationPopulationSystem = {}
 
@@ -98,6 +101,25 @@ local function spawnLocationNpcs(location, locationType, rng, spawnRules)
                 npc:give("npc")
                 -- Assign a given-name + title (e.g. "Ion the Elder")
                 npc.name = generateNpcName(rule.troopType, rng)
+
+                local troopDef = TroopsData[rule.troopType]
+                if troopDef and troopDef.stock then
+                    npc.inventory = TraderSystem.buildStockInventory(troopDef)
+                    npc.buysFromPlayers = troopDef.buysFromPlayers
+                    npc.sellPriceFactor = troopDef.sellPriceFactor
+                    npc.restockIntervalDays = troopDef.restockIntervalDays
+                    if npc.restockIntervalDays then
+                        npc.lastStockRefreshDay = 0
+                    end
+                end
+
+                -- Travelling traders roll a random stay (days) before moving on
+                -- (see systems/trader_travel_system.lua).
+                if rule.troopType == "trader" then
+                    npc.daysAtLocation = 0
+                    npc.travelThresholdDays = rng(7, 28)
+                end
+
                 LocationSystem.addNPC(location, npc)
             end
         end
@@ -138,6 +160,10 @@ function LocationPopulationSystem.populate(map, generationData, options)
         location.faction = factions[((index - 1) % #factions) + 1]
         location.population = randomRange(rng, populationConfig.populationByType[locationType])
         location.prosperity = randomRange(rng, populationConfig.prosperityByType[locationType])
+        location.profile = randomRange(rng, populationConfig.profileByType[locationType])
+        if VisibilityConfig.hiddenLocationTypes[locationType] then
+            location.discovered = false
+        end
         location.biomeId = site.biomeId
         location.siteId = site.id
         site.locationType = locationType

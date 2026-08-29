@@ -301,23 +301,25 @@ end
 function Map:drawLocations(inverseScale)
     inverseScale = inverseScale or 1
     for _, location in ipairs(self.locations) do
-        love.graphics.push()
-        love.graphics.translate(location.x, location.y)
-        love.graphics.scale(inverseScale)
+        if location.discovered then
+            love.graphics.push()
+            love.graphics.translate(location.x, location.y)
+            love.graphics.scale(inverseScale)
 
-        local spriteImg = self:getSpriteImage(location.sprite)
-        if spriteImg then
-            drawMarkerSprite(spriteImg)
-        else
-            -- Fallback: green circle marker
-            love.graphics.setColor(0.2, 0.8, 0.2, 1)
-            love.graphics.circle("fill", 0, 0, 12)
+            local spriteImg = self:getSpriteImage(location.sprite)
+            if spriteImg then
+                drawMarkerSprite(spriteImg)
+            else
+                -- Fallback: green circle marker
+                love.graphics.setColor(0.2, 0.8, 0.2, 1)
+                love.graphics.circle("fill", 0, 0, 12)
+            end
+
+            -- Draw location name (optional, for debug/clarity)
+            love.graphics.setColor(0, 0, 0, 1)
+            love.graphics.printf(location.name, -40, -25, 80, "center")
+            love.graphics.pop()
         end
-
-        -- Draw location name (optional, for debug/clarity)
-        love.graphics.setColor(0, 0, 0, 1)
-        love.graphics.printf(location.name, -40, -25, 80, "center")
-        love.graphics.pop()
     end
 end
 
@@ -327,7 +329,7 @@ end
 function Map:drawParties(inverseScale)
     inverseScale = inverseScale or 1
     for _, party in ipairs(self.parties) do
-        if party then
+        if party and party.visible then
             love.graphics.push()
             love.graphics.translate(party.x, party.y)
             love.graphics.scale(inverseScale)
