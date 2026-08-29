@@ -42,7 +42,8 @@ or non-shop inventory UI — those are separate concerns.
    as a fraction of `value`.
 3. **Spawn it**:
    - *Guaranteed / always present*: inject it in `game/game_initializer.lua` after
-     `LocationPopulationSystem.populate(...)` and call `location:addNPC(troop)`.
+     `LocationPopulationSystem.populate(...)` and call
+     `LocationSystem.addNPC(location, troop)` (`systems/location_system.lua`).
    - *Chance-based per location type*: add `{ troopType = "<type>", count = n, chance = c }`
      to `data/location_npc_spawn_rules.lua` — and give the def a `stock` list so
      `spawnLocationNpcs` can fill its inventory (see
@@ -56,11 +57,12 @@ or non-shop inventory UI — those are separate concerns.
 
 - **Screen:** `ui/screens/shop_screen.lua` shows two grids — merchant stock (buy) and
   player inventory (sell). Both scroll with the mouse wheel (`InventoryGrid:enableScroll()`).
-- **Buy:** `playerParty:withdrawTreasury(value)` → `playerParty:addItemDefCopy(item, 1)`
-  → merchant stock decrements (`quantity` or entry removed).
+- **Buy:** `PartySystem.withdrawTreasury(playerParty, value)` →
+  `PartySystem.addItemDefCopy(playerParty, item, 1)` → merchant stock decrements
+  (`quantity` or entry removed).
 - **Sell** (only if `buysFromPlayers`): remove one unit from the player's inventory →
   `addToStock(merchant.inventory, item)` (the item goes INTO the trader's stock) →
-  `playerParty:addTreasury(floor(value * sellPriceFactor))`.
+  `PartySystem.addTreasury(playerParty, floor(value * sellPriceFactor))`.
 - **State wiring:** the `open_shop` dialogue action runs
   `StateManager.push("shop", { merchant = target, location = location })`; when the shop
   closes, `DialogueState.resume()` re-shows the conversation.
@@ -68,10 +70,10 @@ or non-shop inventory UI — those are separate concerns.
 ## Gotchas
 
 - **Never store shared catalog tables in an inventory.** Use
-  `playerParty:addItemDefCopy(def, qty)` (`entities/party.lua`) for the player and the
-  copy helper in the [reference](./references/trader-example.md) for merchants — it
-  shallow-copies and stacks by id. Mutating a shared `data/items.lua` table corrupts it
-  for the whole game.
+  `PartySystem.addItemDefCopy(playerParty, def, qty)` (`systems/party_system.lua`) for
+  the player and the copy helper in the [reference](./references/trader-example.md) for
+  merchants — it shallow-copies and stacks by id. Mutating a shared `data/items.lua`
+  table corrupts it for the whole game.
 - **Sell price** = `floor(value * sellPriceFactor)`; buy price = `value`. Use
   `sellPriceFactor = 0.5..0.7` for realistic traders.
 - **Auto-inject scope:** the option is added only to the first (greeting) line and only

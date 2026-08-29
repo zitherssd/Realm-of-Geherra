@@ -12,6 +12,7 @@ local Skills = require("src.data.skills")
 local LootGeneratorSystem = require("src.systems.loot_generator_system")
 local EventBus = require("src.core.event_bus")
 local PartySystem = require("src.systems.party_system")
+local PlayerSystem = require("src.systems.player_system")
 local BattleState = {}
 
 local DecisionSystem = require("src.ecs.systems.decision_system")
@@ -352,7 +353,7 @@ function BattleState.checkBattleEnd()
             local playerPower = math.max(1, computePartyPower(GameContext.data.playerParty))
             local difficulty = enemyPower / playerPower
             favorGained = math.floor(4 + difficulty * 8)
-            GameContext.data.favor = (GameContext.data.favor or 0) + favorGained
+            PlayerSystem.addFavor(favorGained)
         end
 
         if playerAlive then

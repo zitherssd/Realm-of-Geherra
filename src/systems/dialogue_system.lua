@@ -10,6 +10,7 @@
 
 local GameContext = require("src.game.game_context")
 local PartySystem = require("src.systems.party_system")
+local PlayerSystem = require("src.systems.player_system")
 
 local DialogueSystem = {}
 
@@ -47,7 +48,7 @@ function DialogueSystem.evaluateCondition(condition)
             local playerParty = GameContext.data.playerParty
             actual = playerParty and PartySystem.getTreasury(playerParty) or 0
         elseif key == "favor" then
-            actual = GameContext.data.favor or 0
+            actual = PlayerSystem.getFavor()
         else
             actual = DialogueSystem.getFlag(key) or 0
         end
@@ -102,8 +103,8 @@ function DialogueSystem.applySet(setTable)
                         end
                     end
                 elseif varName == "favor" then
-                    local current = GameContext.data.favor or 0
-                    GameContext.data.favor = op == "-" and (current - numAmount) or (current + numAmount)
+                    local current = PlayerSystem.getFavor()
+                    PlayerSystem.addFavor(op == "-" and -numAmount or numAmount)
                 end
                 -- Also store as a flag
                 DialogueSystem.setFlag(key, true)

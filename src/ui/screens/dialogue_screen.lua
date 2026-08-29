@@ -7,6 +7,7 @@ local DialogueScreen = {}
 local Input = require("src.core.input")
 local GameContext = require("src.game.game_context")
 local PartySystem = require("src.systems.party_system")
+local PlayerSystem = require("src.systems.player_system")
 
 DialogueScreen.__index = DialogueScreen
 
@@ -203,7 +204,7 @@ function DialogueScreen:draw()
 
     -- Draw favor if enabled
     if self.options.showFavor then
-        local favor = GameContext.data.favor or 0
+        local favor = PlayerSystem.getFavor()
         love.graphics.setColor(0.8, 0.8, 1, 1)
         love.graphics.setFont(self.smallFont)
         love.graphics.printf("Favor: " .. favor, 0, screenH - 200, screenW - 50, "right")

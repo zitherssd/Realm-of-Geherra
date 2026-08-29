@@ -1,4 +1,5 @@
-local Location = require("src.world.location")
+local LocationAssemblage = require("src.ecs.assemblages.location")
+local LocationSystem = require("src.systems.location_system")
 local EcsWorld = require("src.ecs.world")
 local Unit = require("src.ecs.assemblages.unit")
 local WorldGenerationConfig = require("src.data.world_generation")
@@ -97,7 +98,7 @@ local function spawnLocationNpcs(location, locationType, rng, spawnRules)
                 npc:give("npc")
                 -- Assign a given-name + title (e.g. "Ion the Elder")
                 npc.name = generateNpcName(rule.troopType, rng)
-                location:addNPC(npc)
+                LocationSystem.addNPC(location, npc)
             end
         end
     end
@@ -126,12 +127,13 @@ function LocationPopulationSystem.populate(map, generationData, options)
 
         local locationType = weightedChoice(typeWeights, rng)
         local locationId = string.format("settlement_%02d", index)
-        local location = Location.new(
+        local location = LocationAssemblage.create(
+            EcsWorld.campaign,
             locationId,
             makeLocationName(index, locationType, populationConfig.namePools, rng, usedNames)
         )
 
-        location:setPosition(site.x, site.y)
+        LocationSystem.setPosition(location, site.x, site.y)
         location.type = locationType
         location.faction = factions[((index - 1) % #factions) + 1]
         location.population = randomRange(rng, populationConfig.populationByType[locationType])

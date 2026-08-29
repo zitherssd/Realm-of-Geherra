@@ -7,5 +7,6 @@ require("src.ecs.components.npc")
 require("src.ecs.components.unit")
 require("src.ecs.components.battle_unit")
 require("src.ecs.components.quest")
+require("src.ecs.components.location")
 
 return true

@@ -11,6 +11,7 @@ local TimeSystem = require("src.systems.time_system")
 local AttributeSystem = require("src.systems.attribute_system")
 local EncounterSystem = require("src.systems.encounter_system")
 local PartySystem = require("src.systems.party_system")
+local PlayerSystem = require("src.systems.player_system")
 
 local WorldState = {
     camera = nil,
@@ -481,7 +482,7 @@ function WorldState.draw()
         
         -- 2. Favor Bar (Right of HP bar)
         local favorX = barX + barW + 20
-        local favor = GameContext.data.favor or 0
+        local favor = PlayerSystem.getFavor()
         local favorPct = math.min(1, math.max(0, favor / 100))
         
         -- Background

@@ -39,7 +39,7 @@ local function buildStock(entries)
 end
 
 -- after starterLocation is resolved:
-local fishTrader = Troop.new("fish_trader")
+local fishTrader = Unit.create(EcsWorld.campaign, "fish_trader")
 fishTrader.name = "Mara, the Fishmonger"
 fishTrader.buysFromPlayers = true      -- allow selling to her
 fishTrader.sellPriceFactor = 0.6       -- she pays 60% of an item's value
@@ -48,7 +48,7 @@ fishTrader.inventory = buildStock({
     { id = "quarterstaff", quantity = 5 },
     { id = "health_potion", quantity = 10 }
 })
-starterLocation:addNPC(fishTrader)
+LocationSystem.addNPC(starterLocation, fishTrader)
 ```
 
 ## B. Chance-spawned merchant (spawn rule + def `stock`)

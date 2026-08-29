@@ -16,6 +16,7 @@ local PartySystem = require("src.systems.party_system")
 local Item = require("src.entities.item")
 local ItemsData = require("src.data.items")
 local ReputationSystem = require("src.systems.reputation_system")
+local PlayerSystem = require("src.systems.player_system")
 
 -- All quest entities (active and completed alike) live in the campaign
 -- world's "quest" pool -- state distinguishes them, not separate lists.
@@ -429,7 +430,7 @@ function QuestSystem.completeQuest(questId)
         end
 
         if rewards.favor then
-            GameContext.data.favor = (GameContext.data.favor or 0) + rewards.favor
+            PlayerSystem.addFavor(rewards.favor)
         end
 
         _grantItemRewards(playerParty, rewards.items)

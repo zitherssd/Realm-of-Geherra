@@ -12,6 +12,7 @@ local Unit = require("src.ecs.assemblages.unit")
 local RecruitmentSystem = require("src.systems.recruitment_system")
 local TimeSystem = require("src.systems.time_system")
 local AttributeSystem = require("src.systems.attribute_system")
+local PlayerSystem = require("src.systems.player_system")
 
 local DEFAULT_TAVERN_REST_COST = 20
 
@@ -179,7 +180,7 @@ end
 -- Roll for volunteers: costs ROLL_FAVOR_COST favor and stores the result on the
 -- location so the player can decide whether to hire them (HIRE_FAVOR_COST).
 function LocationActions.rollRecruitment(location)
-    GameContext.data.favor = (GameContext.data.favor or 0) - LocationActions.ROLL_FAVOR_COST
+    PlayerSystem.addFavor(-LocationActions.ROLL_FAVOR_COST)
 
     local playerParty = GameContext.data.playerParty
     local text, count, unitTypes = RecruitmentSystem.roll(location)
@@ -201,12 +202,12 @@ end
 -- cooldown. Returns (success, message).
 function LocationActions.hireRecruits(location)
     local currentDay = TimeSystem.getDay()
-    local currentFavor = GameContext.data.favor or 0
+    local currentFavor = PlayerSystem.getFavor()
     if currentFavor < LocationActions.HIRE_FAVOR_COST then
         return false, string.format("You need %d favor to hire them, but only have %d.", LocationActions.HIRE_FAVOR_COST, currentFavor)
     end
 
-    GameContext.data.favor = currentFavor - LocationActions.HIRE_FAVOR_COST
+    PlayerSystem.addFavor(-LocationActions.HIRE_FAVOR_COST)
 
     local pending = location.pendingRecruitment
     local playerParty = GameContext.data.playerParty
@@ -230,7 +231,7 @@ end
 
 function LocationActions.performRecruitment(location, favorCost)
     local currentDay = TimeSystem.getDay()
-    GameContext.data.favor = (GameContext.data.favor or 0) - favorCost
+    PlayerSystem.addFavor(-favorCost)
     location.lastRecruitDay = currentDay
     
     local playerParty = GameContext.data.playerParty
@@ -272,7 +273,7 @@ function LocationActions.startRecruitmentDialogue(location)
         return
     end
 
-    local currentFavor = GameContext.data.favor or 0
+    local currentFavor = PlayerSystem.getFavor()
     if currentFavor < LocationActions.ROLL_FAVOR_COST then
         StateManager.push("dialogue", {
             dialogueTree = {

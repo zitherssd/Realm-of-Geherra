@@ -14,6 +14,7 @@ local EcsWorld = require("src.ecs.world")
 local Party = require("src.ecs.assemblages.party")
 local Unit = require("src.ecs.assemblages.unit")
 local PartySystem = require("src.systems.party_system")
+local LocationSystem = require("src.systems.location_system")
 local Items = require("src.data.items")
 local PaintedMapLoader = require("src.systems.painted_map_loader")
 local LocationPopulationSystem = require("src.systems.location_population_system")
@@ -35,12 +36,12 @@ function GameInitializer.beginNewGame(options)
     -- Set game options
     GameContext.data.difficulty = options.difficulty or "normal"
     GameContext.data.playtime = 0
-    GameContext.data.favor = 15
 
     -- Create player character
     local player = Unit.create(world, "player")
     player:give("player")
     player.attributes.shadowcraft = 2  -- Allow equipping poison dagger
+    player.favor = 15
     GameContext.setPlayer(player)
 
     -- Create player party
@@ -106,7 +107,7 @@ function GameInitializer.finalizeNewGame(map, locations)
             table.insert(debugTrader.inventory, item)
         end
 
-        starterLocation:addNPC(debugTrader)
+        LocationSystem.addNPC(starterLocation, debugTrader)
     end
 
     GameContext.data.currentMap = map
