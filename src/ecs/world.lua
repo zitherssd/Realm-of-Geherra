@@ -1,9 +1,9 @@
 -- ecs/world.lua
--- Holds the persistent campaign Concord world (parties, actors, locations)
--- and the ephemeral battle world (created on battle start, torn down on
--- battle end). Replaces the old prototype-OOP entity graph; GameContext/
+-- Holds the persistent campaign Concord world (parties, actors, locations,
+-- quests) and the ephemeral battle world (created on battle start, torn down
+-- on battle end). Replaces the old prototype-OOP entity graph; GameContext/
 -- BattleContext still hold session/battle-level bookkeeping (current map,
--- quests, flags, camera, casualties, etc.).
+-- flags, camera, casualties, etc.).
 
 local Concord = require("src.libs.concord")
 require("src.ecs.components")

@@ -171,8 +171,8 @@ end
 local function buildQuestCompletionPopup(questInstanceId)
     if not questInstanceId then return nil end
 
-    local quest = GameContext.data.completedQuests and GameContext.data.completedQuests[questInstanceId]
-    if not quest then return nil end
+    local quest = QuestSystem.findQuestByInstanceId(questInstanceId)
+    if not quest or quest.state ~= "completed" then return nil end
 
     local lines = {}
     local rewards = quest.rewards or {}

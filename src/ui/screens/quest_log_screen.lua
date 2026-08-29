@@ -4,7 +4,8 @@
 local QuestLogScreen = {}
 QuestLogScreen.__index = QuestLogScreen
 
-local GameContext = require("src.game.game_context")
+local QuestSystem = require("src.systems.quest_system")
+local QuestObjectiveSystem = require("src.systems.quest_objective_system")
 local Button = require("src.ui.widgets.button")
 
 -- Compass direction from (fromX, fromY) to (toX, toY) on the world map.
@@ -25,19 +26,8 @@ function QuestLogScreen.new(onClose)
     self.width = love.graphics.getWidth()
     self.height = love.graphics.getHeight()
     
-    self.activeQuests = {}
-    if GameContext.data.activeQuests then
-        for _, quest in pairs(GameContext.data.activeQuests) do
-            table.insert(self.activeQuests, quest)
-        end
-    end
-    
-    self.completedQuests = {}
-    if GameContext.data.completedQuests then
-        for _, quest in pairs(GameContext.data.completedQuests) do
-            table.insert(self.completedQuests, quest)
-        end
-    end
+    self.activeQuests = QuestSystem.getActiveQuests()
+    self.completedQuests = QuestSystem.getCompletedQuests()
 
     self.selectedQuest = self.activeQuests[1] or self.completedQuests[1]
     
@@ -127,7 +117,7 @@ function QuestLogScreen:draw()
         
         love.graphics.setColor(1, 1, 1, 1)
         for _, obj in ipairs(q.objectives) do
-            local status = obj:isCompleted() and "[x]" or "[ ]"
+            local status = QuestObjectiveSystem.isCompleted(obj) and "[x]" or "[ ]"
             local desc = obj.description or (obj.type .. " " .. (obj.target or "?"))
             if obj.required and obj.required > 1 then
                 desc = desc .. " (" .. obj.current .. "/" .. obj.required .. ")"
@@ -136,13 +126,13 @@ function QuestLogScreen:draw()
             -- Point the way for travel objectives whose target is known, relative to
             -- the place where the quest was accepted (not the player's live position),
             -- so the player must still work out how to get there.
-            if obj.type == "travel" and obj.targetX and obj.targetY and not obj:isCompleted()
+            if obj.type == "travel" and obj.targetX and obj.targetY and not QuestObjectiveSystem.isCompleted(obj)
                 and q.giverLocationX and q.giverLocationY and q.giverLocationName then
                 local dir = compassDirection(q.giverLocationX, q.giverLocationY, obj.targetX, obj.targetY)
                 desc = desc .. " (" .. dir .. " of " .. q.giverLocationName .. ")"
             end
             
-            if obj:isCompleted() then
+            if QuestObjectiveSystem.isCompleted(obj) then
                 love.graphics.setColor(0.5, 1, 0.5, 1)
             else
                 love.graphics.setColor(1, 1, 1, 1)

@@ -6,8 +6,9 @@ local QuestSystem = {}
 local QuestsData = require("src.data.quests")
 local GameContext = require("src.game.game_context")
 local EventBus = require("src.core.event_bus")
-local Quest = require("src.quests.quest")
+local QuestAssemblage = require("src.ecs.assemblages.quest")
 local Objective = require("src.quests.objective")
+local QuestObjectiveSystem = require("src.systems.quest_objective_system")
 local EcsWorld = require("src.ecs.world")
 local Party = require("src.ecs.assemblages.party")
 local Unit = require("src.ecs.assemblages.unit")
@@ -15,6 +16,12 @@ local PartySystem = require("src.systems.party_system")
 local Item = require("src.entities.item")
 local ItemsData = require("src.data.items")
 local ReputationSystem = require("src.systems.reputation_system")
+
+-- All quest entities (active and completed alike) live in the campaign
+-- world's "quest" pool -- state distinguishes them, not separate lists.
+local function questPool()
+    return EcsWorld.campaign:query({"quest"})
+end
 
 local function _grantItemRewards(playerParty, itemsReward)
     if not playerParty or not itemsReward then return end
@@ -123,11 +130,9 @@ function QuestSystem._pickRandomFromList(values)
 end
 
 function QuestSystem.findActiveQuestInstance(templateId, giverRef)
-    if not GameContext.data.activeQuests then return nil end
-
     local normalizedGiver = QuestSystem._normalizeGiverRef(giverRef)
-    for _, quest in pairs(GameContext.data.activeQuests) do
-        if quest.templateId == templateId and QuestSystem._isSameGiver(quest, normalizedGiver) then
+    for _, quest in ipairs(questPool()) do
+        if quest.state == "active" and quest.templateId == templateId and QuestSystem._isSameGiver(quest, normalizedGiver) then
             return quest
         end
     end
@@ -136,16 +141,51 @@ function QuestSystem.findActiveQuestInstance(templateId, giverRef)
 end
 
 function QuestSystem.findCompletedQuestInstance(templateId, giverRef)
-    if not GameContext.data.completedQuests then return nil end
-
     local normalizedGiver = QuestSystem._normalizeGiverRef(giverRef)
-    for _, quest in pairs(GameContext.data.completedQuests) do
-        if quest.templateId == templateId and QuestSystem._isSameGiver(quest, normalizedGiver) then
+    for _, quest in ipairs(questPool()) do
+        if quest.state == "completed" and quest.templateId == templateId and QuestSystem._isSameGiver(quest, normalizedGiver) then
             return quest
         end
     end
 
     return nil
+end
+
+-- Finds a quest entity (active, completed, or otherwise) by its instance id.
+function QuestSystem.findQuestByInstanceId(instanceId)
+    if not instanceId then return nil end
+    for _, quest in ipairs(questPool()) do
+        if quest.instanceId == instanceId then
+            return quest
+        end
+    end
+    return nil
+end
+
+function QuestSystem.getActiveQuests()
+    local result = {}
+    for _, quest in ipairs(questPool()) do
+        if quest.state == "active" then table.insert(result, quest) end
+    end
+    return result
+end
+
+function QuestSystem.getCompletedQuests()
+    local result = {}
+    for _, quest in ipairs(questPool()) do
+        if quest.state == "completed" then table.insert(result, quest) end
+    end
+    return result
+end
+
+-- Replaces the old Quest:isCompleted() method now that Quest is a flat entity.
+function QuestSystem.isQuestComplete(quest)
+    for _, objective in ipairs(quest.objectives) do
+        if not QuestObjectiveSystem.isCompleted(objective) then
+            return false
+        end
+    end
+    return true
 end
 
 function QuestSystem.getDialogueQuestContext(templateId, giverRef)
@@ -158,10 +198,10 @@ function QuestSystem.getDialogueQuestContext(templateId, giverRef)
     local activeQuest = QuestSystem.findActiveQuestInstance(templateId, giverRef)
     if activeQuest then
         context.activeQuestInstanceId = activeQuest.instanceId
-        if activeQuest:getState() == "active" and QuestSystem._isReadyToTurnIn(activeQuest) then
+        if activeQuest.state == "active" and QuestSystem._isReadyToTurnIn(activeQuest) then
             context.state = "ready_to_turn_in"
         else
-            context.state = activeQuest:getState()
+            context.state = activeQuest.state
         end
         return context
     end
@@ -221,11 +261,10 @@ function QuestSystem.acceptProceduralQuestOffer(offer)
 end
 
 function QuestSystem._findActiveQuestByIdOrTemplate(questIdOrTemplateId, giverRef)
-    if not GameContext.data.activeQuests then return nil end
-
-    local direct = GameContext.data.activeQuests[questIdOrTemplateId]
-    if direct then
-        return direct
+    for _, quest in ipairs(questPool()) do
+        if quest.state == "active" and quest.instanceId == questIdOrTemplateId then
+            return quest
+        end
     end
 
     return QuestSystem.findActiveQuestInstance(questIdOrTemplateId, giverRef)
@@ -257,8 +296,8 @@ function QuestSystem.activateQuest(templateId, giverRef)
 
     local instanceId = QuestSystem._nextQuestInstanceId(templateId)
 
-    -- Create a new Quest instance
-    local newQuest = Quest.new(instanceId, questData.title, templateId)
+    -- Create a new quest entity in the campaign world
+    local newQuest = QuestAssemblage.create(EcsWorld.campaign, instanceId, questData.title, templateId)
     newQuest.description = questData.description
     newQuest.giverId = normalizedGiver.id
     newQuest.giverName = normalizedGiver.name or questData.giver
@@ -274,7 +313,7 @@ function QuestSystem.activateQuest(templateId, giverRef)
     end
 
     newQuest.rewards = questData.rewards
-    newQuest:setState("active")
+    newQuest.state = "active"
 
     -- Create Objective instances from data
     if questData.objectives then
@@ -297,14 +336,10 @@ function QuestSystem.activateQuest(templateId, giverRef)
                 end
             end
 
-            newQuest:addObjective(objective)
+            table.insert(newQuest.objectives, objective)
         end
     end
 
-    -- Add to active quests in GameContext
-    if not GameContext.data.activeQuests then GameContext.data.activeQuests = {} end
-    GameContext.data.activeQuests[instanceId] = newQuest
-    
     -- Handle onStart actions defined in data
     if questData.onStart then
         QuestSystem._handleQuestAction(questData.onStart, newQuest)
@@ -316,16 +351,15 @@ end
 -- Event handler for when a party is killed
 function QuestSystem.onPartyKilled(partyId)
     print("QuestSystem: onPartyKilled event received for " .. tostring(partyId))
-    if not GameContext.data.activeQuests then return end
 
-    for _, quest in pairs(GameContext.data.activeQuests) do
-        if quest:getState() == "active" then
+    for _, quest in ipairs(questPool()) do
+        if quest.state == "active" then
             for _, objective in ipairs(quest.objectives) do
                 if objective.type == "kill_party" then
                     print(string.format("QuestSystem Debug: Checking objective for quest '%s'. Target: '%s' vs Killed: '%s'", quest.title, tostring(objective.target), tostring(partyId)))
                 end
-                if objective.type == "kill_party" and objective.target == partyId and not objective:isCompleted() then
-                    objective:advance(1)
+                if objective.type == "kill_party" and objective.target == partyId and not QuestObjectiveSystem.isCompleted(objective) then
+                    QuestObjectiveSystem.advance(objective, 1)
                     print(string.format("Quest '%s' progress: kill_party %s (%d/%d)", quest.title, partyId, objective.current, objective.required))
                     QuestSystem.checkQuestCompletion(quest)
                 end
@@ -336,7 +370,7 @@ end
 
 -- Checks if all objectives of a quest are met and completes it.
 function QuestSystem.checkQuestCompletion(quest)
-    if quest:isCompleted() then
+    if QuestSystem.isQuestComplete(quest) then
         QuestSystem.completeQuest(quest.instanceId)
     end
 end
@@ -347,10 +381,10 @@ function QuestSystem._isReadyToTurnIn(quest)
     for _, objective in ipairs(quest.objectives) do
         if objective.type == "report_to_giver" then
             hasReportObjective = true
-            if objective:isCompleted() then
+            if QuestObjectiveSystem.isCompleted(objective) then
                 return false
             end
-        elseif not objective:isCompleted() then
+        elseif not QuestObjectiveSystem.isCompleted(objective) then
             return false
         end
     end
@@ -359,11 +393,9 @@ function QuestSystem._isReadyToTurnIn(quest)
 end
 
 function QuestSystem.reportQuestToGiver(questIdOrTemplateId, giverRef)
-    if not GameContext.data.activeQuests then return false end
-
     local normalizedGiver = QuestSystem._normalizeGiverRef(giverRef)
     local quest = QuestSystem._findActiveQuestByIdOrTemplate(questIdOrTemplateId, normalizedGiver)
-    if not quest or quest:getState() ~= "active" then
+    if not quest or quest.state ~= "active" then
         return false
     end
 
@@ -372,9 +404,9 @@ function QuestSystem.reportQuestToGiver(questIdOrTemplateId, giverRef)
     end
 
     for _, objective in ipairs(quest.objectives) do
-        if objective.type == "report_to_giver" and not objective:isCompleted() then
+        if objective.type == "report_to_giver" and not QuestObjectiveSystem.isCompleted(objective) then
             local remaining = objective.required - objective.current
-            objective:advance(remaining > 0 and remaining or 1)
+            QuestObjectiveSystem.advance(objective, remaining > 0 and remaining or 1)
         end
     end
 
@@ -383,11 +415,10 @@ function QuestSystem.reportQuestToGiver(questIdOrTemplateId, giverRef)
 end
 
 function QuestSystem.completeQuest(questId)
-    if not GameContext.data.activeQuests then return end
-    local quest = GameContext.data.activeQuests[questId]
-    if not quest or quest:getState() ~= "active" then return end
+    local quest = QuestSystem.findQuestByInstanceId(questId)
+    if not quest or quest.state ~= "active" then return end
 
-    quest:setState("completed")
+    quest.state = "completed"
     
     -- Grant rewards
     local rewards = quest.rewards
@@ -418,11 +449,6 @@ function QuestSystem.completeQuest(questId)
             end
         end
     end
-
-    -- Move from active to completed
-    if not GameContext.data.completedQuests then GameContext.data.completedQuests = {} end
-    GameContext.data.completedQuests[quest.instanceId] = quest
-    GameContext.data.activeQuests[questId] = nil
 
     print("Quest Completed: " .. quest.title)
     EventBus.emit("quest_completed", quest.instanceId, quest.templateId)
@@ -506,16 +532,16 @@ end
 
 -- Advance travel objectives when the player enters a location.
 function QuestSystem.onLocationEntered(location)
-    if not location or not GameContext.data.activeQuests then return end
+    if not location then return end
 
-    for _, quest in pairs(GameContext.data.activeQuests) do
-        if quest:getState() == "active" then
+    for _, quest in ipairs(questPool()) do
+        if quest.state == "active" then
             for _, objective in ipairs(quest.objectives) do
                 if objective.type == "travel"
                     and objective.target == location.id
-                    and not objective:isCompleted()
+                    and not QuestObjectiveSystem.isCompleted(objective)
                 then
-                    objective:advance(1)
+                    QuestObjectiveSystem.advance(objective, 1)
                     print(string.format("Quest '%s': reached travel target '%s'", quest.title, location.id))
                     QuestSystem.checkQuestCompletion(quest)
                 end

@@ -66,9 +66,8 @@ function GameInitializer.beginNewGame(options)
 
     GameContext.data.playerParty = playerParty
 
-    -- Initialize empty quests
-    GameContext.data.activeQuests = {}
-    GameContext.data.completedQuests = {}
+    -- Quest instances live as Concord entities in the campaign world;
+    -- only the id counters remain here.
     GameContext.data.questInstanceCounter = 0
     GameContext.data.questOfferCounter = 0
 

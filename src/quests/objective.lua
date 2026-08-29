@@ -1,22 +1,12 @@
 -- quests/objective.lua
--- Quest objective definitions
+-- Quest objective data (nested inside a quest entity's `objectives` list).
+-- Types in use: kill_party, deliver, talk, travel, collect, reach, protect,
+-- escort, report_to_giver. Behavior lives in systems/quest_objective_system.lua.
 
 local Objective = {}
-Objective.__index = Objective
-
-local objectiveTypes = {
-    "kill",      -- Kill X enemies
-    "deliver",   -- Deliver item to NPC
-    "talk",      -- Talk to NPC
-    "travel",    -- Travel to location
-    "collect",   -- Collect items
-    "reach",     -- Reach condition/trigger
-    "protect",   -- Protect NPC/location
-    "escort"     -- Escort NPC
-}
 
 function Objective.new(id, objectiveType)
-    local self = {
+    return {
         id = id,
         type = objectiveType or "talk",
         target = nil,
@@ -24,16 +14,6 @@ function Objective.new(id, objectiveType)
         current = 0,
         description = ""
     }
-    setmetatable(self, Objective)
-    return self
-end
-
-function Objective:advance(amount)
-    self.current = self.current + (amount or 1)
-end
-
-function Objective:isCompleted()
-    return self.current >= self.required
 end
 
 return Objective

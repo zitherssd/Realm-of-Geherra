@@ -38,13 +38,13 @@ function QuestAvailabilitySystem.hasQuestPoolForNpc(npc)
 end
 
 local function getActiveQuest(instanceId)
-    local active = GameContext.data.activeQuests
-    return active and active[instanceId] or nil
+    local quest = QuestSystem.findQuestByInstanceId(instanceId)
+    return quest and quest.state == "active" and quest or nil
 end
 
 local function getCompletedQuest(instanceId)
-    local completed = GameContext.data.completedQuests
-    return completed and completed[instanceId] or nil
+    local quest = QuestSystem.findQuestByInstanceId(instanceId)
+    return quest and quest.state == "completed" and quest or nil
 end
 
 local function ensureOfferState(npc)
