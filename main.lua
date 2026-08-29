@@ -6,10 +6,10 @@ end
 
 
 -- Core Framework
-local GameManager = require("core.game")
-local StateManager = require("core.state_manager")
-local EventBus = require("core.event_bus")
-local Input = require("core.input")
+local GameManager = require("src.core.game")
+local StateManager = require("src.core.state_manager")
+local EventBus = require("src.core.event_bus")
+local Input = require("src.core.input")
 
 -- Initialize
 function love.load()
