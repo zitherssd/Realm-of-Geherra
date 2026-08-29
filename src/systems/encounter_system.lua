@@ -17,7 +17,7 @@ local TimeSystem = require("src.systems.time_system")
 local EventBus = require("src.core.event_bus")
 local EcsWorld = require("src.ecs.world")
 local Party = require("src.ecs.assemblages.party")
-local Troop = require("src.ecs.assemblages.troop")
+local Unit = require("src.ecs.assemblages.unit")
 local PartySystem = require("src.systems.party_system")
 
 local EncounterSystem = {}
@@ -256,7 +256,7 @@ function EncounterSystem.spawnEncounterParty(template)
             for _, spec in ipairs(template.enemies or {}) do
                 local count = math.random(spec.min or 1, spec.max or 1)
                 for _ = 1, count do
-                    PartySystem.addActor(party, Troop.create(EcsWorld.campaign, spec.type))
+                    PartySystem.addActor(party, Unit.create(EcsWorld.campaign, spec.type))
                 end
             end
 

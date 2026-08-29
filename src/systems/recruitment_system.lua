@@ -5,7 +5,7 @@ local RecruitmentSystem = {}
 
 local RecruitmentData = require("src.data.recruitment")
 local EcsWorld = require("src.ecs.world")
-local Troop = require("src.ecs.assemblages.troop")
+local Unit = require("src.ecs.assemblages.unit")
 local PartySystem = require("src.systems.party_system")
 
 function RecruitmentSystem.roll(location)
@@ -44,7 +44,7 @@ end
 
 function RecruitmentSystem.hire(location, party, unitTypes)
     for i = 1, #unitTypes do
-        PartySystem.addActor(party, Troop.create(EcsWorld.campaign, unitTypes[i]))
+        PartySystem.addActor(party, Unit.create(EcsWorld.campaign, unitTypes[i]))
     end
 end
 

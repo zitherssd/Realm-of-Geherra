@@ -1,6 +1,6 @@
 local Location = require("src.world.location")
 local EcsWorld = require("src.ecs.world")
-local Troop = require("src.ecs.assemblages.troop")
+local Unit = require("src.ecs.assemblages.unit")
 local WorldGenerationConfig = require("src.data.world_generation")
 local LocationNpcSpawnRules = require("src.data.location_npc_spawn_rules")
 local NpcNamePools = require("src.data.npc_name_pools")
@@ -93,7 +93,7 @@ local function spawnLocationNpcs(location, locationType, rng, spawnRules)
 
         for _ = 1, count do
             if rng() <= chance then
-                local npc = Troop.create(EcsWorld.campaign, rule.troopType)
+                local npc = Unit.create(EcsWorld.campaign, rule.troopType)
                 npc:give("npc")
                 -- Assign a given-name + title (e.g. "Ion the Elder")
                 npc.name = generateNpcName(rule.troopType, rng)

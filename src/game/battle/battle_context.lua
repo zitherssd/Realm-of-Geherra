@@ -80,6 +80,7 @@ function BattleContext.removeDeadUnits()
             table.insert(BattleContext.data.casualties, unit)
             BattleContext.data.units[unit.id] = nil
             table.remove(units, i)
+            unit:destroy()
         end
     end
 end

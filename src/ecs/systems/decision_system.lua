@@ -1,17 +1,20 @@
--- systems/battle/decision_system.lua
+-- ecs/systems/decision_system.lua
 -- Determines intents for AI and processes Player commands
--- Executed once per battle tick (20Hz)
+-- Executed once per battle tick (20Hz) via EcsWorld.battle:emit("update", ...)
 
-local DecisionSystem = {}
+local Concord = require("src.libs.concord")
 local Skills = require("src.data.skills")
 local RangeUtils = require("src.systems.battle.range_utils")
+local BattleUnitSystem = require("src.systems.battle.battle_unit_system")
 
-function DecisionSystem.update(context)
-    local units = context.data.unitList
+local DecisionSystem = Concord.system({pool = {"battleUnit"}})
+
+function DecisionSystem:update(context)
+    local units = self.pool
     local playerCommand = context.data.playerCommand
 
     for _, unit in ipairs(units) do
-        if unit:canAct() and unit.intent == nil then
+        if BattleUnitSystem.canAct(unit) and unit.intent == nil then
             
             if unit.id == context.data.selectedUnitId then
                 -- Player Logic: Check for command

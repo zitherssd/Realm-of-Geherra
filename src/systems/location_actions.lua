@@ -8,7 +8,7 @@ local PartySystem = require("src.systems.party_system")
 local StateManager = require("src.core.state_manager")
 local EcsWorld = require("src.ecs.world")
 local Party = require("src.ecs.assemblages.party")
-local Troop = require("src.ecs.assemblages.troop")
+local Unit = require("src.ecs.assemblages.unit")
 local RecruitmentSystem = require("src.systems.recruitment_system")
 local TimeSystem = require("src.systems.time_system")
 local AttributeSystem = require("src.systems.attribute_system")
@@ -26,10 +26,10 @@ function LocationActions.exploreRuin(location)
     local swordCount = math.random(1, 4)
     local spearCount = math.random(1, 4)
     for _ = 1, swordCount do
-        PartySystem.addActor(enemyParty, Troop.create(EcsWorld.campaign, "skeleton_sword"))
+        PartySystem.addActor(enemyParty, Unit.create(EcsWorld.campaign, "skeleton_sword"))
     end
     for _ = 1, spearCount do
-        PartySystem.addActor(enemyParty, Troop.create(EcsWorld.campaign, "skeleton_spear"))
+        PartySystem.addActor(enemyParty, Unit.create(EcsWorld.campaign, "skeleton_spear"))
     end
 
     StateManager.swap("battle", {
@@ -125,7 +125,7 @@ function LocationActions.attackBanditCamp(location)
     local count = math.random(3, 6)
     local types = {"bandit", "bandit", "bandit", "bandit", "peasant"}
     for _ = 1, count do
-        PartySystem.addActor(enemyParty, Troop.create(EcsWorld.campaign, types[math.random(#types)]))
+        PartySystem.addActor(enemyParty, Unit.create(EcsWorld.campaign, types[math.random(#types)]))
     end
 
     StateManager.swap("battle", {

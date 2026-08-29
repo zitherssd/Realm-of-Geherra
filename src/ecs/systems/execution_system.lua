@@ -1,9 +1,11 @@
--- systems/battle/execution_system.lua
+-- ecs/systems/execution_system.lua
 -- Resolves intents, updates positions, and applies damage in world space.
 
-local ExecutionSystem = {}
+local Concord = require("src.libs.concord")
 local Skills = require("src.data.skills")
 local CombatSystem = require("src.systems.combat_system")
+
+local ExecutionSystem = Concord.system({pool = {"battleUnit"}})
 
 local WORLD_RANGE_SCALE = 42
 local PUSH_FACTOR = 0.35
@@ -147,8 +149,8 @@ function ExecutionSystem._resolveAoeAtPoint(attackerUnit, skillData, targetX, ta
     end
 end
 
-function ExecutionSystem.update(context)
-    local units = context.data.unitList
+function ExecutionSystem:update(context)
+    local units = self.pool
 
     -- 1. Decrement cooldowns and process casts/statuses.
     for _, unit in ipairs(units) do

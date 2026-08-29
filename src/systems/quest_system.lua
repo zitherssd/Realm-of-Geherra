@@ -10,7 +10,7 @@ local Quest = require("src.quests.quest")
 local Objective = require("src.quests.objective")
 local EcsWorld = require("src.ecs.world")
 local Party = require("src.ecs.assemblages.party")
-local Troop = require("src.ecs.assemblages.troop")
+local Unit = require("src.ecs.assemblages.unit")
 local PartySystem = require("src.systems.party_system")
 local Item = require("src.entities.item")
 local ItemsData = require("src.data.items")
@@ -538,7 +538,7 @@ function QuestSystem._handleQuestAction(action, quest)
             party.faction = action.faction or "bandits"
             
             for _, troopId in ipairs(action.troops or {}) do
-                PartySystem.addActor(party, Troop.create(EcsWorld.campaign, troopId))
+                PartySystem.addActor(party, Unit.create(EcsWorld.campaign, troopId))
             end
             
             local ox = action.offset and action.offset.x or 50

@@ -12,7 +12,7 @@ local GameInitializer = {}
 local GameContext = require("src.game.game_context")
 local EcsWorld = require("src.ecs.world")
 local Party = require("src.ecs.assemblages.party")
-local Troop = require("src.ecs.assemblages.troop")
+local Unit = require("src.ecs.assemblages.unit")
 local PartySystem = require("src.systems.party_system")
 local Items = require("src.data.items")
 local PaintedMapLoader = require("src.systems.painted_map_loader")
@@ -38,7 +38,7 @@ function GameInitializer.beginNewGame(options)
     GameContext.data.favor = 15
 
     -- Create player character
-    local player = Troop.create(world, "player")
+    local player = Unit.create(world, "player")
     player:give("player")
     player.attributes.shadowcraft = 2  -- Allow equipping poison dagger
     GameContext.setPlayer(player)
@@ -46,9 +46,9 @@ function GameInitializer.beginNewGame(options)
     -- Create player party
     local playerParty = Party.create(world, options.playerName or "Wanderer", player.id, "party_player")
     PartySystem.addActor(playerParty, player)
-    PartySystem.addActor(playerParty, Troop.create(world, "pelas_youth"))
-    PartySystem.addActor(playerParty, Troop.create(world, "pelas_tribesman"))
-    PartySystem.addActor(playerParty, Troop.create(world, "pelas_skirmisher"))
+    PartySystem.addActor(playerParty, Unit.create(world, "pelas_youth"))
+    PartySystem.addActor(playerParty, Unit.create(world, "pelas_tribesman"))
+    PartySystem.addActor(playerParty, Unit.create(world, "pelas_skirmisher"))
     PartySystem.addTreasury(playerParty, 50)
 
     -- Starter inventory (for testing).
@@ -91,7 +91,7 @@ function GameInitializer.finalizeNewGame(map, locations)
     -- Inject a debug trader into the starter location (for testing).
     -- Sells (and buys back) every item in data/items.lua.
     if DEBUG_TRADER_ENABLED and starterLocation then
-        local debugTrader = Troop.create(EcsWorld.campaign, "debug_trader")
+        local debugTrader = Unit.create(EcsWorld.campaign, "debug_trader")
         debugTrader.name = "Merchant of Everything"
         debugTrader.dialogueId = "debug_trader_greeting"
         debugTrader.buysFromPlayers = true
@@ -137,7 +137,7 @@ function GameInitializer._createStarterParties(map)
     local spawnY = firstLocation and (firstLocation.y + 60) or 350
 
     -- Create a bandit party
-    local banditLeader = Troop.create(EcsWorld.campaign, "bandit")
+    local banditLeader = Unit.create(EcsWorld.campaign, "bandit")
     
     local banditParty = Party.create(EcsWorld.campaign, "Forest Bandits", banditLeader.id)
     PartySystem.setPosition(banditParty, spawnX, spawnY)
@@ -145,9 +145,9 @@ function GameInitializer._createStarterParties(map)
     
     -- Add members
     PartySystem.addActor(banditParty, banditLeader)
-    PartySystem.addActor(banditParty, Troop.create(EcsWorld.campaign, "bandit"))
-    PartySystem.addActor(banditParty, Troop.create(EcsWorld.campaign, "bandit"))
-    PartySystem.addActor(banditParty, Troop.create(EcsWorld.campaign, "bandit"))
+    PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
+    PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
+    PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
 
     
     map:addParty(banditParty)

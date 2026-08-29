@@ -1,16 +1,16 @@
--- ecs/assemblages/troop.lua
+-- ecs/assemblages/unit.lua
 -- Assembles a living unit entity (player character, NPC, or troop) from a
 -- data/troops.lua template. There is no behavioral split between "player",
--- "npc", and "troop" beyond marker tags added by the caller -- all of them
+-- "npc", and "unit" beyond marker tags added by the caller -- all of them
 -- are hydrated the same way.
 
 local Concord = require("src.libs.concord")
 local TroopsData = require("src.data.troops")
 
-local function troopAssemblage(e, troopType, id)
+local function unitAssemblage(e, troopType, id)
     e.id = id or (tostring(os.time()) .. "-" .. tostring(math.random(10000, 99999)))
     e.troopType = troopType or "soldier"
-    e:give("troop")
+    e:give("unit")
 
     e.x, e.y = 0, 0
 
@@ -121,10 +121,10 @@ local function troopAssemblage(e, troopType, id)
     end
 end
 
-local Troop = {assemble = troopAssemblage}
+local Unit = {assemble = unitAssemblage}
 
-function Troop.create(world, troopType, id)
-    return Concord.entity(world):assemble(troopAssemblage, troopType, id)
+function Unit.create(world, troopType, id)
+    return Concord.entity(world):assemble(unitAssemblage, troopType, id)
 end
 
-return Troop
+return Unit

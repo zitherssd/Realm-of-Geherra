@@ -4,7 +4,9 @@
 
 local Input = require("src.core.input")
 local BattleContext = require("src.game.battle.battle_context")
-local BattleUnit = require("src.game.battle.battle_unit")
+local BattleUnit = require("src.ecs.assemblages.battle_unit")
+local BattleUnitSystem = require("src.systems.battle.battle_unit_system")
+local EcsWorld = require("src.ecs.world")
 local StateManager = require("src.core.state_manager")
 local Skills = require("src.data.skills")
 local LootGeneratorSystem = require("src.systems.loot_generator_system")
@@ -12,8 +14,8 @@ local EventBus = require("src.core.event_bus")
 local PartySystem = require("src.systems.party_system")
 local BattleState = {}
 
-local DecisionSystem = require("src.systems.battle.decision_system")
-local ExecutionSystem = require("src.systems.battle.execution_system")
+local DecisionSystem = require("src.ecs.systems.decision_system")
+local ExecutionSystem = require("src.ecs.systems.execution_system")
 local RenderSystem = require("src.systems.battle.render_system")
 
 local GameContext = require("src.game.game_context")
@@ -88,6 +90,9 @@ function BattleState.enter(params)
 
     BattleContext.init(WORLD_BOUNDS)
 
+    local battleWorld = EcsWorld.startBattle()
+    battleWorld:addSystems(DecisionSystem, ExecutionSystem)
+
     local playerParty = GameContext.data.playerParty
     if playerParty and playerParty.actors then
         local startX = 180
@@ -99,8 +104,8 @@ function BattleState.enter(params)
             local x = startX + math.floor((i - 1) / 5) * spacingX
             local y = startY + ((i - 1) % 5) * spacingY
 
-            local unit = BattleUnit.new(actor, x, y, "player")
-            unit:snapToWorld()
+            local unit = BattleUnit.create(battleWorld, actor, x, y, "player")
+            BattleUnitSystem.snapToWorld(unit)
             BattleContext.addUnit(unit)
 
             if i == 1 then
@@ -120,8 +125,8 @@ function BattleState.enter(params)
             local x = startX - math.floor((i - 1) / 5) * spacingX
             local y = startY + ((i - 1) % 5) * spacingY
 
-            local unit = BattleUnit.new(actor, x, y, "enemy")
-            unit:snapToWorld()
+            local unit = BattleUnit.create(battleWorld, actor, x, y, "enemy")
+            BattleUnitSystem.snapToWorld(unit)
             BattleContext.addUnit(unit)
         end
     end
@@ -130,6 +135,7 @@ end
 function BattleState.exit()
     BattleState.enemyParty = nil
     BattleState.onVictory = nil
+    EcsWorld.endBattle()
 end
 
 function BattleState.update(dt)
@@ -154,7 +160,7 @@ function BattleState.update(dt)
         BattleContext.data.inputCooldown = 0.2
     end
 
-    if playerUnit and playerUnit:canAct() then
+    if playerUnit and BattleUnitSystem.canAct(playerUnit) then
         if targetingMode then
             local dx, dy = 0, 0
             if Input.isKeyDown("w") or Input.isKeyDown("up") then dy = -1 end
@@ -262,7 +268,7 @@ function BattleState.update(dt)
     end
 
     local waitingForInput = false
-    if playerUnit and playerUnit:canAct() and not BattleContext.data.playerCommand then
+    if playerUnit and BattleUnitSystem.canAct(playerUnit) and not BattleContext.data.playerCommand then
         waitingForInput = true
     end
 
@@ -371,8 +377,7 @@ end
 function BattleState._tick()
     BattleContext.data.tick = BattleContext.data.tick + 1
 
-    DecisionSystem.update(BattleContext)
-    ExecutionSystem.update(BattleContext)
+    EcsWorld.battle:emit("update", BattleContext)
     BattleContext.removeDeadUnits()
 end
 
@@ -385,7 +390,7 @@ function BattleState.draw()
     love.graphics.print("Battle Tick: " .. tostring(BattleContext.data.tick), 10, 10)
 
     local playerUnit = BattleContext.data.units[BattleContext.data.selectedUnitId]
-    if playerUnit and playerUnit:canAct() and not BattleContext.data.playerCommand then
+    if playerUnit and BattleUnitSystem.canAct(playerUnit) and not BattleContext.data.playerCommand then
         love.graphics.setColor(1, 1, 0)
         love.graphics.print("Waiting for Input...", 10, 30)
     end
