@@ -1,6 +1,8 @@
 -- world/map.lua
 -- Individual map or location
 
+local PartySystem = require("src.systems.party_system")
+
 local Map = {}
 Map.__index = Map
 
@@ -330,7 +332,7 @@ function Map:drawParties(inverseScale)
             love.graphics.translate(party.x, party.y)
             love.graphics.scale(inverseScale)
 
-            local leader = party:getLeader()
+            local leader = PartySystem.getLeader(party)
             local spriteImg = leader and self:getSpriteImage(leader.sprite)
             if spriteImg then
                 drawMarkerSprite(spriteImg)

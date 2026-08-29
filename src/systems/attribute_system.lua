@@ -3,6 +3,7 @@
 
 local AttributeSystem = {}
 local GameContext = require("src.game.game_context")
+local PartySystem = require("src.systems.party_system")
 
 -- Checks if a single actor has the required attribute level
 function AttributeSystem.actorHasLevel(actor, attribute, level)
@@ -17,7 +18,7 @@ function AttributeSystem.playerHasLevel(attribute, level)
     local playerParty = GameContext.data.playerParty
     if not playerParty then return false end
 
-    local player = playerParty:getLeader() -- Assuming leader is the player character
+    local player = PartySystem.getLeader(playerParty) -- Assuming leader is the player character
     return AttributeSystem.actorHasLevel(player, attribute, level)
 end
 

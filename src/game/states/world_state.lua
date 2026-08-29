@@ -10,6 +10,7 @@ local Camera = require("src.world.camera")
 local TimeSystem = require("src.systems.time_system")
 local AttributeSystem = require("src.systems.attribute_system")
 local EncounterSystem = require("src.systems.encounter_system")
+local PartySystem = require("src.systems.party_system")
 
 local WorldState = {
     camera = nil,
@@ -49,7 +50,7 @@ local function healPartyOverTime(dt, multiplier)
     local secondsToFull = math.max(1, WorldState.passiveHealSecondsToFull)
     local appliedMultiplier = math.max(0, multiplier or 1)
 
-    for _, actor in ipairs(playerParty:getActors() or {}) do
+    for _, actor in ipairs(PartySystem.getActors(playerParty) or {}) do
         if actor and actor.stats and actor.stats.health then
             local maxHp = actor.maxHp or actor.stats.health
             local currentHp = actor.hp or maxHp
@@ -270,7 +271,7 @@ function WorldState.update(dt)
     
     -- Update party position based on input (biome modifies travel speed,
     -- and roads halve that biome penalty)
-    local currentX, currentY = playerParty:getPosition()
+    local currentX, currentY = PartySystem.getPosition(playerParty)
     local biomeId = WorldState.currentMap:getBiomeAt(currentX, currentY)
     local speedMod = speedWithRoad(WorldState.currentMap, biomeId, currentX, currentY)
     local newX = currentX + moveX * WorldState.playerPartySpeed * speedMod * dt
@@ -296,7 +297,7 @@ function WorldState.update(dt)
         end
     end
     
-    playerParty:setPosition(newX, newY)
+    PartySystem.setPosition(playerParty, newX, newY)
     
     -- Update camera to follow party
     WorldState.camera:update(dt, playerParty)
@@ -446,7 +447,7 @@ function WorldState.draw()
         local barW, barH = 200, 15
         
         -- 1. Party HP Bar
-        local partyHpPct = playerParty:getAveragePartyHp()
+        local partyHpPct = PartySystem.getAveragePartyHpPercent(playerParty)
         
         -- Background
         love.graphics.setColor(0.2, 0, 0, 1)

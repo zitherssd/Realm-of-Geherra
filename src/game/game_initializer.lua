@@ -10,8 +10,10 @@
 local GameInitializer = {}
 
 local GameContext = require("src.game.game_context")
-local Party = require("src.entities.party")
-local Troop = require("src.entities.troop")
+local EcsWorld = require("src.ecs.world")
+local Party = require("src.ecs.assemblages.party")
+local Troop = require("src.ecs.assemblages.troop")
+local PartySystem = require("src.systems.party_system")
 local Items = require("src.data.items")
 local PaintedMapLoader = require("src.systems.painted_map_loader")
 local LocationPopulationSystem = require("src.systems.location_population_system")
@@ -28,6 +30,7 @@ function GameInitializer.beginNewGame(options)
 
     -- Reset game context to clean state
     GameContext.init()
+    local world = EcsWorld.init()
 
     -- Set game options
     GameContext.data.difficulty = options.difficulty or "normal"
@@ -35,17 +38,18 @@ function GameInitializer.beginNewGame(options)
     GameContext.data.favor = 15
 
     -- Create player character
-    local player = Troop.new("player")
+    local player = Troop.create(world, "player")
+    player:give("player")
     player.attributes.shadowcraft = 2  -- Allow equipping poison dagger
     GameContext.setPlayer(player)
 
     -- Create player party
-    local playerParty = Party.new(options.playerName or "Wanderer", player.id, "party_player")
-    playerParty:addActor(player)
-    playerParty:addActor(Troop.new("pelas_youth"))
-    playerParty:addActor(Troop.new("pelas_tribesman"))
-    playerParty:addActor(Troop.new("pelas_skirmisher"))
-    playerParty:addTreasury(50)
+    local playerParty = Party.create(world, options.playerName or "Wanderer", player.id, "party_player")
+    PartySystem.addActor(playerParty, player)
+    PartySystem.addActor(playerParty, Troop.create(world, "pelas_youth"))
+    PartySystem.addActor(playerParty, Troop.create(world, "pelas_tribesman"))
+    PartySystem.addActor(playerParty, Troop.create(world, "pelas_skirmisher"))
+    PartySystem.addTreasury(playerParty, 50)
 
     -- Starter inventory (for testing).
     -- Handed out as fresh copies so the shared data/items.lua catalog is never mutated.
@@ -56,7 +60,7 @@ function GameInitializer.beginNewGame(options)
     }
     for _, itemId in ipairs(starterItems) do
         if Items[itemId] then
-            playerParty:addItemDefCopy(Items[itemId], 1)
+            PartySystem.addItemDefCopy(playerParty, Items[itemId], 1)
         end
     end
 
@@ -79,15 +83,15 @@ function GameInitializer.finalizeNewGame(map, locations)
 
     if starterLocation then
         local px, py = map:nearestWalkable(starterLocation.x + 24, starterLocation.y + 24)
-        playerParty:setPosition(px, py)
+        PartySystem.setPosition(playerParty, px, py)
     else
-        playerParty:setPosition(512, 512)
+        PartySystem.setPosition(playerParty, 512, 512)
     end
 
     -- Inject a debug trader into the starter location (for testing).
     -- Sells (and buys back) every item in data/items.lua.
     if DEBUG_TRADER_ENABLED and starterLocation then
-        local debugTrader = Troop.new("debug_trader")
+        local debugTrader = Troop.create(EcsWorld.campaign, "debug_trader")
         debugTrader.name = "Merchant of Everything"
         debugTrader.dialogueId = "debug_trader_greeting"
         debugTrader.buysFromPlayers = true
@@ -133,17 +137,17 @@ function GameInitializer._createStarterParties(map)
     local spawnY = firstLocation and (firstLocation.y + 60) or 350
 
     -- Create a bandit party
-    local banditLeader = Troop.new("bandit")
+    local banditLeader = Troop.create(EcsWorld.campaign, "bandit")
     
-    local banditParty = Party.new("Forest Bandits", banditLeader.id)
-    banditParty:setPosition(spawnX, spawnY)
+    local banditParty = Party.create(EcsWorld.campaign, "Forest Bandits", banditLeader.id)
+    PartySystem.setPosition(banditParty, spawnX, spawnY)
     banditParty.faction = "bandits"
     
     -- Add members
-    banditParty:addActor(banditLeader)
-    banditParty:addActor(Troop.new("bandit"))
-    banditParty:addActor(Troop.new("bandit"))
-    banditParty:addActor(Troop.new("bandit"))
+    PartySystem.addActor(banditParty, banditLeader)
+    PartySystem.addActor(banditParty, Troop.create(EcsWorld.campaign, "bandit"))
+    PartySystem.addActor(banditParty, Troop.create(EcsWorld.campaign, "bandit"))
+    PartySystem.addActor(banditParty, Troop.create(EcsWorld.campaign, "bandit"))
 
     
     map:addParty(banditParty)

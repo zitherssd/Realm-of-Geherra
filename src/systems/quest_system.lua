@@ -8,8 +8,10 @@ local GameContext = require("src.game.game_context")
 local EventBus = require("src.core.event_bus")
 local Quest = require("src.quests.quest")
 local Objective = require("src.quests.objective")
-local Party = require("src.entities.party")
-local Troop = require("src.entities.troop")
+local EcsWorld = require("src.ecs.world")
+local Party = require("src.ecs.assemblages.party")
+local Troop = require("src.ecs.assemblages.troop")
+local PartySystem = require("src.systems.party_system")
 local Item = require("src.entities.item")
 local ItemsData = require("src.data.items")
 local ReputationSystem = require("src.systems.reputation_system")
@@ -31,7 +33,7 @@ local function _grantItemRewards(playerParty, itemsReward)
                     item.weight = itemData.weight or 1.0
                     item.value = itemData.value or 0
                     item.quantity = quantity
-                    playerParty:addToInventory(item)
+                    PartySystem.addToInventory(playerParty, item)
                 end
             end
         end
@@ -47,7 +49,7 @@ local function _grantItemRewards(playerParty, itemsReward)
             item.weight = itemData.weight or 1.0
             item.value = itemData.value or 0
             item.quantity = quantity or 1
-            playerParty:addToInventory(item)
+            PartySystem.addToInventory(playerParty, item)
         end
     end
 end
@@ -392,7 +394,7 @@ function QuestSystem.completeQuest(questId)
     if rewards then
         local playerParty = GameContext.data.playerParty
         if rewards.gold and playerParty then
-            playerParty:addTreasury(rewards.gold)
+            PartySystem.addTreasury(playerParty, rewards.gold)
         end
 
         if rewards.favor then
@@ -531,17 +533,17 @@ function QuestSystem._handleQuestAction(action, quest)
         if playerParty and map then
             local basePartyId = action.partyId or "quest_party"
             local runtimePartyId = string.format("%s__%s", basePartyId, quest.instanceId)
-            local party = Party.new(action.name, nil, runtimePartyId)
+            local party = Party.create(EcsWorld.campaign, action.name, nil, runtimePartyId)
             print(string.format("QuestSystem: Spawning quest party '%s' with ID: '%s'", party.name, party.id))
             party.faction = action.faction or "bandits"
             
             for _, troopId in ipairs(action.troops or {}) do
-                party:addActor(Troop.new(troopId))
+                PartySystem.addActor(party, Troop.create(EcsWorld.campaign, troopId))
             end
             
             local ox = action.offset and action.offset.x or 50
             local oy = action.offset and action.offset.y or 0
-            party:setPosition(playerParty.x + ox, playerParty.y + oy)
+            PartySystem.setPosition(party, playerParty.x + ox, playerParty.y + oy)
             
             map:addParty(party)
             table.insert(quest.spawnedPartyIds, party.id)
@@ -558,7 +560,7 @@ function QuestSystem._handleQuestAction(action, quest)
                 item.weight = itemData.weight or 1.0
                 item.value = itemData.value or 0
                 item.quantity = action.quantity or 1
-                playerParty:addToInventory(item)
+                PartySystem.addToInventory(playerParty, item)
                 print(string.format("QuestSystem: Granted item '%s' (x%d) for quest '%s'", action.itemId, action.quantity or 1, quest.instanceId))
             end
         end

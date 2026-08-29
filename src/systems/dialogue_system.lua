@@ -9,6 +9,7 @@
 --   if = "gold >= 100"            (checks a numeric condition)
 
 local GameContext = require("src.game.game_context")
+local PartySystem = require("src.systems.party_system")
 
 local DialogueSystem = {}
 
@@ -44,7 +45,7 @@ function DialogueSystem.evaluateCondition(condition)
         local actual
         if key == "gold" then
             local playerParty = GameContext.data.playerParty
-            actual = playerParty and playerParty:getTreasury() or 0
+            actual = playerParty and PartySystem.getTreasury(playerParty) or 0
         elseif key == "favor" then
             actual = GameContext.data.favor or 0
         else
@@ -95,9 +96,9 @@ function DialogueSystem.applySet(setTable)
                     local playerParty = GameContext.data.playerParty
                     if playerParty then
                         if op == "-" then
-                            playerParty:addTreasury(-numAmount)
+                            PartySystem.addTreasury(playerParty, -numAmount)
                         else
-                            playerParty:addTreasury(numAmount)
+                            PartySystem.addTreasury(playerParty, numAmount)
                         end
                     end
                 elseif varName == "favor" then

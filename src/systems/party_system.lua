@@ -1,11 +1,25 @@
 -- systems/party_system.lua
--- Handle party-level mechanics: membership, movement, stats aggregation
+-- Handle party-level mechanics: membership, movement, resources, stats aggregation
 
 local PartySystem = {}
 
-local GameContext = require("src.game.game_context")
+-- Try to stack an item with an existing entry of the same id in a list.
+-- Returns true when merged; false when the caller should insert the item.
+local function mergeIntoStack(list, item)
+    for _, existing in ipairs(list) do
+        if existing.id == item.id then
+            if type(existing.addToStack) == "function" then
+                existing:addToStack(item.quantity or 1)
+            else
+                existing.quantity = (existing.quantity or 1) + (item.quantity or 1)
+            end
+            return true
+        end
+    end
+    return false
+end
 
--- Add an actor to a party
+-- Add an actor to a party (first member added becomes leader by default)
 function PartySystem.addActor(party, actor)
     if not party or not actor then return false end
     
@@ -17,7 +31,124 @@ function PartySystem.addActor(party, actor)
     end
     
     table.insert(party.actors, actor)
+
+    if party.leaderId == nil then
+        party.leaderId = actor.id
+    end
+
     return true
+end
+
+-- Remove a specific actor entity from a party
+function PartySystem.removeActor(party, actor)
+    if not party then return false end
+
+    for i, a in ipairs(party.actors) do
+        if a == actor then
+            table.remove(party.actors, i)
+
+            if party.leaderId == actor.id then
+                party.leaderId = party.actors[1] and party.actors[1].id or nil
+            end
+            return true
+        end
+    end
+    return false
+end
+
+-- True when the given actor entity is a member of the party
+function PartySystem.hasActor(party, actor)
+    if not party then return false end
+    for _, a in ipairs(party.actors) do
+        if a == actor then
+            return true
+        end
+    end
+    return false
+end
+
+-- Get the party's position
+function PartySystem.getPosition(party)
+    return party.x, party.y
+end
+
+-- Set the party's position
+function PartySystem.setPosition(party, x, y)
+    party.x = x
+    party.y = y
+end
+
+-- Add an already-instantiated item table to the party inventory, merging into
+-- an existing stack of the same id when present.
+function PartySystem.addToInventory(party, item)
+    if not mergeIntoStack(party.inventory, item) then
+        table.insert(party.inventory, item)
+    end
+end
+
+-- Add a fresh, independent copy of an item definition (e.g. Items[itemId]) to
+-- the party inventory. Never stores a reference to the shared data/items.lua
+-- catalog tables, and merges into an existing stack of the same id when present.
+function PartySystem.addItemDefCopy(party, itemDef, quantity)
+    quantity = quantity or 1
+    if quantity <= 0 then return end
+
+    local copy = {}
+    for k, v in pairs(itemDef or {}) do
+        copy[k] = v
+    end
+    copy.quantity = quantity
+
+    if not mergeIntoStack(party.inventory, copy) then
+        table.insert(party.inventory, copy)
+    end
+end
+
+-- Remove an item from the party inventory by index, returning the removed item
+function PartySystem.removeFromInventory(party, itemIndex)
+    if itemIndex >= 1 and itemIndex <= #party.inventory then
+        local item = party.inventory[itemIndex]
+        table.remove(party.inventory, itemIndex)
+        return item
+    end
+    return nil
+end
+
+-- Add currency to the party treasury
+function PartySystem.addTreasury(party, amount)
+    party.treasury = party.treasury + amount
+end
+
+-- Withdraw currency from the party treasury; false if insufficient funds
+function PartySystem.withdrawTreasury(party, amount)
+    if party.treasury >= amount then
+        party.treasury = party.treasury - amount
+        return true
+    end
+    return false
+end
+
+-- Get the party treasury balance
+function PartySystem.getTreasury(party)
+    return party.treasury
+end
+
+-- Set/get the party's current objective
+function PartySystem.setObjective(party, objective)
+    party.currentObjective = objective
+end
+
+function PartySystem.getObjective(party)
+    return party.currentObjective
+end
+
+-- Adjust/get morale (clamped 0-100)
+function PartySystem.adjustMorale(party, amount)
+    party.morale = math.max(0, math.min(100, party.morale + amount))
+end
+
+function PartySystem.getMorale(party)
+    return party.morale
 end
 
 -- Remove an actor from a party
@@ -87,6 +218,22 @@ function PartySystem.getPartyVisibility(party)
     return visibility
 end
 
+-- Average HP percentage (0.0-1.0) across all party members, for HUD bars
+function PartySystem.getAveragePartyHpPercent(party)
+    if not party or #party.actors == 0 then return 1 end
+
+    local totalCurrent, totalMax = 0, 0
+    for _, actor in ipairs(party.actors) do
+        local max = actor.maxHp or (actor.stats and actor.stats.health) or 100
+        local current = actor.hp or max
+        totalCurrent = totalCurrent + current
+        totalMax = totalMax + max
+    end
+
+    if totalMax <= 0 then return 1 end
+    return math.max(0, math.min(1, totalCurrent / totalMax))
+end
+
 -- Calculate party's military strength rating
 function PartySystem.getPartyStrength(party)
     if not party or #party.actors == 0 then return 0 end
@@ -141,10 +288,15 @@ function PartySystem.setLeader(party, actorId)
     return false  -- Actor not in party
 end
 
--- Get the party leader
+-- Get the party leader's actor entity (nil if no leader assigned)
 function PartySystem.getLeader(party)
-    if not party then return nil end
-    return party.leaderId
+    if not party or not party.leaderId then return nil end
+    for _, actor in ipairs(party.actors) do
+        if actor.id == party.leaderId then
+            return actor
+        end
+    end
+    return nil
 end
 
 

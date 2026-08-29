@@ -6,8 +6,9 @@ local LocationActions = {}
 local GameContext = require("src.game.game_context")
 local PartySystem = require("src.systems.party_system")
 local StateManager = require("src.core.state_manager")
-local Party = require("src.entities.party")
-local Troop = require("src.entities.troop")
+local EcsWorld = require("src.ecs.world")
+local Party = require("src.ecs.assemblages.party")
+local Troop = require("src.ecs.assemblages.troop")
 local RecruitmentSystem = require("src.systems.recruitment_system")
 local TimeSystem = require("src.systems.time_system")
 local AttributeSystem = require("src.systems.attribute_system")
@@ -19,16 +20,16 @@ LocationActions.ROLL_FAVOR_COST = 5
 LocationActions.HIRE_FAVOR_COST = 30
 
 function LocationActions.exploreRuin(location)
-    local enemyParty = Party.new("Ruin Guardians", nil)
+    local enemyParty = Party.create(EcsWorld.campaign, "Ruin Guardians", nil)
     enemyParty.faction = "undead"
 
     local swordCount = math.random(1, 4)
     local spearCount = math.random(1, 4)
     for _ = 1, swordCount do
-        enemyParty:addActor(Troop.new("skeleton_sword"))
+        PartySystem.addActor(enemyParty, Troop.create(EcsWorld.campaign, "skeleton_sword"))
     end
     for _ = 1, spearCount do
-        enemyParty:addActor(Troop.new("skeleton_spear"))
+        PartySystem.addActor(enemyParty, Troop.create(EcsWorld.campaign, "skeleton_spear"))
     end
 
     StateManager.swap("battle", {
@@ -118,13 +119,13 @@ function LocationActions.trainTroops(location)
 end
 
 function LocationActions.attackBanditCamp(location)
-    local enemyParty = Party.new("Bandit Defenders", nil)
+    local enemyParty = Party.create(EcsWorld.campaign, "Bandit Defenders", nil)
     enemyParty.faction = "bandits"
 
     local count = math.random(3, 6)
     local types = {"bandit", "bandit", "bandit", "bandit", "peasant"}
     for _ = 1, count do
-        enemyParty:addActor(Troop.new(types[math.random(#types)]))
+        PartySystem.addActor(enemyParty, Troop.create(EcsWorld.campaign, types[math.random(#types)]))
     end
 
     StateManager.swap("battle", {
@@ -308,13 +309,13 @@ function LocationActions.payForTavernRest(location, cost)
     end
 
     local restCost = math.max(0, tonumber(cost) or DEFAULT_TAVERN_REST_COST)
-    local currentGold = playerParty:getTreasury()
+    local currentGold = PartySystem.getTreasury(playerParty)
 
     if currentGold < restCost then
         return false, string.format("You need %d gold to rest, but only have %d.", restCost, currentGold)
     end
 
-    playerParty:withdrawTreasury(restCost)
+    PartySystem.withdrawTreasury(playerParty, restCost)
 
     local locationName = (location and location.name) or "the tavern"
     return true, string.format("You pay %d gold and rest at %s.", restCost, locationName)

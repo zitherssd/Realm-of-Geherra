@@ -8,6 +8,7 @@ ShopScreen.__index = ShopScreen
 local Button = require("src.ui.widgets.button")
 local Tooltip = require("src.ui.widgets.tooltip")
 local InventoryGrid = require("src.ui.widgets.inventory_grid")
+local PartySystem = require("src.systems.party_system")
 
 -- Add one unit of an item definition to a merchant's stock, stacking onto an
 -- existing entry with the same id. Used when selling so the item goes into the
@@ -69,7 +70,7 @@ function ShopScreen.new(playerParty, merchant, onClose)
         {
             title = "Your Inventory",
             capacity = "Capacity",
-            gold = function() return self.playerParty:getTreasury() or 0 end
+            gold = function() return PartySystem.getTreasury(self.playerParty) or 0 end
         }
     )
     self.invGrid:enableScroll()
@@ -101,14 +102,14 @@ function ShopScreen:buyItem(index)
     if not item then return false end
 
     local price = item.value or 0
-    if not self.playerParty:withdrawTreasury(price) then
+    if not PartySystem.withdrawTreasury(self.playerParty, price) then
         self.lastMessage = "You can't afford " .. (item.name or "that") .. "."
         self.lastMessageTimer = 2.5
         return false
     end
 
     -- Give the player a fresh copy of the item
-    self.playerParty:addItemDefCopy(item, 1)
+    PartySystem.addItemDefCopy(self.playerParty, item, 1)
 
     -- Deplete the merchant's stock
     if item.quantity and item.quantity > 1 then
@@ -140,7 +141,7 @@ function ShopScreen:sellItem(index)
     -- The sold item goes into the merchant's stock
     addToStock(self.merchantStock, item)
 
-    self.playerParty:addTreasury(price)
+    PartySystem.addTreasury(self.playerParty, price)
     self.lastMessage = "Sold " .. (item.name or "item") .. " for " .. price .. " gold."
     self.lastMessageTimer = 2.5
     return true

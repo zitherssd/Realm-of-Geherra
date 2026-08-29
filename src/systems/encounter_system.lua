@@ -15,8 +15,10 @@ local GameContext = require("src.game.game_context")
 local EncounterData = require("src.data.encounters")
 local TimeSystem = require("src.systems.time_system")
 local EventBus = require("src.core.event_bus")
-local Party = require("src.entities.party")
-local Troop = require("src.entities.troop")
+local EcsWorld = require("src.ecs.world")
+local Party = require("src.ecs.assemblages.party")
+local Troop = require("src.ecs.assemblages.troop")
+local PartySystem = require("src.systems.party_system")
 
 local EncounterSystem = {}
 
@@ -61,7 +63,7 @@ local function partyPower()
     end
 
     local power = 0
-    for _, actor in ipairs(playerParty:getActors() or {}) do
+    for _, actor in ipairs(PartySystem.getActors(playerParty) or {}) do
         local stats = actor.stats or {}
         power = power + (actor.maxHp or stats.health or 0)
         power = power + (stats.attack or 0)
@@ -132,7 +134,7 @@ function EncounterSystem.computeThreat()
     end
 
     local config = EncounterData.config or {}
-    local px, py = playerParty:getPosition()
+    local px, py = PartySystem.getPosition(playerParty)
 
     -- 1. Biome contribution (roads halve it).
     local biomeId = map:getBiomeAt(px, py)
@@ -216,7 +218,7 @@ function EncounterSystem.spawnEncounterParty(template)
     end
 
     local config = EncounterData.config or {}
-    local px, py = playerParty:getPosition()
+    local px, py = PartySystem.getPosition(playerParty)
     local minLocationDist = config.minDistFromLocation or 200
     local minPartyDist = config.minDistFromParty or 120
 
@@ -244,17 +246,17 @@ function EncounterSystem.spawnEncounterParty(template)
         end
 
         if not tooCloseToLocation and not blockedByParty then
-            local party = Party.new(template.name or "Wild Encounter", nil)
+            local party = Party.create(EcsWorld.campaign, template.name or "Wild Encounter", nil)
             party.faction = template.faction or "neutral"
             party.hostile = template.hostile ~= false
             party.isEncounter = true
             party.dialogueId = template.dialogueId or "encounter_ambush"
-            party:setPosition(sx, sy)
+            PartySystem.setPosition(party, sx, sy)
 
             for _, spec in ipairs(template.enemies or {}) do
                 local count = math.random(spec.min or 1, spec.max or 1)
                 for _ = 1, count do
-                    party:addActor(Troop.new(spec.type))
+                    PartySystem.addActor(party, Troop.create(EcsWorld.campaign, spec.type))
                 end
             end
 

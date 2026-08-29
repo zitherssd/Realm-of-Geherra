@@ -13,6 +13,7 @@ local LocationActions = require("src.systems.location_actions")
 local QuestSystem = require("src.systems.quest_system")
 local QuestAvailabilitySystem = require("src.systems.quest_availability_system")
 local RelationshipSystem = require("src.systems.relationship_system")
+local PartySystem = require("src.systems.party_system")
 -- npc_introductions was removed — all introductions now use introDialogue in dialogue trees
 local GameContext = require("src.game.game_context")
 local WorldState = require("src.game.states.world_state")
@@ -201,8 +202,8 @@ local function buildSpeakerRefFromTarget(target)
         return speakerRef
     end
 
-    if target.getLeader then
-        local leader = target:getLeader()
+    if target:has("party") then
+        local leader = PartySystem.getLeader(target)
         if leader then
             speakerRef.id = leader.id
             speakerRef.name = leader.name
@@ -321,8 +322,8 @@ local function resolveSpeaker(target, dialogueTree)
     local speakerId
 
     if target then
-        if target.getLeader then
-            local leader = target:getLeader()
+        if target:has("party") then
+            local leader = PartySystem.getLeader(target)
             if leader then
                 speakerName = leader.name
                 speakerId = leader.id
@@ -399,8 +400,8 @@ local function handleDialogueAction(choice, context)
     elseif choice.action == "buy_drink" then
         local playerParty = GameContext.data.playerParty
         local cost = choice.cost or 5
-        if playerParty and playerParty:getTreasury() >= cost then
-            playerParty:withdrawTreasury(cost)
+        if playerParty and PartySystem.getTreasury(playerParty) >= cost then
+            PartySystem.withdrawTreasury(playerParty, cost)
             StateManager.swap("dialogue", {
                 dialogueTree = buildSystemDialogueTree("You slide " .. cost .. " gold across the worn counter. The tavern keeper fills a clay mug and pushes it toward you. The ale is dark, bitter, and welcome.", nil, "Tavern Keeper"),
                 location = location,
@@ -503,8 +504,8 @@ function DialogueState.enter(params)
 
     -- Expose NPC sprite for the portrait
     if target then
-        if target.getLeader then
-            local leader = target:getLeader()
+        if target:has("party") then
+            local leader = PartySystem.getLeader(target)
             if leader and leader.sprite then
                 options.npcSprite = leader.sprite
             end

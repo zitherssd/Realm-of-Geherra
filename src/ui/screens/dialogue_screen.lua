@@ -6,6 +6,7 @@
 local DialogueScreen = {}
 local Input = require("src.core.input")
 local GameContext = require("src.game.game_context")
+local PartySystem = require("src.systems.party_system")
 
 DialogueScreen.__index = DialogueScreen
 
@@ -211,7 +212,7 @@ function DialogueScreen:draw()
     -- Draw gold if enabled
     if self.options.showGold then
         local playerParty = GameContext.data.playerParty
-        local gold = playerParty and playerParty:getTreasury() or 0
+        local gold = playerParty and PartySystem.getTreasury(playerParty) or 0
         love.graphics.setColor(1, 0.85, 0.2, 1)
         love.graphics.setFont(self.smallFont)
         local goldY = self.options.showFavor and (screenH - 225) or (screenH - 200)

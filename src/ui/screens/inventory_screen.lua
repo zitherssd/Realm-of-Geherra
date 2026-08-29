@@ -11,6 +11,7 @@ local AttributesPanel = require("src.ui.widgets.attributes_panel")
 local Button = require("src.ui.widgets.button")
 local Tooltip = require("src.ui.widgets.tooltip")
 local EquipmentSystem = require("src.systems.equipment_system")
+local PartySystem = require("src.systems.party_system")
 local GameContext = require("src.game.game_context")
 local Items = require("src.data.items")
 
@@ -30,7 +31,7 @@ function InventoryScreen.new(party, onClose)
     -- Identify Commanders (Player + Companions)
     self.commanders = {}
     for _, actor in ipairs(party.actors) do
-        if actor:hasTag("player") or actor:hasTag("companion") then
+        if actor:has("player") then
             table.insert(self.commanders, actor)
         end
     end
@@ -371,7 +372,7 @@ function InventoryScreen:_clickEquipFromInventory(index)
         table.remove(self.party.inventory, index)
     end
     if unequippedId and Items[unequippedId] then
-        self.party:addItemDefCopy(Items[unequippedId], 1)
+        PartySystem.addItemDefCopy(self.party, Items[unequippedId], 1)
     end
 
     self.navMode = "equipment"
@@ -388,7 +389,7 @@ function InventoryScreen:_clickUnequipSlot(slotId)
     if not self.actor then return false end
     local itemId = EquipmentSystem.unequip(self.actor, slotId)
     if itemId and Items[itemId] then
-        self.party:addItemDefCopy(Items[itemId], 1)
+        PartySystem.addItemDefCopy(self.party, Items[itemId], 1)
         self.navMode = "inventory"
         self.selectedInventoryIndex = #self.party.inventory
         return true
@@ -476,7 +477,7 @@ function InventoryScreen:mousereleased(x, y, button)
                             table.remove(self.party.inventory, self.dragging.index)
                         end
                         if unequippedId and Items[unequippedId] then
-                            self.party:addItemDefCopy(Items[unequippedId], 1)
+                            PartySystem.addItemDefCopy(self.party, Items[unequippedId], 1)
                         end
                         handled = true
                     end

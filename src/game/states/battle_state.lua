@@ -314,7 +314,7 @@ function BattleState.checkBattleEnd()
         local playerParty = GameContext.data.playerParty
 
         if playerAlive and playerParty and generatedGold > 0 then
-            playerParty:addTreasury(generatedGold)
+            PartySystem.addTreasury(playerParty, generatedGold)
         end
 
         for _, unit in pairs(BattleContext.data.units) do

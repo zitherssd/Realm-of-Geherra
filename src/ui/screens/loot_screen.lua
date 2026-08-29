@@ -6,6 +6,7 @@ local Button = require("src.ui.widgets.button")
 local Tooltip = require("src.ui.widgets.tooltip")
 local InventoryGrid = require("src.ui.widgets.inventory_grid")
 local GameContext = require("src.game.game_context")
+local PartySystem = require("src.systems.party_system")
 
 function LootScreen.new(loot, onContinue)
     local self = setmetatable({}, { __index = LootScreen })
@@ -24,7 +25,7 @@ function LootScreen.new(loot, onContinue)
     
     -- Initialize Grids
     self.lootGrid = InventoryGrid.new("Loot", self.loot, 50, 80, self.width - 100, 200, 128, function(item, index)
-        GameContext.data.playerParty:addToInventory(item)
+        PartySystem.addToInventory(GameContext.data.playerParty, item)
         table.remove(self.loot, index)
     end)
     
@@ -36,7 +37,7 @@ end
 function LootScreen:takeAll()
     for i = #self.loot, 1, -1 do
         local item = self.loot[i]
-        GameContext.data.playerParty:addToInventory(item)
+        PartySystem.addToInventory(GameContext.data.playerParty, item)
         table.remove(self.loot, i)
     end
 end
