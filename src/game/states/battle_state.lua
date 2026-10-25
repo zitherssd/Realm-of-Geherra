@@ -3,10 +3,8 @@
 -- Manages the battle loop with a fixed timestep (tick system)
 
 local Input = require("src.core.input")
-local BattleContext = require("src.game.battle.battle_context")
-local BattleUnit = require("src.ecs.assemblages.battle_unit")
+local BattleSimulation = require("src.game.battle.battle_simulation")
 local BattleUnitSystem = require("src.systems.battle.battle_unit_system")
-local EcsWorld = require("src.ecs.world")
 local StateManager = require("src.core.state_manager")
 local Skills = require("src.data.skills")
 local LootGeneratorSystem = require("src.systems.loot_generator_system")
@@ -15,8 +13,6 @@ local PartySystem = require("src.systems.party_system")
 local PlayerSystem = require("src.systems.player_system")
 local BattleState = {}
 
-local DecisionSystem = require("src.ecs.systems.decision_system")
-local ExecutionSystem = require("src.ecs.systems.execution_system")
 local RenderSystem = require("src.systems.battle.render_system")
 
 local GameContext = require("src.game.game_context")
@@ -24,10 +20,7 @@ local RangeUtils = require("src.systems.battle.range_utils")
 
 local TICK_RATE = 1 / 20
 local MAX_FRAME_SKIP = 5
-local WORLD_BOUNDS = {
-    width = 1260,
-    height = 546
-}
+local BattleContext
 
 local function isTargetedAoeSkill(skillData)
     return skillData and skillData.type == "aoe" and skillData.targeted == true
@@ -87,56 +80,23 @@ function BattleState.enter(params)
     local enemyParty = params.enemyParty
     BattleState.enemyParty = enemyParty
     BattleState.onVictory = params.onVictory
+    BattleState.onComplete = params.onComplete
     print(string.format("BattleState: Battle started against party ID: '%s'", tostring(enemyParty and enemyParty.id)))
 
-    BattleContext.init(WORLD_BOUNDS)
-
-    local battleWorld = EcsWorld.startBattle()
-    battleWorld:addSystems(DecisionSystem, ExecutionSystem)
-
     local playerParty = GameContext.data.playerParty
-    if playerParty and playerParty.actors then
-        local startX = 180
-        local startY = 120
-        local spacingX = 72
-        local spacingY = 78
-
-        for i, actor in ipairs(playerParty.actors) do
-            local x = startX + math.floor((i - 1) / 5) * spacingX
-            local y = startY + ((i - 1) % 5) * spacingY
-
-            local unit = BattleUnit.create(battleWorld, actor, x, y, "player")
-            BattleUnitSystem.snapToWorld(unit)
-            BattleContext.addUnit(unit)
-
-            if i == 1 then
-                BattleContext.data.selectedUnitId = unit.id
-                BattleContext.data.playerUnit = unit
-            end
-        end
-    end
-
-    if enemyParty and enemyParty.actors then
-        local startX = WORLD_BOUNDS.width - 180
-        local startY = 120
-        local spacingX = 72
-        local spacingY = 78
-
-        for i, actor in ipairs(enemyParty.actors) do
-            local x = startX - math.floor((i - 1) / 5) * spacingX
-            local y = startY + ((i - 1) % 5) * spacingY
-
-            local unit = BattleUnit.create(battleWorld, actor, x, y, "enemy")
-            BattleUnitSystem.snapToWorld(unit)
-            BattleContext.addUnit(unit)
-        end
-    end
+    BattleState.simulation = BattleSimulation.new(playerParty, enemyParty, true)
+    BattleContext = BattleState.simulation.context
 end
 
 function BattleState.exit()
     BattleState.enemyParty = nil
     BattleState.onVictory = nil
-    EcsWorld.endBattle()
+    BattleState.onComplete = nil
+    if BattleState.simulation then
+        BattleState.simulation:destroy()
+        BattleState.simulation = nil
+    end
+    BattleContext = nil
 end
 
 function BattleState.update(dt)
@@ -173,8 +133,9 @@ function BattleState.update(dt)
                 local target = BattleContext.data.targetingPoint
                 if target then
                     local step = 28
-                    local tx = math.max(0, math.min(WORLD_BOUNDS.width, target.x + dx * step))
-                    local ty = math.max(0, math.min(WORLD_BOUNDS.height, target.y + dy * step))
+                    local bounds = BattleContext.data.bounds
+                    local tx = math.max(0, math.min(bounds.width, target.x + dx * step))
+                    local ty = math.max(0, math.min(bounds.height, target.y + dy * step))
                     BattleContext.data.targetingPoint = {x = tx, y = ty}
                     BattleContext.data.inputCooldown = 0.12
                 end
@@ -328,6 +289,7 @@ function BattleState.checkBattleEnd()
             if unit.actor and unit.team == "player" then
                 unit.actor.hp = unit.hp
                 unit.actor.maxHp = unit.maxHp
+                unit.actor.statusEffects = unit.statusEffects
             end
         end
 
@@ -335,6 +297,7 @@ function BattleState.checkBattleEnd()
             if unit.actor and unit.team == "player" then
                 unit.actor.hp = 0
                 unit.actor.maxHp = unit.maxHp
+                unit.actor.statusEffects = unit.statusEffects
                 PartySystem.removeFromParty(playerParty, unit.actor.id)
             end
         end
@@ -360,7 +323,19 @@ function BattleState.checkBattleEnd()
             if BattleState.onVictory then
                 BattleState.onVictory()
             end
+        end
 
+        if BattleState.onComplete then
+            local callback = BattleState.onComplete
+            BattleState.onComplete = nil
+            local winnerParty = playerAlive and playerParty or (enemyAlive and BattleState.enemyParty)
+            callback({
+                outcome = winnerParty and "victory" or "draw",
+                winnerPartyId = winnerParty and winnerParty.id or nil
+            })
+        end
+
+        if playerAlive then
             StateManager.swap("battle_end", {
                 victory = true,
                 playerCasualties = playerCasualties,
@@ -376,10 +351,9 @@ function BattleState.checkBattleEnd()
 end
 
 function BattleState._tick()
-    BattleContext.data.tick = BattleContext.data.tick + 1
-
-    EcsWorld.battle:emit("update", BattleContext)
-    BattleContext.removeDeadUnits()
+    if BattleState.simulation then
+        BattleState.simulation:tick()
+    end
 end
 
 function BattleState.draw()

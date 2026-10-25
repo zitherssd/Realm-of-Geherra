@@ -28,7 +28,9 @@ return {
             oratory = 1,
             navigation = 0,
             shadowcraft = 1
-        }
+        },
+        sight = 100,
+        profile = 1
     },
 
     ["companion"] = {

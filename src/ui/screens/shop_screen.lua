@@ -98,6 +98,12 @@ end
 --------------------------------------------------------------------------------
 
 function ShopScreen:buyItem(index)
+    if self.merchant.activeEncounterId then
+        self.lastMessage = "This trader is engaged in combat."
+        self.lastMessageTimer = 2.5
+        return false
+    end
+
     local item = self.merchantStock[index]
     if not item then return false end
 
@@ -124,6 +130,12 @@ function ShopScreen:buyItem(index)
 end
 
 function ShopScreen:sellItem(index)
+    if self.merchant.activeEncounterId then
+        self.lastMessage = "This trader is engaged in combat."
+        self.lastMessageTimer = 2.5
+        return false
+    end
+
     if not self.allowSell then return false end
 
     local item = self.playerInventory[index]

@@ -1,5 +1,20 @@
 # Units
 
+# Baseline stats for a human
+- Hitpoints: 20
+- Attack: 10
+- Defense: 10
+- Speed: 10
+- Strength: 10
+- Precision: 10
+- Size: 3
+- Sight: 30
+- Profile: 30
+
+No innate protections.
+
+
+
 ## High-Level Theme Statement
 
 The Pelasgians. Descendants of the first men, strecthing their realm from the mountains of Cara all the way to the south banks of The Blue River.
@@ -14,34 +29,53 @@ The Pelasgians. Descendants of the first men, strecthing their realm from the mo
 - Pelas Youth
 	- Club
 	- Furs Armor
-	- Peasant HP baseline
-	- Attack: 20
-	- Defense: 22
+	- HP: 20
+	- Attack: 11
+	- Defense: 10
+	- Speed: 11
 
 - Pelas Tribesman
-	- Spear or Club
-	- Furs Armor
+	- Spear + Club?
+	- Furs Armor / Leather cuirass
 	- Fur Shoes
-	- Bronze Cap
-	- Slightly higher HP/Attack/Defense than Pelas Youth
+	- Bronze Cap / Fur hat
+	- HP: 22
+	- Attack: 12
+	- Defense: 12
+	- Speed 11
 
 - Pelas Skirmisher
-	- Single-Throw Javelin
-	- Spear + Wooden Shield
-	- Fur Shoes only (no furs armor, no bronze cap)
-	- Higher HP than Pelas Tribesman
-	- Slightly faster combat movement speed than planned slinger line
+	- x3 Throwable Javelin (Last javelin kept for melee) + Wooden Shield
+	- Fur Shoes only + Bronze Cap
+	- HP: 23
+	- Attack: 13
+	- Defense: 14
+	- Speed 13
+	- Strength 12
 
-## Added Gear
+- Pelas Sliger
+	- Sling + Copper Dagger
+	- Fur armors + Fur hat
+	- HP: 22
+	- Attack: 12
+	- Defense: 13
+	- Speed: 12
 
-- Furs Armor
-	- +1 slashing protection
-	- Tiny defense bonus
-
-- Fur Shoes
-	- Small attack and defense bonuses
-	- No protection values
-
-- Bronze Cap
-	- +1 slashing protection
-	- +1 piercing protection
+- Pelas Warrior
+	- Spear + Shield + Dagger
+	- Leather Cuirass + Bronze Cap + Fur Shoes
+	- HP: 25
+	- Attack: 14
+	- Defense: 15
+	- Speed: 11
+	- Strength: 13
+	
+- Pelas Chieftain
+	- Sword + Shield
+	- Chainmail + Iron Cap + Leather Boots
+	- HP: 28
+	- Attack: 16
+	- Defense: 17
+	- Speed: 10
+	- Strenght: 15
+	- Precision: 12

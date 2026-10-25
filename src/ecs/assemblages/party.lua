@@ -5,6 +5,7 @@ local Concord = require("src.libs.concord")
 
 local function partyAssemblage(e, name, leaderId, id)
     e:give("party")
+    e:give("world_activity")
     e.id = id or (tostring(os.time()) .. "-" .. tostring(math.random(10000, 99999)))
     e.name = name or "Party"
 

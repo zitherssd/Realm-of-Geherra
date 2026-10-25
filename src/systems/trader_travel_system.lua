@@ -18,6 +18,7 @@ local LocationSystem = require("src.systems.location_system")
 local TimeSystem = require("src.systems.time_system")
 local EventBus = require("src.core.event_bus")
 local PartyAiSystem = require("src.systems.party_ai_system")
+local PartyInteractionSystem = require("src.systems.party_interaction_system")
 
 TraderTravelSystem.travelSpeed = 70
 TraderTravelSystem.escortMin = 1
@@ -210,11 +211,26 @@ function TraderTravelSystem.update(dt, map)
     -- map:getParties(), which would corrupt an in-progress ipairs over it.
     local arrivedParties = {}
     for _, party in ipairs(map:getParties() or {}) do
-        if party.state == "travel" then
-            local arrived
+        if party.state == "travel" and not party.activeEncounterId then
+            local arrived = false
             party.waypointIndex, arrived = PartyAiSystem.followWaypoints(
-                party, party.pathWaypoints, party.waypointIndex, TraderTravelSystem.travelSpeed, dt
+                party, party.pathWaypoints, party.waypointIndex, TraderTravelSystem.travelSpeed, dt, map
             )
+            
+            -- If not arrived by waypoints, check if close enough to destination via interaction radius
+            if not arrived and party.destinationLocationId then
+                for _, location in ipairs(map:getLocations() or {}) do
+                    if location.id == party.destinationLocationId then
+                        local dx, dy = location.x - party.x, location.y - party.y
+                        local dist = math.sqrt(dx*dx + dy*dy)
+                        if dist < PartyInteractionSystem.interactionRadius then
+                            arrived = true
+                        end
+                        break
+                    end
+                end
+            end
+            
             if arrived then
                 table.insert(arrivedParties, party)
             end
@@ -226,9 +242,14 @@ function TraderTravelSystem.update(dt, map)
     end
 
     local day = TimeSystem.getDay()
-    if day ~= lastProcessedDay then
+    if lastProcessedDay == nil then
         lastProcessedDay = day
         processDayTick(map)
+    elseif day > lastProcessedDay then
+        while lastProcessedDay < day do
+            lastProcessedDay = lastProcessedDay + 1
+            processDayTick(map)
+        end
     end
 end
 

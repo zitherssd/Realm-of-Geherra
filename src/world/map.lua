@@ -6,6 +6,18 @@ local PartySystem = require("src.systems.party_system")
 local Map = {}
 Map.__index = Map
 
+Map.biomeSpeedModifiers = {
+    desert = 0.6,
+    mountain = 0.4,
+    hills = 0.7,
+    plains = 1.0,
+    forest = 0.75,
+    marsh = 0.4,
+    cliff = 0.65
+}
+
+Map.roadOnDistance = 15 -- Distance from a road point to count as "on" the road
+
 function Map.new(id, name)
     local self = {
         id = id,
@@ -13,6 +25,11 @@ function Map.new(id, name)
         width = 2048,
         height = 2048,
         parties = {},
+        activeEncounters = {},
+        partyEncounterCooldowns = {},
+        nextEncounterSequence = 1,
+        battlefieldRemains = {},
+        nextBattlefieldRemainsSequence = 1,
         tiles = {},
         objects = {},
         locations = {},
@@ -71,6 +88,44 @@ function Map:getBiomeAt(worldX, worldY)
 
     local cell = grid.cells[cellY][cellX]
     return cell and cell.biomeId or nil
+end
+
+function Map:isOnRoad(worldX, worldY)
+    if not self.worldGen or not self.worldGen.roads then return false end
+    
+    local thresholdSq = self.roadOnDistance * self.roadOnDistance
+    local function pointToLineSegDistSq(px, py, ax, ay, bx, by)
+        local l2 = (ax - bx)^2 + (ay - by)^2
+        if l2 == 0 then return (px - ax)^2 + (py - ay)^2 end
+        local t = math.max(0, math.min(1, ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / l2))
+        local projx = ax + t * (bx - ax)
+        local projy = ay + t * (by - ay)
+        return (px - projx)^2 + (py - projy)^2
+    end
+    
+    for _, road in ipairs(self.worldGen.roads) do
+        for i = 1, #road.points - 1 do
+            local pt1 = road.points[i]
+            local pt2 = road.points[i + 1]
+            if pointToLineSegDistSq(worldX, worldY, pt1.x, pt1.y, pt2.x, pt2.y) <= thresholdSq then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+function Map:getTravelSpeedMod(worldX, worldY)
+    local biome = self:getBiomeAt(worldX, worldY)
+    local baseSpeed = biome and self.biomeSpeedModifiers[biome] or 1.0
+    
+    if self:isOnRoad(worldX, worldY) then
+        -- Roads halve the biome travel penalty: speed = base + (1 - base) * 0.5.
+        -- A 0.6x biome becomes 0.8x on a road; an unpenalised biome stays 1.0x.
+        return baseSpeed + (1.0 - baseSpeed) * 0.5
+    end
+    
+    return baseSpeed
 end
 
 -- Return the centre of the nearest walkable navigation cell to (worldX, worldY)
@@ -173,6 +228,28 @@ end
 -- Get all parties on the map
 function Map:getParties()
     return self.parties
+end
+
+function Map:getActiveEncounters()
+    return self.activeEncounters
+end
+
+function Map:addBattlefieldRemains(site)
+    table.insert(self.battlefieldRemains, site)
+end
+
+function Map:getBattlefieldRemains()
+    return self.battlefieldRemains
+end
+
+function Map:removeBattlefieldRemains(siteId)
+    for index, site in ipairs(self.battlefieldRemains) do
+        if site.id == siteId then
+            table.remove(self.battlefieldRemains, index)
+            return true
+        end
+    end
+    return false
 end
 
 -- Draw the map visuals
@@ -315,6 +392,35 @@ function Map:drawLocations(inverseScale)
                 love.graphics.circle("fill", 0, 0, 12)
             end
 
+            function Map:drawBattlefieldRemains(inverseScale)
+                inverseScale = inverseScale or 1
+                for _, site in ipairs(self.battlefieldRemains or {}) do
+                    if site.discovered then
+                        local position = site.history and site.history.position
+                        if position and position.x and position.y then
+                            local oldLineWidth = love.graphics.getLineWidth()
+                            love.graphics.push()
+                            love.graphics.translate(position.x, position.y)
+                            love.graphics.scale(inverseScale)
+                            if site.currentlyVisible then
+                                love.graphics.setColor(0.78, 0.63, 0.38, 1)
+                            else
+                                love.graphics.setColor(0.42, 0.34, 0.25, 1)
+                            end
+                            love.graphics.circle("fill", 0, 0, 10)
+                            love.graphics.setColor(0.16, 0.1, 0.06, 1)
+                            love.graphics.setLineWidth(2 / inverseScale)
+                            love.graphics.line(-4, -4, 4, 4)
+                            love.graphics.line(-4, 4, 4, -4)
+                            love.graphics.setLineWidth(oldLineWidth)
+                            love.graphics.setColor(1, 1, 1, 1)
+                            love.graphics.printf("Battlefield", -42, 13, 84, "center")
+                            love.graphics.pop()
+                        end
+                    end
+                end
+            end
+
             -- Draw location name (optional, for debug/clarity)
             love.graphics.setColor(0, 0, 0, 1)
             love.graphics.printf(location.name, -40, -25, 80, "center")
@@ -329,7 +435,7 @@ end
 function Map:drawParties(inverseScale)
     inverseScale = inverseScale or 1
     for _, party in ipairs(self.parties) do
-        if party and party.visible then
+        if party and party then
             love.graphics.push()
             love.graphics.translate(party.x, party.y)
             love.graphics.scale(inverseScale)
@@ -351,6 +457,20 @@ function Map:drawParties(inverseScale)
                 love.graphics.setColor(0, 0, 0, 1)
                 love.graphics.printf(party.name, -40, -25, 80, "center")
             end
+
+            local activity = party.world_activity
+            local activityLabel
+            if activity and activity.type and activity.status ~= "idle" then
+                activityLabel = activity.type .. ": " ..
+                    (activity.phase or activity.status)
+            else
+                activityLabel = party.state or "idle"
+            end
+            love.graphics.setColor(0, 0, 0, 0.85)
+            love.graphics.printf(activityLabel, -50, 15, 100, "center")
+            love.graphics.setColor(0.9, 0.95, 1, 1)
+            love.graphics.printf(activityLabel, -50, 14, 100, "center")
+            love.graphics.setColor(1, 1, 1, 1)
             love.graphics.pop()
         end
     end

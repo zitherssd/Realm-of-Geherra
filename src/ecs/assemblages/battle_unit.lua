@@ -10,6 +10,18 @@ local DEFAULT_MOVE_STEP = 24
 local DEFAULT_COLLISION_RADIUS = 18
 local DEFAULT_ATTACK_REACH = 8
 
+local function copyTable(source)
+    local copy = {}
+    for key, value in pairs(source) do
+        if type(value) == "table" then
+            copy[key] = copyTable(value)
+        else
+            copy[key] = value
+        end
+    end
+    return copy
+end
+
 local function battleUnitAssemblage(e, actor, worldX, worldY, team)
     e:give("battleUnit")
 
@@ -88,9 +100,7 @@ local function battleUnitAssemblage(e, actor, worldX, worldY, team)
 
     -- 2b. Copy status effects (if any)
     if actor.statusEffects then
-        for k, v in pairs(actor.statusEffects) do
-            e.statusEffects[k] = v
-        end
+        e.statusEffects = copyTable(actor.statusEffects)
     end
 
     -- 3. Apply Equipment Bonuses & Granted Skills

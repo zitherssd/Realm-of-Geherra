@@ -3,6 +3,7 @@
 
 local Input = require("src.core.input")
 local GameContext = require("src.game.game_context")
+local EventBus = require("src.core.event_bus")
 local MovementSystem = require("src.systems.movement_system")
 local FactionSystem = require("src.systems.faction_system")
 local StateManager = require("src.core.state_manager")
@@ -15,37 +16,161 @@ local PlayerSystem = require("src.systems.player_system")
 local VisibilitySystem = require("src.systems.visibility_system")
 local PartyAiSystem = require("src.systems.party_ai_system")
 local TraderTravelSystem = require("src.systems.trader_travel_system")
+local PartyInteractionSystem = require("src.systems.party_interaction_system")
+local WorldActivitySystem = require("src.systems.world_activity_system")
+local WorldEncounterSystem = require("src.systems.world_encounter_system")
+local BattlefieldInteraction = require("src.systems.battlefield_interaction")
 
 local WorldState = {
     camera = nil,
     currentMap = nil,
     defaultZoom = 2.0,       -- world map shown 2x (zoomed in, slightly pixelated)
     playerPartySpeed = 80,  -- pixels per second (halved to stay consistent at 2x zoom)
-    -- Travel speed multiplier per biome on the world map.
-    -- Biomes not listed here are travelled at full speed (1.0).
-    biomeSpeedModifiers = {
-        desert   = 0.6,
-        mountain = 0.4,
-        hills    = 0.7,
-        forest   = 0.75,
-        marsh    = 0.4,
-        cliff = 0.65,
-    },
-    -- Distance (world px) within which the party counts as travelling "on a
-    -- road". Roads halve the biome movement penalty (see onRoad below).
-    roadOnDistance = 12,
     passiveHealSecondsToFull = 300,
     restHealMultiplier = 10,
     nearbyParty = nil,       -- The party currently in interaction range
     nearbyLocation = nil,    -- The location currently in interaction range
+    nearbyBattlefield = nil, -- Discovered remains within interaction range
     font = nil,
     interactionCooldowns = {},
     isResting = false,
     restInputLock = 0,
     restModeRequested = false,
     restStartTotalHour = nil,  -- total game-hours when rest began
-    popup = nil                -- transient floating notification (e.g. battle favor reward)
+    popup = nil,                -- transient floating notification (e.g. battle favor reward)
+    hoveredEncounterId = nil,
+    pendingRaidBattle = nil
 }
+
+local function findParty(map, partyId)
+    for _, party in ipairs(map:getParties() or {}) do
+        if party.id == partyId then
+            return party
+        end
+    end
+    return nil
+end
+
+local function rejectRaidContact(event, reason)
+    EventBus.emit("party_encounter_rejected", {
+        mapId = event.mapId,
+        activityType = event.activityType,
+        sourcePartyId = event.sourcePartyId,
+        targetPartyId = event.targetPartyId,
+        reason = reason
+    })
+end
+
+function WorldState._onPartyContact(event)
+    if type(event) ~= "table" or event.activityType ~= "raid" then return end
+    local map = WorldState.currentMap
+    local playerParty = GameContext.data and GameContext.data.playerParty
+    if not map or event.mapId ~= map.id or not playerParty or
+        event.targetPartyId ~= playerParty.id then
+        return
+    end
+
+    local raider = findParty(map, event.sourcePartyId)
+    local activity = raider and raider.world_activity
+    if not raider or not activity or activity.status ~= "active" or
+        activity.phase ~= "contact" or activity.targetId ~= playerParty.id then
+        rejectRaidContact(event, "contact_stale")
+        return
+    end
+    if findParty(map, playerParty.id) ~= playerParty then
+        rejectRaidContact(event, "party_missing")
+        return
+    end
+    if not raider.actors or #raider.actors == 0 or
+        not playerParty.actors or #playerParty.actors == 0 then
+        rejectRaidContact(event, "party_empty")
+        return
+    end
+    if raider.activeEncounterId or playerParty.activeEncounterId then
+        rejectRaidContact(event, "party_already_engaged")
+        return
+    end
+    if (map.partyEncounterCooldowns and
+        ((map.partyEncounterCooldowns[raider.id] or 0) > 0 or
+        (map.partyEncounterCooldowns[playerParty.id] or 0) > 0)) then
+        rejectRaidContact(event, "party_cooldown")
+        return
+    end
+    if WorldState.pendingRaidBattle then
+        rejectRaidContact(event, "player_battle_already_pending")
+        return
+    end
+
+    map.nextPlayerBattleSequence = (map.nextPlayerBattleSequence or 1) + 1
+    local encounterId = tostring(map.id or "map") .. ":player-battle:" ..
+        tostring(map.nextPlayerBattleSequence - 1)
+    WorldState.pendingRaidBattle = {
+        mapId = map.id,
+        encounterId = encounterId,
+        sourceParty = raider,
+        sourcePartyId = raider.id,
+        targetPartyId = playerParty.id
+    }
+
+    EventBus.emit("party_encounter_started", {
+        mapId = map.id,
+        activityType = "raid",
+        sourcePartyId = raider.id,
+        sourceParty = raider,
+        targetPartyId = playerParty.id,
+        encounterId = encounterId
+    })
+    if activity.phase ~= "engaged" then
+        WorldState.pendingRaidBattle = nil
+        rejectRaidContact(event, "activity_transition_failed")
+    end
+end
+
+local function startPendingRaidBattle()
+    local pending = WorldState.pendingRaidBattle
+    if not pending then return false end
+    WorldState.pendingRaidBattle = nil
+
+    StateManager.swap("battle", {
+        enemyParty = pending.sourceParty,
+        onComplete = function(result)
+            EventBus.emit("party_encounter_finished", {
+                mapId = pending.mapId,
+                activityType = "raid",
+                sourcePartyId = pending.sourcePartyId,
+                sourceParty = pending.sourceParty,
+                targetPartyId = pending.targetPartyId,
+                encounterId = pending.encounterId,
+                outcome = result.outcome,
+                winnerPartyId = result.winnerPartyId
+            })
+        end
+    })
+    return true
+end
+
+WorldState._startPendingRaidBattle = startPendingRaidBattle
+
+local function updateHoveredEncounter()
+    WorldState.hoveredEncounterId = nil
+    if not WorldState.currentMap or not WorldState.camera then return end
+
+    local mouseX, mouseY = love.mouse.getPosition()
+    local worldX, worldY = WorldState.camera:screenToWorld(mouseX, mouseY)
+    local hitRadius = 18 / WorldState.camera:getZoom()
+
+    for encounterId, encounter in pairs(WorldState.currentMap.activeEncounters or {}) do
+        if encounter.state == "active" then
+            local x = (encounter.partyA.x + encounter.partyB.x) / 2
+            local y = (encounter.partyA.y + encounter.partyB.y) / 2
+            local dx, dy = worldX - x, worldY - y
+            if dx * dx + dy * dy <= hitRadius * hitRadius then
+                WorldState.hoveredEncounterId = encounterId
+                return
+            end
+        end
+    end
+end
 
 local function healPartyOverTime(dt, multiplier)
     local playerParty = GameContext.data.playerParty
@@ -62,46 +187,6 @@ local function healPartyOverTime(dt, multiplier)
             actor.hp = math.min(maxHp, currentHp + healPerSecond * dt)
         end
     end
-end
-
--- True when (x, y) is within WorldState.roadOnDistance of any road polyline
--- on the map (roads live in map.worldGen.roads as { points = {{x,y},...} }).
--- Uses squared distances so it's cheap enough to call every frame.
-local function onRoad(map, x, y)
-    local roads = map and map.worldGen and map.worldGen.roads
-    if not roads then
-        return false
-    end
-    local maxD2 = WorldState.roadOnDistance * WorldState.roadOnDistance
-    for _, road in ipairs(roads) do
-        local pts = road.points
-        for i = 1, #pts - 1 do
-            local a, b = pts[i], pts[i + 1]
-            local dx, dy = b.x - a.x, b.y - a.y
-            local len2 = dx * dx + dy * dy
-            local t = 0
-            if len2 > 0 then
-                t = ((x - a.x) * dx + (y - a.y) * dy) / len2
-                if t < 0 then t = 0 elseif t > 1 then t = 1 end
-            end
-            local cx, cy = a.x + dx * t, a.y + dy * t
-            local qx, qy = x - cx, y - cy
-            if qx * qx + qy * qy <= maxD2 then
-                return true
-            end
-        end
-    end
-    return false
-end
-
--- Roads halve the biome travel penalty: speed = base + (1 - base) * 0.5.
--- A 0.6x biome becomes 0.8x on a road; an unpenalised biome stays 1.0x.
-local function speedWithRoad(map, biomeId, x, y)
-    local speedMod = WorldState.biomeSpeedModifiers[biomeId] or 1
-    if onRoad(map, x, y) then
-        speedMod = 1 - (1 - speedMod) * 0.5
-    end
-    return speedMod
 end
 
 local function initializeWorldPresentation()
@@ -124,7 +209,10 @@ local function initializeWorldPresentation()
     end
 
     WorldState.nearbyLocation = nil
+    WorldState.nearbyBattlefield = nil
     WorldState.nearbyParty = nil
+    WorldState.hoveredEncounterId = nil
+    WorldState.pendingRaidBattle = nil
 end
 
 function WorldState.enter()
@@ -135,6 +223,10 @@ function WorldState.enter()
     WorldState.interactionCooldowns = {}
     EncounterSystem.reset()
     TraderTravelSystem.resetDayTick()
+    WorldEncounterSystem.init()
+    WorldActivitySystem.init()
+    EventBus.unsubscribe("party_contact", WorldState._onPartyContact)
+    EventBus.subscribe("party_contact", WorldState._onPartyContact)
     WorldState.isResting = WorldState.restModeRequested and true or false
     WorldState.restModeRequested = false
     WorldState.restInputLock = WorldState.isResting and 0.2 or 0
@@ -166,7 +258,9 @@ function WorldState.exit()
     WorldState.camera = nil
     WorldState.currentMap = nil
     WorldState.nearbyLocation = nil
+    WorldState.nearbyBattlefield = nil
     WorldState.nearbyParty = nil
+    WorldState.hoveredEncounterId = nil
 end
 
 -- Show a transient floating favor notification on the world map (same style as
@@ -253,18 +347,21 @@ function WorldState.update(dt)
     local isWaiting = (not WorldState.isResting) and Input.isKeyDown("space")
     local isMoving = (moveX ~= 0 or moveY ~= 0)
     local shouldAdvanceTime = WorldState.isResting or isMoving or isWaiting
+    local elapsedWorldHours = 0
+    local elapsedWorldSeconds = 0
     
     -- Only advance time if moving or waiting
     if shouldAdvanceTime then
         TimeSystem.setPaused(false)
-        TimeSystem.update(dt)
+        elapsedWorldHours = TimeSystem.update(dt)
+        elapsedWorldSeconds = TimeSystem.worldHoursToSeconds(elapsedWorldHours)
     else
         TimeSystem.setPaused(true)
     end
 
-    if shouldAdvanceTime then
+    if elapsedWorldSeconds > 0 then
         local healMultiplier = WorldState.isResting and WorldState.restHealMultiplier or 1
-        healPartyOverTime(dt, healMultiplier)
+        healPartyOverTime(elapsedWorldSeconds, healMultiplier)
     end
     
     -- Normalize diagonal movement
@@ -277,8 +374,7 @@ function WorldState.update(dt)
     -- Update party position based on input (biome modifies travel speed,
     -- and roads halve that biome penalty)
     local currentX, currentY = PartySystem.getPosition(playerParty)
-    local biomeId = WorldState.currentMap:getBiomeAt(currentX, currentY)
-    local speedMod = speedWithRoad(WorldState.currentMap, biomeId, currentX, currentY)
+    local speedMod = WorldState.currentMap:getTravelSpeedMod(currentX, currentY)
     local newX = currentX + moveX * WorldState.playerPartySpeed * speedMod * dt
     local newY = currentY + moveY * WorldState.playerPartySpeed * speedMod * dt
     
@@ -309,77 +405,84 @@ function WorldState.update(dt)
 
     -- Random encounter rolls while traveling: accumulate the distance walked
     -- and let the encounter system decide when to spawn a hostile party nearby.
-    if isMoving and not WorldState.isResting then
+    if isMoving and not WorldState.isResting and elapsedWorldSeconds > 0 then
         local ddx = newX - currentX
         local ddy = newY - currentY
         local distanceTraveled = math.sqrt(ddx * ddx + ddy * ddy)
-        EncounterSystem.update(dt, distanceTraveled)
+        EncounterSystem.update(elapsedWorldSeconds, distanceTraveled)
     end
 
-    local interactionRadius = 30
+    if elapsedWorldHours > 0 then
+        WorldEncounterSystem.update(elapsedWorldHours, WorldState.currentMap)
+    end
+    updateHoveredEncounter()
+
+    if elapsedWorldSeconds > 0 then
+        WorldActivitySystem.ensureDefaultActivities(WorldState.currentMap, playerParty)
+        TraderTravelSystem.update(elapsedWorldSeconds, WorldState.currentMap)
+        PartyAiSystem.update(elapsedWorldSeconds, WorldState.currentMap, playerParty)
+    end
+    WorldActivitySystem.update(elapsedWorldSeconds, WorldState.currentMap, playerParty)
+    if startPendingRaidBattle() then
+        return
+    end
+
+    VisibilitySystem.update(playerParty, WorldState.currentMap)
 
     if WorldState.isResting then
         return
     end
 
-    -- Wandering/chasing hostiles and travelling traders keep acting whether
-    -- or not the player is moving.
-    PartyAiSystem.update(dt, WorldState.currentMap, playerParty)
-    TraderTravelSystem.update(dt, WorldState.currentMap)
-
-    VisibilitySystem.update(playerParty, WorldState.currentMap)
-
     -- Check for locations
     WorldState.nearbyLocation = nil
+    WorldState.nearbyBattlefield = nil
     for _, location in ipairs(WorldState.currentMap.locations) do
         if location.discovered then
             local dx = location.x - playerParty.x
             local dy = location.y - playerParty.y
             local dist = math.sqrt(dx*dx + dy*dy)
 
-            if dist < interactionRadius then
+            if dist < PartyInteractionSystem.interactionRadius then
                 WorldState.nearbyLocation = location
                 if Input.isKeyDown("return") or Input.isKeyDown("kpenter") then
                     StateManager.push("location", { location = location })
                     return -- Stop update
                 end
             end
+
+            for _, site in ipairs(WorldState.currentMap:getBattlefieldRemains() or {}) do
+                if site.discovered and site.history and site.history.position then
+                    local dx = site.history.position.x - playerParty.x
+                    local dy = site.history.position.y - playerParty.y
+                    local dist = math.sqrt(dx * dx + dy * dy)
+                    if dist < PartyInteractionSystem.interactionRadius then
+                        WorldState.nearbyBattlefield = site
+                        if Input.isKeyDown("return") or Input.isKeyDown("kpenter") then
+                            StateManager.push("dialogue", {
+                                battlefieldSiteId = site.id
+                            })
+                            return
+                        end
+                    end
+                end
+            end
         end
     end
 
     -- Check for collisions/interactions with other parties
-    WorldState.nearbyParty = nil
-
-    for _, otherParty in ipairs(WorldState.currentMap.parties) do
-        if otherParty.id ~= playerParty.id and otherParty.visible then
-            local dx = otherParty.x - playerParty.x
-            local dy = otherParty.y - playerParty.y
-            local dist = math.sqrt(dx*dx + dy*dy)
-
-            if dist < interactionRadius then
-                WorldState.nearbyParty = otherParty
-                
-                -- Check faction hostility. Spawned encounter parties carry a
-                -- `hostile` flag (see systems/encounter_system.lua); bandits are
-                -- always hostile. In the future this could use FactionSystem.
-                local isHostile = otherParty.hostile == true or otherParty.faction == "bandits"
-
-                if isHostile then
-                    -- Check cooldown to prevent immediate re-trigger
-                    if not WorldState.interactionCooldowns[otherParty.id] then
-                        -- Set cooldown (3 seconds) so player has time to move away after leaving dialogue
-                        WorldState.interactionCooldowns[otherParty.id] = 2.0
-                        -- Force interaction immediately
-                        local dialogueId = otherParty.dialogueId or "bandit_start"
-                        StateManager.push("dialogue", {dialogueId = dialogueId, target = otherParty})
-                        return -- Stop update to prevent multiple triggers
-                    end
-                elseif Input.isKeyDown("return") or Input.isKeyDown("kpenter") then
-                    -- Player initiated interaction
-                    StateManager.push("dialogue", {dialogueId = otherParty.dialogueId or "elder_greeting", target = otherParty})
-                end
-            end
-        end
+    local playerWantsToInteract = Input.isKeyDown("return") or Input.isKeyDown("kpenter")
+    local nearbyParty, interrupted = PartyInteractionSystem.update(
+        dt, 
+        WorldState.currentMap, 
+        playerParty, 
+        WorldState.interactionCooldowns, 
+        playerWantsToInteract
+    )
+    
+    WorldState.nearbyParty = nearbyParty
+    
+    if interrupted then
+        return -- Stop update to prevent multiple triggers
     end
 end
 
@@ -406,9 +509,75 @@ function WorldState.draw()
     
     -- Draw locations
     WorldState.currentMap:drawLocations(markerScale)
+    WorldState.currentMap:drawBattlefieldRemains(markerScale)
     
     -- Draw parties
     WorldState.currentMap:drawParties(markerScale)
+
+    -- Keep active encounter participants visually distinct and mark the
+    -- battle's current position without scaling the icon with camera zoom.
+    for _, encounter in pairs(WorldState.currentMap.activeEncounters or {}) do
+        if encounter.state == "active" then
+            for _, party in ipairs({encounter.partyA, encounter.partyB}) do
+                love.graphics.setColor(1, 0.35, 0.12, 0.95)
+                love.graphics.setLineWidth(2 / WorldState.camera:getZoom())
+                love.graphics.circle("line", party.x, party.y, 20 / WorldState.camera:getZoom())
+            end
+
+            local x = (encounter.partyA.x + encounter.partyB.x) / 2
+            local y = (encounter.partyA.y + encounter.partyB.y) / 2
+            local inverseZoom = 1 / WorldState.camera:getZoom()
+            love.graphics.push()
+            love.graphics.translate(x, y)
+            love.graphics.scale(inverseZoom)
+            love.graphics.setColor(0.12, 0.04, 0.03, 0.9)
+            love.graphics.circle("fill", 0, 0, 18)
+            love.graphics.setColor(1, 0.25, 0.12, 1)
+            love.graphics.setLineWidth(3)
+            love.graphics.line(-9, -9, 9, 9)
+            love.graphics.line(-9, 9, 9, -9)
+            love.graphics.setLineWidth(1)
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.printf("BATTLE", -34, 20, 68, "center")
+            love.graphics.pop()
+        end
+    end
+    love.graphics.setLineWidth(1)
+    love.graphics.setColor(1, 1, 1, 1)
+    
+    -- DEBUG: Draw interaction radius
+    local playerParty = GameContext.data.playerParty
+    if playerParty then
+        local VisibilityConfig = require("src.data.visibility")
+        local divisor = VisibilityConfig.radiusDivisor or 1
+
+        -- Draw radius for all visible parties (and player)
+        for _, party in ipairs(WorldState.currentMap.parties) do
+            if party.visible or party.id == playerParty.id then
+                love.graphics.setColor(1, 1, 0, 0.5) -- semi-transparent yellow
+                love.graphics.circle("line", party.x, party.y, PartyInteractionSystem.interactionRadius)
+                
+                -- Visibility debug circles
+                local profile = PartySystem.getPartyProfile(party)
+                local sight = PartySystem.getPartySight(party)
+                
+                love.graphics.setColor(1, 0, 1, 0.4) -- magenta for profile
+                love.graphics.circle("line", party.x, party.y, profile / divisor)
+                
+                love.graphics.setColor(0, 1, 1, 0.4) -- cyan for sight
+                love.graphics.circle("line", party.x, party.y, sight / divisor)
+            end
+        end
+        
+        love.graphics.setColor(1, 0.5, 0, 0.5) -- semi-transparent orange for locations
+        for _, location in ipairs(WorldState.currentMap.locations) do
+            if location.discovered then
+                love.graphics.circle("line", location.x, location.y, PartyInteractionSystem.interactionRadius)
+            end
+        end
+        
+        love.graphics.setColor(1, 1, 1, 1) -- reset color
+    end
     
     -- Unapply camera transformation
     WorldState.camera:unapply()
@@ -440,12 +609,31 @@ function WorldState.draw()
     local textWidth = WorldState.font:getWidth(timeStr)
     love.graphics.print(timeStr, love.graphics.getWidth() - textWidth - 20, 20)
 
+    local encounterInfo = WorldEncounterSystem.getInspectionData(
+        WorldState.currentMap,
+        WorldState.hoveredEncounterId
+    )
+    if encounterInfo then
+        local panelX, panelY, panelW, panelH = 20, 90, 300, 112
+        love.graphics.setColor(0.12, 0.08, 0.06, 0.92)
+        love.graphics.rectangle("fill", panelX, panelY, panelW, panelH)
+        love.graphics.setColor(0.9, 0.55, 0.2, 1)
+        love.graphics.rectangle("line", panelX, panelY, panelW, panelH)
+        love.graphics.setColor(1, 0.85, 0.65, 1)
+        love.graphics.print("NPC ENCOUNTER", panelX + 10, panelY + 8)
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.print(encounterInfo.partyAName .. " vs " .. encounterInfo.partyBName, panelX + 10, panelY + 29)
+        love.graphics.print("Status: " .. encounterInfo.status, panelX + 10, panelY + 49)
+        love.graphics.print(string.format("Elapsed: %.2f world-hours", encounterInfo.elapsedWorldHours), panelX + 10, panelY + 69)
+        love.graphics.print(string.format("Survivors: %d vs %d", encounterInfo.survivingPartyA, encounterInfo.survivingPartyB), panelX + 10, panelY + 89)
+    end
+
     -- Draw current biome (debug)
     local playerParty = GameContext.data.playerParty
     if playerParty and WorldState.currentMap then
         local biomeId = WorldState.currentMap:getBiomeAt(playerParty.x, playerParty.y)
-        local isOnRoad = onRoad(WorldState.currentMap, playerParty.x, playerParty.y)
-        local speedMod = speedWithRoad(WorldState.currentMap, biomeId, playerParty.x, playerParty.y)
+        local isOnRoad = WorldState.currentMap:isOnRoad(playerParty.x, playerParty.y)
+        local speedMod = WorldState.currentMap:getTravelSpeedMod(playerParty.x, playerParty.y)
         local biomeStr = "Biome: " .. (biomeId or "unknown")
             .. " (" .. string.format("%.2g", speedMod) .. "x speed)"
             .. (isOnRoad and " [road]" or "")
@@ -523,6 +711,12 @@ function WorldState.draw()
         love.graphics.setColor(1, 1, 0, 1)
         love.graphics.printf("Press ENTER to enter " .. WorldState.nearbyLocation.name, 
             0, love.graphics.getHeight() - 130, love.graphics.getWidth(), "center")
+    end
+
+    if WorldState.nearbyBattlefield then
+        love.graphics.setColor(1, 0.8, 0.45, 1)
+        love.graphics.printf("Press ENTER to inspect the battlefield",
+            0, love.graphics.getHeight() - 160, love.graphics.getWidth(), "center")
     end
 
     -- Draw interaction hint

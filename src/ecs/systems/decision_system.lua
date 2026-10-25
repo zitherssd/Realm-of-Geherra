@@ -1,6 +1,6 @@
 -- ecs/systems/decision_system.lua
 -- Determines intents for AI and processes Player commands
--- Executed once per battle tick (20Hz) via EcsWorld.battle:emit("update", ...)
+-- Executed once per battle tick (20Hz) by a BattleSimulation instance.
 
 local Concord = require("src.libs.concord")
 local Skills = require("src.data.skills")

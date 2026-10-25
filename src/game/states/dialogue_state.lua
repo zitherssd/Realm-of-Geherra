@@ -18,6 +18,7 @@ local TraderSystem = require("src.systems.trader_system")
 -- npc_introductions was removed — all introductions now use introDialogue in dialogue trees
 local GameContext = require("src.game.game_context")
 local WorldState = require("src.game.states.world_state")
+local BattlefieldInteraction = require("src.systems.battlefield_interaction")
 
 --------------------------------------------------------------------------------
 -- Helpers
@@ -360,6 +361,7 @@ local function handleDialogueAction(choice, context)
     local speakerId = context.speakerId
     local speakerName = context.speakerName
     local dialogueQuestContext = context.dialogueQuestContext
+    local battlefieldSiteId = context.battlefieldSiteId
 
     -- Apply dialogue variable mutations from the choice
     DialogueSystem.applySet(choice.set)
@@ -489,6 +491,30 @@ local function handleDialogueAction(choice, context)
         StateManager.push("world_map", {})
         result.handledNavigation = true
         return result
+    elseif choice.action == "battlefield_inspect" or
+        choice.action == "battlefield_unavailable" or
+        choice.action == "battlefield_back" then
+        StateManager.swap("dialogue", {
+            battlefieldSiteId = battlefieldSiteId,
+            battlefieldView = choice.action == "battlefield_inspect" and "inspect" or
+                (choice.action == "battlefield_unavailable" and "unavailable" or "overview"),
+            unavailableAction = choice.unavailableAction
+        })
+        result.handledNavigation = true
+        return result
+    elseif choice.action == "battlefield_collect" then
+        local collectionResult = BattlefieldInteraction.collectSupplies(
+            GameContext.data.currentMap,
+            battlefieldSiteId,
+            GameContext.data.playerParty
+        )
+        StateManager.swap("dialogue", {
+            dialogueTree = BattlefieldInteraction.buildCollectionDialogue(collectionResult),
+            battlefieldSiteId = battlefieldSiteId,
+            battlefieldView = "collection_result"
+        })
+        result.handledNavigation = true
+        return result
     end
 
     return result
@@ -526,7 +552,29 @@ function DialogueState.enter(params)
         end
     end
 
-    local dialogueTree, dialogueQuestContext = resolveDialogueTree(params, questSpeakerRef, questDialogContext)
+    local dialogueTree, dialogueQuestContext
+    if params.battlefieldSiteId then
+        if params.battlefieldView == "inspect" then
+            dialogueTree = BattlefieldInteraction.buildInspectDialogue(
+                GameContext.data.currentMap, params.battlefieldSiteId
+            )
+        elseif params.battlefieldView == "unavailable" then
+            dialogueTree = BattlefieldInteraction.buildUnavailableDialogue(
+                GameContext.data.currentMap, params.battlefieldSiteId,
+                params.unavailableAction
+            )
+        elseif params.battlefieldView == "collection_result" then
+            dialogueTree = params.dialogueTree
+        else
+            dialogueTree = BattlefieldInteraction.buildDialogue(
+                GameContext.data.currentMap, params.battlefieldSiteId
+            )
+        end
+    else
+        dialogueTree, dialogueQuestContext = resolveDialogueTree(
+            params, questSpeakerRef, questDialogContext
+        )
+    end
 
     -- Inherit display flags from the dialogue tree definition
     if dialogueTree then
@@ -548,7 +596,11 @@ function DialogueState.enter(params)
             end
         end
 
-        dialogueTree = filterDialogueTreeOptions(dialogueTree, questDialogContext, relationshipContext, target)
+        if not params.battlefieldSiteId then
+            dialogueTree = filterDialogueTreeOptions(
+                dialogueTree, questDialogContext, relationshipContext, target
+            )
+        end
         local speakerName, speakerId = resolveSpeaker(target, dialogueTree)
 
         -- Add speaker to the dialogue tree for rendering
@@ -562,7 +614,8 @@ function DialogueState.enter(params)
                 options = options,
                 speakerId = speakerId,
                 speakerName = speakerName,
-                dialogueQuestContext = dialogueQuestContext
+                dialogueQuestContext = dialogueQuestContext,
+                battlefieldSiteId = params.battlefieldSiteId
             })
             if actionResult.handledNavigation then
                 return

@@ -16,9 +16,11 @@ local Unit = require("src.ecs.assemblages.unit")
 local PartySystem = require("src.systems.party_system")
 local LocationSystem = require("src.systems.location_system")
 local Items = require("src.data.items")
+local TroopsData = require("src.data.troops")
 local PaintedMapLoader = require("src.systems.painted_map_loader")
 local LocationPopulationSystem = require("src.systems.location_population_system")
 local PartyAiSystem = require("src.systems.party_ai_system")
+local TraderSystem = require("src.systems.trader_system")
 
 -- Debug trader: spawns in the starter location and sells every item (for testing)
 local DEBUG_TRADER_ENABLED = true
@@ -48,6 +50,7 @@ function GameInitializer.beginNewGame(options)
     -- Create player party
     local playerParty = Party.create(world, options.playerName or "Wanderer", player.id, "party_player")
     PartySystem.addActor(playerParty, player)
+    PartySystem.addActor(playerParty, Unit.create(world, "companion"))
     PartySystem.addActor(playerParty, Unit.create(world, "pelas_youth"))
     PartySystem.addActor(playerParty, Unit.create(world, "pelas_tribesman"))
     PartySystem.addActor(playerParty, Unit.create(world, "pelas_skirmisher"))
@@ -154,9 +157,39 @@ function GameInitializer._createStarterParties(map)
     PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
     PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
     PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
+    PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
+    PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
 
     
     map:addParty(banditParty)
+
+    -- Create a neutral trader caravan that wanders near the starter location.
+    local trader = Unit.create(EcsWorld.campaign, "trader")
+    trader.name = "Wandering Trader"
+
+    local traderParty = Party.create(EcsWorld.campaign, trader.name, trader.id)
+    local traderX, traderY = spawnX + 18, spawnY - 12
+    if map.nearestWalkable then
+        traderX, traderY = map:nearestWalkable(traderX, traderY)
+    end
+    PartySystem.setPosition(traderParty, traderX, traderY)
+    traderParty.faction = "neutral"
+    traderParty.hostile = false
+    traderParty.isTraderParty = true
+    traderParty.dialogueId = "trader_greeting"
+    traderParty.state = "wander"
+    traderParty.wanderOriginX, traderParty.wanderOriginY = traderX, traderY
+    traderParty.wanderRadius = PartyAiSystem.wanderRadiusDefault
+
+    local traderDefinition = TroopsData.trader
+    traderParty.inventory = TraderSystem.buildStockInventory(traderDefinition)
+    traderParty.buysFromPlayers = traderDefinition.buysFromPlayers
+    traderParty.sellPriceFactor = traderDefinition.sellPriceFactor
+
+    PartySystem.addActor(traderParty, trader)
+    PartySystem.addActor(traderParty, Unit.create(EcsWorld.campaign, "soldier"))
+
+    map:addParty(traderParty)
 end
 
 -- Validate player name

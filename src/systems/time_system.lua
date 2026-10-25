@@ -8,6 +8,7 @@ local GameContext = require("src.game.game_context")
 -- Configuration
 local SECONDS_PER_DAY = 16 -- Real-time seconds for one game day
 local HOURS_PER_SECOND = 24 / SECONDS_PER_DAY
+local DEFAULT_TIME_SCALE = 1
 
 -- Time Periods
 local TIME_PERIODS = {
@@ -24,6 +25,7 @@ local TIME_PERIODS = {
 -- System State (Transient)
 local accumulator = 0
 local paused = false
+local timeScale = DEFAULT_TIME_SCALE
 
 -- Helper to access time data safely
 local function getTimeData()
@@ -40,11 +42,12 @@ local function getTimeData()
 end
 
 function TimeSystem.update(dt)
-    if paused then return end
+    if paused or timeScale == 0 then return 0 end
 
     local timeData = getTimeData()
+    local elapsedHours = dt * HOURS_PER_SECOND * timeScale
 
-    accumulator = accumulator + (dt * HOURS_PER_SECOND)
+    accumulator = accumulator + elapsedHours
 
     -- Update in 1-minute increments (1/60th of an hour)
     local step = 1/60
@@ -58,6 +61,16 @@ function TimeSystem.update(dt)
             -- TODO: Emit 'NewDay' event here via EventBus if needed
         end
     end
+
+    return elapsedHours
+end
+
+function TimeSystem.worldHoursToSeconds(elapsedHours)
+    if type(elapsedHours) ~= "number" or elapsedHours ~= elapsedHours or
+        elapsedHours == math.huge or elapsedHours == -math.huge or elapsedHours < 0 then
+        error("Elapsed world time must be a finite non-negative number", 2)
+    end
+    return elapsedHours / HOURS_PER_SECOND
 end
 
 function TimeSystem.getPeriodName()
@@ -88,8 +101,24 @@ function TimeSystem.setPaused(isPaused)
     paused = isPaused and true or false
 end
 
+function TimeSystem.setTimeScale(scale)
+    if type(scale) ~= "number" or scale ~= scale or scale == math.huge or
+        scale == -math.huge or scale < 0 then
+        error("Time scale must be a finite non-negative number", 2)
+    end
+    timeScale = scale
+end
+
+function TimeSystem.getTimeScale()
+    return timeScale
+end
+
+function TimeSystem.isPaused()
+    return paused or timeScale == 0
+end
+
 function TimeSystem.getTimeStatus()
-    return paused and "PAUSED" or "RUNNING"
+    return TimeSystem.isPaused() and "PAUSED" or "RUNNING"
 end
 
 function TimeSystem.isNightTime()

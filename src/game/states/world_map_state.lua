@@ -178,6 +178,7 @@ local function drawMap()
         map:drawMap()
         local inverseScale = 1 / zoom
         map:drawLocations(inverseScale)
+        map:drawBattlefieldRemains(inverseScale)
         map:drawParties(inverseScale)
         love.graphics.pop()
         return
