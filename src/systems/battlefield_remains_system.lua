@@ -53,11 +53,24 @@ local function optionalIdentity(value)
     return nil
 end
 
-local function getPartyActors(encounter)
+local function findMapParty(map, partyId)
+    for _, party in ipairs(map:getParties() or {}) do
+        if party.id == partyId then return party end
+    end
+    return nil
+end
+
+local function getPartyActors(map, encounter)
+    local partyA = findMapParty(map, encounter.partyAId)
+    local partyB = findMapParty(map, encounter.partyBId)
+    if not partyA or not partyB then
+        error("Encounter party IDs do not resolve on the campaign map", 3)
+    end
+
     local partiesByActorId = {}
-    for _, party in ipairs({encounter.partyA, encounter.partyB}) do
+    for _, party in ipairs({partyA, partyB}) do
         if type(party) ~= "table" or type(party.actors) ~= "table" then
-            error("Encounter must retain both campaign party references", 3)
+            error("Encounter parties must have actor rosters", 3)
         end
         for _, actor in ipairs(party.actors) do
             if partiesByActorId[actor.id] then
@@ -91,8 +104,8 @@ local function factionList(actor)
     return #factions > 0 and factions or nil
 end
 
-local function buildCorpses(encounter, battleResult, worldTime)
-    local actorsById = getPartyActors(encounter)
+local function buildCorpses(map, encounter, battleResult, worldTime)
+    local actorsById = getPartyActors(map, encounter)
     local corpses = {}
     for actorId, actorResult in pairs(battleResult.actors) do
         if actorResult.defeated then
@@ -132,7 +145,12 @@ function BattlefieldRemainsSystem.prepare(map, encounter, battleResult, worldTim
         error("Battlefield remains require a world day/hour timestamp", 2)
     end
 
-    local corpses = buildCorpses(encounter, battleResult, worldTime)
+    local partyA = findMapParty(map, encounter.partyAId)
+    local partyB = findMapParty(map, encounter.partyBId)
+    if not partyA or not partyB then
+        error("Encounter party IDs do not resolve on the campaign map", 2)
+    end
+    local corpses = buildCorpses(map, encounter, battleResult, worldTime)
     retainedItems = retainedItems or {}
     retainedGold = retainedGold or {}
     local lootItems, goldTotal = {}, 0
@@ -152,13 +170,13 @@ function BattlefieldRemainsSystem.prepare(map, encounter, battleResult, worldTim
     local x = encounter.x
     local y = encounter.y
     if type(x) ~= "number" or type(y) ~= "number" then
-        x = ((encounter.partyA.x or 0) + (encounter.partyB.x or 0)) / 2
-        y = ((encounter.partyA.y or 0) + (encounter.partyB.y or 0)) / 2
+        x = ((partyA.x or 0) + (partyB.x or 0)) / 2
+        y = ((partyA.y or 0) + (partyB.y or 0)) / 2
     end
     local victorPartyId = battleResult.winnerPartyId
     local participants = {
-        {partyId = encounter.partyAId, name = encounter.partyA.name or tostring(encounter.partyAId)},
-        {partyId = encounter.partyBId, name = encounter.partyB.name or tostring(encounter.partyBId)}
+        {partyId = encounter.partyAId, name = partyA.name or tostring(encounter.partyAId)},
+        {partyId = encounter.partyBId, name = partyB.name or tostring(encounter.partyBId)}
     }
     local site = {
         id = nil,

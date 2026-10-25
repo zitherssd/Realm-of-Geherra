@@ -126,7 +126,12 @@ function BattlefieldResourceCollection.collect(map, siteId, playerParty)
         items = copySerializable(resources, "Collected supplies"),
         gold = gold
     }
-    playerParty.inventory = newInventory
+    for index = #playerParty.inventory, 1, -1 do
+        playerParty.inventory[index] = nil
+    end
+    for index, item in ipairs(newInventory) do
+        playerParty.inventory[index] = item
+    end
     PartySystem.addTreasury(playerParty, gold)
     site.loot.items = {}
     site.loot.gold = 0

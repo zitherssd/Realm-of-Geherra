@@ -105,19 +105,13 @@ local function spawnLocationNpcs(location, locationType, rng, spawnRules)
                 local troopDef = TroopsData[rule.troopType]
                 if troopDef and troopDef.stock then
                     npc.inventory = TraderSystem.buildStockInventory(troopDef)
+                    npc.inventoryFormat = "list"
                     npc.buysFromPlayers = troopDef.buysFromPlayers
                     npc.sellPriceFactor = troopDef.sellPriceFactor
                     npc.restockIntervalDays = troopDef.restockIntervalDays
                     if npc.restockIntervalDays then
                         npc.lastStockRefreshDay = 0
                     end
-                end
-
-                -- Travelling traders roll a random stay (days) before moving on
-                -- (see systems/trader_travel_system.lua).
-                if rule.troopType == "trader" then
-                    npc.daysAtLocation = 0
-                    npc.travelThresholdDays = rng(7, 28)
                 end
 
                 LocationSystem.addNPC(location, npc)
@@ -148,10 +142,9 @@ function LocationPopulationSystem.populate(map, generationData, options)
         end
 
         local locationType = weightedChoice(typeWeights, rng)
-        local locationId = string.format("settlement_%02d", index)
         local location = LocationAssemblage.create(
             EcsWorld.campaign,
-            locationId,
+            nil,
             makeLocationName(index, locationType, populationConfig.namePools, rng, usedNames)
         )
 

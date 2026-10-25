@@ -7,7 +7,6 @@ local GameContext = require("src.game.game_context")
 local TimeSystem = require("src.systems.time_system")
 local EventBus = require("src.core.event_bus")
 local PartyAiSystem = require("src.systems.party_ai_system")
-local TraderTravelSystem = require("src.systems.trader_travel_system")
 local PartyInteractionSystem = require("src.systems.party_interaction_system")
 local WorldActivitySystem = require("src.systems.world_activity_system")
 local WorldEncounterSystem = require("src.systems.world_encounter_system")
@@ -22,8 +21,6 @@ local function createParty(world, map, partyId, actorId, config)
     party.hostile = config.hostile or false
     party.visible = true
     party.isTraderParty = config.isTraderParty or false
-    party.pathWaypoints = config.pathWaypoints or {}
-    party.waypointIndex = 1
 
     if actorId then
         local actor = Unit.create(world, "soldier", actorId)
@@ -147,10 +144,9 @@ local function testFractionalAdvancementAndReservations(world)
     raider.wanderTarget = {x = 500, y = 100}
     local caravan = createParty(world, map, "fractional-caravan", "fractional-caravan-actor", {
         isTraderParty = true,
-        state = "travel",
+        state = "idle",
         x = 200,
         y = 100,
-        pathWaypoints = {{x = 1000, y = 100}}
     })
     local player = createParty(world, map, "fractional-player", "fractional-player-actor", {
         x = 50,
@@ -164,6 +160,8 @@ local function testFractionalAdvancementAndReservations(world)
     })
     assert(started and encounter.id == "fractional-map:encounter:1")
     assert(encounter.partyAId == raider.id and encounter.partyBId == caravan.id)
+    assert(encounter.partyA == nil and encounter.partyB == nil,
+        "map encounter record retained direct campaign-party references")
     assert(map:getActiveEncounters()[encounter.id] == encounter)
     assert(raider.activeEncounterId == encounter.id and caravan.activeEncounterId == encounter.id)
     assert(not WorldEncounterSystem.start(map, raider, player))
@@ -171,7 +169,6 @@ local function testFractionalAdvancementAndReservations(world)
 
     local raiderX, caravanX = raider.x, caravan.x
     PartyAiSystem.update(1, map, player)
-    TraderTravelSystem.update(1, map)
     WorldActivitySystem.update(1, map, player)
     assert(raider.x == raiderX and caravan.x == caravanX,
         "an engaged party moved through a world control system")
@@ -311,12 +308,12 @@ local function testConcurrentEncountersAndUnengagedTravel(world)
     local a2 = createParty(world, map, "concurrent-a2", "concurrent-a2-actor", {health = 100000})
     local b2 = createParty(world, map, "concurrent-b2", "concurrent-b2-actor", {health = 100000})
     local freeTrader = createParty(world, map, "free-trader", "free-trader-actor", {
-        state = "travel",
+        state = "wander",
         isTraderParty = true,
         x = 100,
-        y = 200,
-        pathWaypoints = {{x = 1000, y = 200}}
+        y = 200
     })
+    freeTrader.wanderTarget = {x = 1000, y = 200}
     local _, first = WorldEncounterSystem.start(map, a1, b1, {
         maxTicks = 100,
         ticksPerWorldHour = 4
@@ -328,7 +325,7 @@ local function testConcurrentEncountersAndUnengagedTravel(world)
     local firstRunner, secondRunner = first.runner, second.runner
 
     WorldEncounterSystem.update(0.25, map)
-    TraderTravelSystem.update(0.25, map)
+    PartyAiSystem.update(0.25, map, nil)
     assert(firstRunner.simulation.context.data.tick == 1)
     assert(secondRunner.simulation.context.data.tick == 2)
     assert(freeTrader.x > 100, "engagement reservation blocked an unrelated trader")
@@ -337,8 +334,8 @@ local function testConcurrentEncountersAndUnengagedTravel(world)
         encounter.runner:cleanup()
         encounter.state = "cancelled"
         map.activeEncounters[encounter.id] = nil
-        encounter.partyA.activeEncounterId = nil
-        encounter.partyB.activeEncounterId = nil
+        raider.activeEncounterId = nil
+        caravan.activeEncounterId = nil
     end
 end
 

@@ -24,7 +24,6 @@ function StateManager.init()
     -- Initialize systems that subscribe to events
     require("src.systems.quest_system").init()
     require("src.systems.encounter_system").init()
-    require("src.systems.trader_travel_system").init()
 end
 
 function StateManager.push(stateName, ...)

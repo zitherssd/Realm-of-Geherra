@@ -6,9 +6,15 @@
 
 local Concord = require("src.libs.concord")
 local TroopsData = require("src.data.troops")
+local IdAllocator = require("src.core.id_allocator")
 
 local function unitAssemblage(e, troopType, id)
-    e.id = id or (tostring(os.time()) .. "-" .. tostring(math.random(10000, 99999)))
+    local allocator = IdAllocator.forWorld(e.__world)
+    if id ~= nil then
+        e.id = allocator:claim(id)
+    else
+        e.id = allocator:allocate("actor")
+    end
     e.troopType = troopType or "soldier"
     e:give("unit")
 
@@ -35,6 +41,7 @@ local function unitAssemblage(e, troopType, id)
         "mainHand", "offHand", "rangedWeapon", "head", "body", "hands", "feet"
     }
     e.inventory = {}
+    e.inventoryFormat = "map"
     e.equipment = {}
     e.skills = {
         ["attack"] = {learned = true} -- Default basic attack
@@ -136,6 +143,9 @@ end
 local Unit = {assemble = unitAssemblage}
 
 function Unit.create(world, troopType, id)
+    if id ~= nil then
+        IdAllocator.forWorld(world):assertAvailable(id)
+    end
     return Concord.entity(world):assemble(unitAssemblage, troopType, id)
 end
 

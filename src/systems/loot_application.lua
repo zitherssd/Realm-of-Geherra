@@ -1,6 +1,7 @@
 -- Applies a prepared LootResult to campaign inventories and battlefield remains.
 
 local BattlefieldRemainsSystem = require("src.systems.battlefield_remains_system")
+local InventorySystem = require("src.systems.inventory_system")
 
 local LootApplication = {}
 
@@ -37,6 +38,13 @@ local function requireQuantity(value, label)
     if value % 1 ~= 0 then
         error(label .. " must be a whole item quantity", 3)
     end
+end
+
+local function findMapParty(map, partyId)
+    for _, party in ipairs(map:getParties() or {}) do
+        if party.id == partyId then return party end
+    end
+    return nil
 end
 
 local function appendItem(inventory, item, durabilityRemaining)
@@ -263,7 +271,12 @@ function LootApplication.prepare(lootResult, context)
 
     local partiesById, partyIds = {}, {}
     local partiesByActorId = {}
-    for _, party in ipairs({encounter.partyA, encounter.partyB}) do
+    local partyA = findMapParty(context.map, encounter.partyAId)
+    local partyB = findMapParty(context.map, encounter.partyBId)
+    if not partyA or not partyB then
+        error("Encounter party IDs do not resolve on the campaign map", 2)
+    end
+    for _, party in ipairs({partyA, partyB}) do
         if type(party) ~= "table" or type(party.inventory) ~= "table" or
             type(party.actors) ~= "table" then
             error("Encounter parties require actor rosters and item-list inventories", 2)
@@ -405,17 +418,21 @@ function LootApplication.apply(plan)
     for partyId, party in pairs(plan.partiesById) do
         local state = plan.lootResult.partyStates[partyId]
         if state.eliminated then
-            party.inventory = {}
+            if not InventorySystem.replaceListContents(party, {}) then
+                error("Unable to clear eliminated party inventory", 2)
+            end
             party.treasury = 0
         else
-            party.inventory = plan.inventories[partyId]
+            if not InventorySystem.replaceListContents(party, plan.inventories[partyId]) then
+                error("Unable to apply prepared party inventory", 2)
+            end
             party.treasury = plan.treasuries[partyId]
         end
     end
     for _, actor in ipairs(plan.defeatedActors) do
-        actor.inventory = {}
-        actor.equipment = {}
-        actor.itemDurability = {}
+        for key in pairs(actor.inventory or {}) do actor.inventory[key] = nil end
+        for key in pairs(actor.equipment or {}) do actor.equipment[key] = nil end
+        for key in pairs(actor.itemDurability or {}) do actor.itemDurability[key] = nil end
     end
 
     BattlefieldRemainsSystem.apply(plan.map, encounter, plan.remainsSite)

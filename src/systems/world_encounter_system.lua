@@ -58,12 +58,14 @@ local function addCooldown(map, encounter)
     map.partyEncounterCooldowns[encounter.partyBId] = duration
 end
 
-local function releaseParties(encounter)
-    if encounter.partyA.activeEncounterId == encounter.id then
-        encounter.partyA.activeEncounterId = nil
+local function releaseParties(map, encounter)
+    local partyA = findParty(map, encounter.partyAId)
+    local partyB = findParty(map, encounter.partyBId)
+    if partyA and partyA.activeEncounterId == encounter.id then
+        partyA.activeEncounterId = nil
     end
-    if encounter.partyB.activeEncounterId == encounter.id then
-        encounter.partyB.activeEncounterId = nil
+    if partyB and partyB.activeEncounterId == encounter.id then
+        partyB.activeEncounterId = nil
     end
 end
 
@@ -81,13 +83,10 @@ end
 
 local function publishActivityEvent(eventName, encounter, outcome, winnerPartyId)
     if not encounter.activitySourceId then return end
-    local sourceParty = encounter.partyAId == encounter.activitySourceId
-        and encounter.partyA or encounter.partyB
     EventBus.emit(eventName, {
         mapId = encounter.mapId,
         activityType = encounter.activityType,
         sourcePartyId = encounter.activitySourceId,
-        sourceParty = sourceParty,
         targetPartyId = encounter.targetPartyId,
         encounterId = encounter.id,
         outcome = outcome,
@@ -100,7 +99,7 @@ local function failEncounter(map, encounter, message)
     encounter.error = tostring(message)
     addCooldown(map, encounter)
     removeActiveEncounter(map, encounter)
-    releaseParties(encounter)
+    releaseParties(map, encounter)
 
     local ok, cleanupError = pcall(cleanRunner, encounter)
     if not ok then
@@ -122,9 +121,14 @@ local function updateCooldowns(map, elapsedWorldHours)
 end
 
 local function finishEncounter(map, encounter, result)
+    local partyA = findParty(map, encounter.partyAId)
+    local partyB = findParty(map, encounter.partyBId)
+    if not partyA or not partyB then
+        error("A participating party is no longer on the campaign map", 2)
+    end
     local lootResult = LootResolver.resolve(
-        encounter.partyA,
-        encounter.partyB,
+        partyA,
+        partyB,
         result,
         encounter.lootPolicy
     )
@@ -155,7 +159,7 @@ local function finishEncounter(map, encounter, result)
     encounter.state = "completed"
     addCooldown(map, encounter)
     removeActiveEncounter(map, encounter)
-    releaseParties(encounter)
+    releaseParties(map, encounter)
     local casualties = 0
     for _, actorResult in pairs(result.actors) do
         if actorResult.defeated then casualties = casualties + 1 end
@@ -174,7 +178,7 @@ local function finishEncounter(map, encounter, result)
 end
 
 local function advanceEncounter(map, encounter, elapsedWorldHours)
-    if not containsParty(map, encounter.partyA) or not containsParty(map, encounter.partyB) then
+    if not findParty(map, encounter.partyAId) or not findParty(map, encounter.partyBId) then
         error("A participating party is no longer on the campaign map", 2)
     end
 
@@ -204,6 +208,9 @@ function WorldEncounterSystem.getInspectionData(map, encounterId)
         not encounter.runner.simulation then
         return nil
     end
+    local partyA = findParty(map, encounter.partyAId)
+    local partyB = findParty(map, encounter.partyBId)
+    if not partyA or not partyB then return nil end
 
     local context = encounter.runner.simulation.context
     local survivors = {player = 0, enemy = 0}
@@ -216,8 +223,8 @@ function WorldEncounterSystem.getInspectionData(map, encounterId)
     return {
         id = encounter.id,
         status = encounter.state,
-        partyAName = encounter.partyA.name or tostring(encounter.partyAId),
-        partyBName = encounter.partyB.name or tostring(encounter.partyBId),
+        partyAName = partyA.name or tostring(encounter.partyAId),
+        partyBName = partyB.name or tostring(encounter.partyBId),
         elapsedWorldHours = encounter.elapsedWorldHours,
         survivingPartyA = survivors.player or 0,
         survivingPartyB = survivors.enemy or 0,
@@ -377,8 +384,6 @@ function WorldEncounterSystem.start(map, partyA, partyB, options)
         id = encounterId,
         partyAId = partyA.id,
         partyBId = partyB.id,
-        partyA = partyA,
-        partyB = partyB,
         state = "active",
         elapsedWorldHours = 0,
         ticksPerWorldHour = ticksPerWorldHour,

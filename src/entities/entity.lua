@@ -5,8 +5,11 @@ local Entity = {}
 Entity.__index = Entity
 
 function Entity.new(id, entityType)
+    if id == nil then
+        error("Entity.new requires an explicit ID", 2)
+    end
     local self = setmetatable({}, Entity)
-    self.id = id or (tostring(os.time()) .. "-" .. tostring(math.random(10000, 99999)))
+    self.id = id
     self.type = entityType or "entity"
     self.tags = {}
     self.data = {}

@@ -209,20 +209,112 @@ function Map:getLocations()
     return self.locations
 end
 
+function Map:getLocationById(locationId)
+    if locationId == nil then return nil end
+    for _, location in ipairs(self.locations) do
+        if location.id == locationId then return location end
+    end
+    return nil
+end
+
+local function sameEntity(left, right)
+    if not left or not right then return false end
+    if left.id ~= nil and right.id ~= nil then
+        return left.id == right.id
+    end
+    return left == right
+end
+
+local function partyContainsActor(party, actor)
+    for _, member in ipairs(party.actors or {}) do
+        if sameEntity(member, actor) then return true end
+    end
+    return false
+end
+
 -- Add party to the map
 function Map:addParty(party)
+    if not party then return false end
+    for _, existing in ipairs(self.parties) do
+        if sameEntity(existing, party) then
+            return false
+        end
+    end
+
+    for _, location in ipairs(self.locations) do
+        for _, resident in ipairs(location.npcs or {}) do
+            if partyContainsActor(party, resident) then return false end
+        end
+        for _, stationedParty in ipairs(location.stationedParties or {}) do
+            if not sameEntity(stationedParty, party) then
+                for _, actor in ipairs(party.actors or {}) do
+                    if partyContainsActor(stationedParty, actor) then return false end
+                end
+            end
+        end
+    end
+    for _, existing in ipairs(self.parties) do
+        if not sameEntity(existing, party) then
+            for _, actor in ipairs(party.actors or {}) do
+                if partyContainsActor(existing, actor) then return false end
+            end
+        end
+    end
+
+    local LocationSystem = require("src.systems.location_system")
+    for _, location in ipairs(self.locations) do
+        LocationSystem.removeStationedParty(location, party)
+    end
     table.insert(self.parties, party)
+    return true
+end
+
+function Map:stationParty(location, party)
+    if not location or not party then return false end
+    local previousIndex
+    for index, existing in ipairs(self.parties) do
+        if existing.id == party.id then
+            previousIndex = index
+            table.remove(self.parties, index)
+            break
+        end
+    end
+    local LocationSystem = require("src.systems.location_system")
+    if LocationSystem.addStationedParty(self, location, party) then
+        return true
+    end
+    if previousIndex then
+        table.insert(self.parties, previousIndex, party)
+    end
+    return false
 end
 
 -- Remove party from the map
 function Map:removeParty(partyId)
+    local removed = false
+    local removedParty
     for i, party in ipairs(self.parties) do
         if party.id == partyId then
+            removedParty = party
             table.remove(self.parties, i)
-            return true
+            removed = true
+            break
         end
     end
-    return false
+
+    local LocationSystem = require("src.systems.location_system")
+    for _, location in ipairs(self.locations) do
+        if LocationSystem.removeStationedParty(location, { id = partyId }) then
+            removed = true
+        end
+    end
+    if removedParty and removedParty.world_activity
+        and removedParty.world_activity.type == "travel"
+        and removedParty.world_activity.status == "active" then
+        local WorldActivitySystem = require("src.systems.world_activity_system")
+        WorldActivitySystem.cancel(removedParty, "party_removed")
+    end
+    return removed
 end
 
 -- Get all parties on the map

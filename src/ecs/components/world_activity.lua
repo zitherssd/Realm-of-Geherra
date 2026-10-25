@@ -18,4 +18,8 @@ return Concord.component.new("world_activity", function(component)
     component.encounterId = nil
     component.lastActivity = nil
     component.retryCooldownSeconds = 0
+    component.outcome = nil
+    component.waypoints = nil
+    component.waypointIndex = nil
+    component.previousPartyState = nil
 end)

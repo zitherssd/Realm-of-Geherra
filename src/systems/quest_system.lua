@@ -17,6 +17,7 @@ local Item = require("src.entities.item")
 local ItemsData = require("src.data.items")
 local ReputationSystem = require("src.systems.reputation_system")
 local PlayerSystem = require("src.systems.player_system")
+local IdAllocator = require("src.core.id_allocator")
 
 -- All quest entities (active and completed alike) live in the campaign
 -- world's "quest" pool -- state distinguishes them, not separate lists.
@@ -102,22 +103,8 @@ function QuestSystem._isSameGiver(quest, giverRef)
     return true
 end
 
-function QuestSystem._nextQuestInstanceId(templateId)
-    if not GameContext.data.questInstanceCounter then
-        GameContext.data.questInstanceCounter = 0
-    end
-
-    GameContext.data.questInstanceCounter = GameContext.data.questInstanceCounter + 1
-    return string.format("%s#%d", templateId, GameContext.data.questInstanceCounter)
-end
-
-function QuestSystem._nextQuestOfferId(templateId)
-    if not GameContext.data.questOfferCounter then
-        GameContext.data.questOfferCounter = 0
-    end
-
-    GameContext.data.questOfferCounter = GameContext.data.questOfferCounter + 1
-    return string.format("offer:%s#%d", templateId, GameContext.data.questOfferCounter)
+function QuestSystem._nextQuestOfferId()
+    return IdAllocator.forWorld(EcsWorld.campaign):allocate("quest_offer")
 end
 
 function QuestSystem._pickRandomFromList(values)
@@ -155,12 +142,7 @@ end
 -- Finds a quest entity (active, completed, or otherwise) by its instance id.
 function QuestSystem.findQuestByInstanceId(instanceId)
     if not instanceId then return nil end
-    for _, quest in ipairs(questPool()) do
-        if quest.instanceId == instanceId then
-            return quest
-        end
-    end
-    return nil
+    return EcsWorld.findQuestById(instanceId)
 end
 
 function QuestSystem.getActiveQuests()
@@ -249,7 +231,7 @@ function QuestSystem.generateProceduralQuestOffer(giverRef, options)
     end
 
     return {
-        offerId = QuestSystem._nextQuestOfferId(selectedTemplateId),
+        offerId = QuestSystem._nextQuestOfferId(),
         templateId = selectedTemplateId,
         giverRef = normalizedGiver,
         source = "procedural"
@@ -295,10 +277,9 @@ function QuestSystem.activateQuest(templateId, giverRef)
         return
     end
 
-    local instanceId = QuestSystem._nextQuestInstanceId(templateId)
-
     -- Create a new quest entity in the campaign world
-    local newQuest = QuestAssemblage.create(EcsWorld.campaign, instanceId, questData.title, templateId)
+    local newQuest = QuestAssemblage.create(EcsWorld.campaign, nil, questData.title, templateId)
+    local instanceId = newQuest.instanceId
     newQuest.description = questData.description
     newQuest.giverId = normalizedGiver.id
     newQuest.giverName = normalizedGiver.name or questData.giver
@@ -559,8 +540,7 @@ function QuestSystem._handleQuestAction(action, quest)
         
         if playerParty and map then
             local basePartyId = action.partyId or "quest_party"
-            local runtimePartyId = string.format("%s__%s", basePartyId, quest.instanceId)
-            local party = Party.create(EcsWorld.campaign, action.name, nil, runtimePartyId)
+            local party = Party.create(EcsWorld.campaign, action.name or basePartyId, nil)
             print(string.format("QuestSystem: Spawning quest party '%s' with ID: '%s'", party.name, party.id))
             party.faction = action.faction or "bandits"
             

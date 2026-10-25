@@ -15,7 +15,6 @@ local PartySystem = require("src.systems.party_system")
 local PlayerSystem = require("src.systems.player_system")
 local VisibilitySystem = require("src.systems.visibility_system")
 local PartyAiSystem = require("src.systems.party_ai_system")
-local TraderTravelSystem = require("src.systems.trader_travel_system")
 local PartyInteractionSystem = require("src.systems.party_interaction_system")
 local WorldActivitySystem = require("src.systems.world_activity_system")
 local WorldEncounterSystem = require("src.systems.world_encounter_system")
@@ -107,7 +106,6 @@ function WorldState._onPartyContact(event)
     WorldState.pendingRaidBattle = {
         mapId = map.id,
         encounterId = encounterId,
-        sourceParty = raider,
         sourcePartyId = raider.id,
         targetPartyId = playerParty.id
     }
@@ -116,7 +114,6 @@ function WorldState._onPartyContact(event)
         mapId = map.id,
         activityType = "raid",
         sourcePartyId = raider.id,
-        sourceParty = raider,
         targetPartyId = playerParty.id,
         encounterId = encounterId
     })
@@ -130,15 +127,19 @@ local function startPendingRaidBattle()
     local pending = WorldState.pendingRaidBattle
     if not pending then return false end
     WorldState.pendingRaidBattle = nil
+    local raider = WorldState.currentMap and findParty(
+        WorldState.currentMap,
+        pending.sourcePartyId
+    )
+    if not raider then return false end
 
     StateManager.swap("battle", {
-        enemyParty = pending.sourceParty,
+        enemyParty = raider,
         onComplete = function(result)
             EventBus.emit("party_encounter_finished", {
                 mapId = pending.mapId,
                 activityType = "raid",
                 sourcePartyId = pending.sourcePartyId,
-                sourceParty = pending.sourceParty,
                 targetPartyId = pending.targetPartyId,
                 encounterId = pending.encounterId,
                 outcome = result.outcome,
@@ -161,12 +162,16 @@ local function updateHoveredEncounter()
 
     for encounterId, encounter in pairs(WorldState.currentMap.activeEncounters or {}) do
         if encounter.state == "active" then
-            local x = (encounter.partyA.x + encounter.partyB.x) / 2
-            local y = (encounter.partyA.y + encounter.partyB.y) / 2
-            local dx, dy = worldX - x, worldY - y
-            if dx * dx + dy * dy <= hitRadius * hitRadius then
-                WorldState.hoveredEncounterId = encounterId
-                return
+            local partyA = findParty(WorldState.currentMap, encounter.partyAId)
+            local partyB = findParty(WorldState.currentMap, encounter.partyBId)
+            if partyA and partyB then
+                local x = (partyA.x + partyB.x) / 2
+                local y = (partyA.y + partyB.y) / 2
+                local dx, dy = worldX - x, worldY - y
+                if dx * dx + dy * dy <= hitRadius * hitRadius then
+                    WorldState.hoveredEncounterId = encounterId
+                    return
+                end
             end
         end
     end
@@ -222,7 +227,6 @@ function WorldState.enter()
     WorldState.font = love.graphics.newFont(14)
     WorldState.interactionCooldowns = {}
     EncounterSystem.reset()
-    TraderTravelSystem.resetDayTick()
     WorldEncounterSystem.init()
     WorldActivitySystem.init()
     EventBus.unsubscribe("party_contact", WorldState._onPartyContact)
@@ -329,17 +333,24 @@ function WorldState.update(dt)
 
     -- Handle player movement and time progression
     local moveX, moveY = 0, 0
+    local playerActivity = playerParty.world_activity
+    local playerTravelActive = playerActivity and playerActivity.type == "travel"
+        and playerActivity.status == "active"
     
-    if not WorldState.isResting and (Input.isKeyDown("up") or Input.isKeyDown("w")) then
+    if not WorldState.isResting and not playerTravelActive
+        and (Input.isKeyDown("up") or Input.isKeyDown("w")) then
         moveY = moveY - 1
     end
-    if not WorldState.isResting and (Input.isKeyDown("down") or Input.isKeyDown("s")) then
+    if not WorldState.isResting and not playerTravelActive
+        and (Input.isKeyDown("down") or Input.isKeyDown("s")) then
         moveY = moveY + 1
     end
-    if not WorldState.isResting and (Input.isKeyDown("left") or Input.isKeyDown("a")) then
+    if not WorldState.isResting and not playerTravelActive
+        and (Input.isKeyDown("left") or Input.isKeyDown("a")) then
         moveX = moveX - 1
     end
-    if not WorldState.isResting and (Input.isKeyDown("right") or Input.isKeyDown("d")) then
+    if not WorldState.isResting and not playerTravelActive
+        and (Input.isKeyDown("right") or Input.isKeyDown("d")) then
         moveX = moveX + 1
     end
     
@@ -347,6 +358,7 @@ function WorldState.update(dt)
     local isWaiting = (not WorldState.isResting) and Input.isKeyDown("space")
     local isMoving = (moveX ~= 0 or moveY ~= 0)
     local shouldAdvanceTime = WorldState.isResting or isMoving or isWaiting
+        or playerTravelActive
     local elapsedWorldHours = 0
     local elapsedWorldSeconds = 0
     
@@ -419,7 +431,6 @@ function WorldState.update(dt)
 
     if elapsedWorldSeconds > 0 then
         WorldActivitySystem.ensureDefaultActivities(WorldState.currentMap, playerParty)
-        TraderTravelSystem.update(elapsedWorldSeconds, WorldState.currentMap)
         PartyAiSystem.update(elapsedWorldSeconds, WorldState.currentMap, playerParty)
     end
     WorldActivitySystem.update(elapsedWorldSeconds, WorldState.currentMap, playerParty)
@@ -518,28 +529,32 @@ function WorldState.draw()
     -- battle's current position without scaling the icon with camera zoom.
     for _, encounter in pairs(WorldState.currentMap.activeEncounters or {}) do
         if encounter.state == "active" then
-            for _, party in ipairs({encounter.partyA, encounter.partyB}) do
-                love.graphics.setColor(1, 0.35, 0.12, 0.95)
-                love.graphics.setLineWidth(2 / WorldState.camera:getZoom())
-                love.graphics.circle("line", party.x, party.y, 20 / WorldState.camera:getZoom())
-            end
+            local partyA = findParty(WorldState.currentMap, encounter.partyAId)
+            local partyB = findParty(WorldState.currentMap, encounter.partyBId)
+            if partyA and partyB then
+                for _, party in ipairs({partyA, partyB}) do
+                    love.graphics.setColor(1, 0.35, 0.12, 0.95)
+                    love.graphics.setLineWidth(2 / WorldState.camera:getZoom())
+                    love.graphics.circle("line", party.x, party.y, 20 / WorldState.camera:getZoom())
+                end
 
-            local x = (encounter.partyA.x + encounter.partyB.x) / 2
-            local y = (encounter.partyA.y + encounter.partyB.y) / 2
-            local inverseZoom = 1 / WorldState.camera:getZoom()
-            love.graphics.push()
-            love.graphics.translate(x, y)
-            love.graphics.scale(inverseZoom)
-            love.graphics.setColor(0.12, 0.04, 0.03, 0.9)
-            love.graphics.circle("fill", 0, 0, 18)
-            love.graphics.setColor(1, 0.25, 0.12, 1)
-            love.graphics.setLineWidth(3)
-            love.graphics.line(-9, -9, 9, 9)
-            love.graphics.line(-9, 9, 9, -9)
-            love.graphics.setLineWidth(1)
-            love.graphics.setColor(1, 1, 1, 1)
-            love.graphics.printf("BATTLE", -34, 20, 68, "center")
-            love.graphics.pop()
+                local x = (partyA.x + partyB.x) / 2
+                local y = (partyA.y + partyB.y) / 2
+                local inverseZoom = 1 / WorldState.camera:getZoom()
+                love.graphics.push()
+                love.graphics.translate(x, y)
+                love.graphics.scale(inverseZoom)
+                love.graphics.setColor(0.12, 0.04, 0.03, 0.9)
+                love.graphics.circle("fill", 0, 0, 18)
+                love.graphics.setColor(1, 0.25, 0.12, 1)
+                love.graphics.setLineWidth(3)
+                love.graphics.line(-9, -9, 9, 9)
+                love.graphics.line(-9, 9, 9, -9)
+                love.graphics.setLineWidth(1)
+                love.graphics.setColor(1, 1, 1, 1)
+                love.graphics.printf("BATTLE", -34, 20, 68, "center")
+                love.graphics.pop()
+            end
         end
     end
     love.graphics.setLineWidth(1)

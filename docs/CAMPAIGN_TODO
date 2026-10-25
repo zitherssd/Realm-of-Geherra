@@ -1,0 +1,34 @@
+# Campaign Architecture — TODO
+
+Technical debt and deferred improvements for *Realms of Geherra*. These are **not blockers** for Milestone 2 (stable campaign identity).
+
+## Economy — finite shop treasuries
+
+- [ ] **Give shops / stationary merchants an authoritative treasury.** Currently, when a player sells an item to a merchant, the player receives gold without any corresponding debit from a merchant's funds. This is an existing gold-generation behavior, not a real transfer.
+- [ ] Define who owns shop funds (shop, establishment, or other explicit owner), separately from the shopkeeper's personal money and from party cargo/treasury.
+- [ ] Use generic validated, atomic gold transfers for both buying and selling; decide what happens when the buyer or shop lacks sufficient funds.
+- [ ] Test conservation of gold, insufficient funds, shopkeeper departure/death, and normal buy/sell flows.
+
+**Priority:** Deferred — revisit when expanding the economy, trade, and NPC resource simulation. Preserve current gameplay until that milestone.
+
+## Inventory — encapsulate inventory formats
+
+- [ ] **Keep `inventoryFormat` as a valid compatibility marker for now.** Lua's empty `{}` does not reveal whether an inventory is an item list or an item-ID-to-count map.
+- [ ] Gradually move representation-specific branching, stacking, validation, and item iteration behind shared inventory APIs so gameplay systems do not need to inspect `inventoryFormat` directly.
+- [ ] Preserve the intentional distinction between actor personal inventories/equipment and shared party/shop cargo, without forcing an unnecessary migration.
+- [ ] Test empty inventories, metadata-distinct items, transfers, serialization, and existing player/shop/loot behavior.
+
+**Priority:** Deferred — consider when a concrete feature requires touching inventory internals. Avoid a speculative rewrite.
+
+---
+
+## Current roadmap (context only)
+
+- [x] Milestone 1: generic inventory ownership and location membership
+- [x] Milestone 1 cleanup: one `location.stationedParties` collection; transfer instead of copy on trader departure/arrival
+- [ ] Milestone 2: campaign-scoped stable identity **(next; not blocked by the TODOs above)**
+- [ ] Generic `TravelActivity` and retirement of legacy `TraderTravelSystem`
+- [ ] Journey records, world facts, NPC knowledge and goals
+- [ ] Emergent quest offers grounded in real world events
+
+This file records deferred decisions; it does not indicate that any pending implementation has been completed.

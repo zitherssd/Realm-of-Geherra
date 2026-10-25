@@ -7,7 +7,6 @@ local GameContext = require("src.game.game_context")
 local EventBus = require("src.core.event_bus")
 local TimeSystem = require("src.systems.time_system")
 local PartyAiSystem = require("src.systems.party_ai_system")
-local TraderTravelSystem = require("src.systems.trader_travel_system")
 local WorldActivitySystem = require("src.systems.world_activity_system")
 local WorldEncounterSystem = require("src.systems.world_encounter_system")
 local RaidActivity = require("src.systems.world_activities.raid_activity")
@@ -21,8 +20,6 @@ local function createParty(world, map, id, actorPrefix, config)
     party.hostile = config.hostile or false
     party.visible = true
     party.isTraderParty = config.isTraderParty or false
-    party.pathWaypoints = config.pathWaypoints or {}
-    party.waypointIndex = 1
     party.inventory = {{id = id .. "-goods", quantity = 3}}
     party.treasury = 40
 
@@ -60,7 +57,6 @@ local function setupServices(map)
     GameContext.data.playerParty = nil
     TimeSystem.setPaused(false)
     TimeSystem.setTimeScale(1)
-    TraderTravelSystem.resetDayTick()
 end
 
 local function runContactToCompletion(world)
@@ -82,13 +78,13 @@ local function runContactToCompletion(world)
     local caravan = createParty(world, map, "contact-caravan", "contact-caravan-actor", {
         x = 300,
         y = 100,
-        state = "travel",
+        state = "wander",
         isTraderParty = true,
-        pathWaypoints = {{x = 10000, y = 100}},
         actorCount = 1,
         health = 200,
         attack = 20
     })
+    caravan.wanderTarget = {x = 10000, y = 100}
     local caravanActor = caravan.actors[1]
     caravan.inventory[1].metadata = {origin = "caravan", quality = "fine"}
     local originalCaravanCargo = caravan.inventory[1]
@@ -122,7 +118,6 @@ local function runContactToCompletion(world)
     for _ = 1, 100 do
         local dt = 0.1
         WorldActivitySystem.ensureDefaultActivities(map, player)
-        TraderTravelSystem.update(dt, map)
         PartyAiSystem.update(dt, map, player)
         WorldActivitySystem.update(dt, map, player)
         if raider.world_activity.phase == "engaged" then
@@ -154,7 +149,6 @@ local function runContactToCompletion(world)
     for _ = 1, 4000 do
         local dt = 0.1
         WorldActivitySystem.ensureDefaultActivities(map, player)
-        TraderTravelSystem.update(dt, map)
         PartyAiSystem.update(dt, map, player)
         WorldActivitySystem.update(dt, map, player)
         assert(raider.x == raiderContactX and caravan.x == caravanContactX,
@@ -319,13 +313,13 @@ local function testCooldownAfterTimeout(world)
     local caravan = createParty(world, map, "cooldown-caravan", "cooldown-caravan-actor", {
         x = 100,
         y = 100,
-        state = "travel",
+        state = "wander",
         isTraderParty = true,
-        pathWaypoints = {{x = 10000, y = 100}},
         actorCount = 1,
         health = 1000,
         attack = 0
     })
+    caravan.wanderTarget = {x = 10000, y = 100}
     setupServices(map)
     local previousMaxTicks = WorldEncounterSystem.maxCombatTicks
     WorldEncounterSystem.maxCombatTicks = 0

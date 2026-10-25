@@ -206,6 +206,7 @@ local function testCollectCargoGoldAndIdempotence()
     site.loot.gold = 17
     map:addBattlefieldRemains(site)
     local party = makePlayerParty()
+    local partyInventory = party.inventory
     local corpses = site.corpses
     local sourceItems = site.loot.items
 
@@ -217,6 +218,7 @@ local function testCollectCargoGoldAndIdempotence()
         "collection did not return all abandoned resources")
     assert(#party.inventory == 3 and party.treasury == 22,
         "cargo or gold was not fully transferred")
+    assert(party.inventory == partyInventory, "collection replaced the inventory table")
     assert(party.inventory[2].id == party.inventory[3].id and
         party.inventory[2].quantity == 3 and party.inventory[3].quantity == 2,
         "same-ID cargo stacks were merged")

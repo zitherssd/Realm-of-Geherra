@@ -164,7 +164,7 @@ local function filterDialogueTreeOptions(dialogueTree, questDialogContext, relat
             })
         end
 
-        -- Travelling trader parties (see systems/trader_travel_system.lua)
+        -- Trader parties use the same dialogue identity while traveling.
         -- additionally offer to attack the caravan.
         if lineIndex == 1 and target and target.isTraderParty then
             table.insert(allowedOptions, {

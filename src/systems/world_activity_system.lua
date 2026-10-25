@@ -1,6 +1,7 @@
 -- Executes one active world activity per non-player party.
 local EventBus = require("src.core.event_bus")
 local RaidActivity = require("src.systems.world_activities.raid_activity")
+local TravelActivity = require("src.systems.world_activities.travel_activity")
 
 local WorldActivitySystem = {}
 
@@ -9,7 +10,8 @@ local function isHostile(party)
 end
 
 local ACTIVITY_TYPES = {
-    raid = RaidActivity
+    raid = RaidActivity,
+    travel = TravelActivity
 }
 
 WorldActivitySystem.terminalRetryCooldownSeconds = 5
@@ -57,10 +59,15 @@ local function cleanupTerminalActivity(party, map)
     if encounterCooldown <= 0 then
         activity.retryCooldownSeconds = WorldActivitySystem.terminalRetryCooldownSeconds
     end
+    local implementation = ACTIVITY_TYPES[activity.type]
+    if implementation and implementation.onTerminal then
+        implementation.onTerminal(party, activity, activity.status)
+    end
     activity.lastActivity = {
         type = activity.type,
         status = activity.status,
-        reason = activity.reason
+        reason = activity.reason,
+        outcome = activity.outcome
     }
     activity.type = nil
     activity.phase = nil
@@ -75,6 +82,9 @@ local function cleanupTerminalActivity(party, map)
     activity.targetLostSeconds = 0
     activity.reason = nil
     activity.encounterId = nil
+    activity.waypoints = nil
+    activity.waypointIndex = nil
+    activity.previousPartyState = nil
     return true
 end
 
@@ -93,7 +103,7 @@ local function handleEncounterNotification(event, callbackName)
     local map = GameContext.data and GameContext.data.currentMap
     if not map or event.mapId ~= map.id then return end
 
-    local party = findParty(map, event.sourcePartyId) or event.sourceParty
+    local party = findParty(map, event.sourcePartyId)
     local activity = party and party.world_activity
     if not activity or activity.type ~= event.activityType then return end
 
@@ -123,7 +133,7 @@ function WorldActivitySystem._onEncounterFinished(event)
     handleEncounterNotification(event, "onEncounterFinished")
 end
 
-function WorldActivitySystem.start(party, activityType, params)
+function WorldActivitySystem.start(party, activityType, params, map)
     if party and party.activeEncounterId then
         return false, "party_in_encounter"
     end
@@ -146,8 +156,24 @@ function WorldActivitySystem.start(party, activityType, params)
         return false, "activity_cooldown"
     end
 
+    local prepared
+    if implementation.prepare then
+        if not map then
+            local GameContext = require("src.game.game_context")
+            map = GameContext.data and GameContext.data.currentMap
+        end
+        local reason
+        prepared, reason = implementation.prepare(party, copiedParams, map)
+        if not prepared then return false, reason end
+    end
+
+    if implementation.onStart then
+        local started, reason = implementation.onStart(party, activity, prepared, map)
+        if not started then return false, reason end
+    end
+
     activity.type = activityType
-    activity.phase = "acquire"
+    activity.phase = implementation.initialPhase or "acquire"
     activity.status = "active"
     activity.params = copiedParams
     activity.targetId = nil
@@ -159,6 +185,7 @@ function WorldActivitySystem.start(party, activityType, params)
     activity.lastKnownY = nil
     activity.targetLostSeconds = 0
     activity.reason = nil
+    activity.outcome = nil
     return true
 end
 
@@ -175,6 +202,12 @@ function WorldActivitySystem.cancel(party, reason)
     activity.status = "cancelled"
     activity.phase = "cancelled"
     activity.reason = reason or "cancelled"
+    activity.outcome = {
+        destinationLocationId = activity.params
+            and activity.params.destinationLocationId or nil,
+        status = "cancelled",
+        reason = activity.reason
+    }
     return true
 end
 
@@ -211,9 +244,15 @@ function WorldActivitySystem.update(dt, map, playerParty)
 
     WorldActivitySystem.ensureDefaultActivities(map, playerParty)
 
+    local parties = {}
     for _, party in ipairs(map:getParties() or {}) do
+        parties[#parties + 1] = party
+    end
+
+    for _, party in ipairs(parties) do
         local activity = party.world_activity
-        if party ~= playerParty and not party.activeEncounterId and
+        if (party ~= playerParty or (activity and activity.type == "travel"))
+            and not party.activeEncounterId and
             activity and activity.status == "active" then
             local implementation = ACTIVITY_TYPES[activity.type]
             if not implementation then
@@ -238,6 +277,16 @@ function WorldActivitySystem.update(dt, map, playerParty)
                     end
                 elseif result == "failed" then
                     WorldActivitySystem.cancel(party, reason)
+                elseif result == "completed" then
+                    activity.status = "completed"
+                    activity.phase = "complete"
+                    activity.reason = reason or "completed"
+                    activity.outcome = {
+                        destinationLocationId = activity.params.destinationLocationId,
+                        status = "completed",
+                        reason = activity.reason
+                    }
+                    cleanupTerminalActivity(party, map)
                 end
             end
         end

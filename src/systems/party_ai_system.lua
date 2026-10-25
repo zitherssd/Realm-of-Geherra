@@ -1,6 +1,6 @@
 -- systems/party_ai_system.lua
--- Fallback world-map movement for non-player parties. Activities and trader
--- travel own movement when active; this system handles wandering otherwise.
+-- Fallback world-map movement for non-player parties. Active activities own
+-- movement; this system handles wandering otherwise.
 
 local PartyAiSystem = {}
 
@@ -52,7 +52,7 @@ end
 
 -- Advance `party` along `waypoints` starting at `index`, returning the
 -- (possibly advanced) index and whether the party has reached the end.
--- Shared by trader_travel_system.lua for road-following.
+-- Shared by TravelActivity for road-following.
 function PartyAiSystem.followWaypoints(party, waypoints, index, speed, dt, map)
     if not waypoints or #waypoints == 0 then
         return index, true
@@ -114,13 +114,11 @@ function PartyAiSystem.update(dt, map, playerParty)
 
     for _, party in ipairs(map:getParties() or {}) do
         local activity = party.world_activity
-        local hasActiveActivity = activity and activity.status == "active"
-        if party ~= playerParty and not party.activeEncounterId and not hasActiveActivity then
-            if party.state == "travel" then
-                -- Owned by trader_travel_system.lua.
-            elseif party.state == "wander" or party.state == "chase" then
-                updateWander(party, dt, map)
-            end
+        local activityOwnsParty = activity and activity.type
+            and activity.status ~= "idle"
+        if party ~= playerParty and not party.activeEncounterId and not activityOwnsParty
+            and (party.state == "wander" or party.state == "chase") then
+            updateWander(party, dt, map)
         end
     end
 end

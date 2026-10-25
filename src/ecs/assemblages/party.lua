@@ -2,11 +2,17 @@
 -- Assembles a persistent group of actors traveling together.
 
 local Concord = require("src.libs.concord")
+local IdAllocator = require("src.core.id_allocator")
 
 local function partyAssemblage(e, name, leaderId, id)
     e:give("party")
     e:give("world_activity")
-    e.id = id or (tostring(os.time()) .. "-" .. tostring(math.random(10000, 99999)))
+    local allocator = IdAllocator.forWorld(e.__world)
+    if id ~= nil then
+        e.id = allocator:claim(id)
+    else
+        e.id = allocator:allocate("party")
+    end
     e.name = name or "Party"
 
     -- Party composition
@@ -19,6 +25,7 @@ local function partyAssemblage(e, name, leaderId, id)
 
     -- Party resources
     e.inventory = {}
+    e.inventoryFormat = "list"
     e.treasury = 0        -- Shared gold/currency
     e.supplies = 100       -- Food, water, equipment condition
 
@@ -33,8 +40,7 @@ local function partyAssemblage(e, name, leaderId, id)
     e.morale = 100
 
     -- World-map AI state (see systems/party_ai_system.lua): "idle" | "wander" |
-    -- "chase" | "travel". Only parties that opt in (wanderOriginX set, or a
-    -- travel system taking ownership) actually move on their own.
+    -- "chase" | "travel". TravelActivity owns movement while the latter is set.
     e.state = "idle"
     e.wanderOriginX, e.wanderOriginY = nil, nil
     e.wanderRadius = nil
@@ -45,6 +51,9 @@ end
 local Party = {assemble = partyAssemblage}
 
 function Party.create(world, name, leaderId, id)
+    if id ~= nil then
+        IdAllocator.forWorld(world):assertAvailable(id)
+    end
     return Concord.entity(world):assemble(partyAssemblage, name, leaderId, id)
 end
 

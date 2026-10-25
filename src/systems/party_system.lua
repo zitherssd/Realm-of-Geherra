@@ -1,23 +1,9 @@
 -- systems/party_system.lua
 -- Handle party-level mechanics: membership, movement, resources, stats aggregation
 
-local PartySystem = {}
+local InventorySystem = require("src.systems.inventory_system")
 
--- Try to stack an item with an existing entry of the same id in a list.
--- Returns true when merged; false when the caller should insert the item.
-local function mergeIntoStack(list, item)
-    for _, existing in ipairs(list) do
-        if existing.id == item.id then
-            if type(existing.addToStack) == "function" then
-                existing:addToStack(item.quantity or 1)
-            else
-                existing.quantity = (existing.quantity or 1) + (item.quantity or 1)
-            end
-            return true
-        end
-    end
-    return false
-end
+local PartySystem = {}
 
 -- Add an actor to a party (first member added becomes leader by default)
 function PartySystem.addActor(party, actor)
@@ -25,7 +11,7 @@ function PartySystem.addActor(party, actor)
     
     -- Check if actor is already in party
     for _, a in ipairs(party.actors) do
-        if a == actor then
+        if a == actor or (a.id ~= nil and actor.id ~= nil and a.id == actor.id) then
             return false  -- Already in party
         end
     end
@@ -78,12 +64,11 @@ function PartySystem.setPosition(party, x, y)
     party.y = y
 end
 
--- Add an already-instantiated item table to the party inventory, merging into
--- an existing stack of the same id when present.
+-- Add a copy of an item instance to party cargo, merging only compatible stacks.
 function PartySystem.addToInventory(party, item)
-    if not mergeIntoStack(party.inventory, item) then
-        table.insert(party.inventory, item)
-    end
+    if not party then return nil end
+    party.inventory = party.inventory or {}
+    return InventorySystem.addItem(party, item)
 end
 
 -- Add a fresh, independent copy of an item definition (e.g. Items[itemId]) to
@@ -91,27 +76,29 @@ end
 -- catalog tables, and merges into an existing stack of the same id when present.
 function PartySystem.addItemDefCopy(party, itemDef, quantity)
     quantity = quantity or 1
-    if quantity <= 0 then return end
+    if quantity <= 0 then return nil end
 
-    local copy = {}
-    for k, v in pairs(itemDef or {}) do
-        copy[k] = v
-    end
+    local copy = InventorySystem.deepClone(itemDef or {})
     copy.quantity = quantity
-
-    if not mergeIntoStack(party.inventory, copy) then
-        table.insert(party.inventory, copy)
-    end
+    return PartySystem.addToInventory(party, copy)
 end
 
 -- Remove an item from the party inventory by index, returning the removed item
 function PartySystem.removeFromInventory(party, itemIndex)
-    if itemIndex >= 1 and itemIndex <= #party.inventory then
-        local item = party.inventory[itemIndex]
-        table.remove(party.inventory, itemIndex)
-        return item
-    end
-    return nil
+    if not party then return nil end
+    party.inventory = party.inventory or {}
+    return InventorySystem.removeItem(party, itemIndex)
+end
+
+function PartySystem.transferInventoryItem(sourceParty, sourceIndex, targetParty)
+    if not sourceParty or not targetParty then return nil end
+    sourceParty.inventory = sourceParty.inventory or {}
+    targetParty.inventory = targetParty.inventory or {}
+    return InventorySystem.transferItem(sourceParty, sourceIndex, targetParty)
+end
+
+function PartySystem.transferTreasury(sourceParty, targetParty, amount)
+    return InventorySystem.transferGold(sourceParty, targetParty, amount)
 end
 
 -- Add currency to the party treasury

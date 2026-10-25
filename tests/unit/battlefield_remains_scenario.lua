@@ -71,8 +71,6 @@ local function testPartialCasualtiesAndPausedState()
         id = "partial-encounter",
         partyAId = partyA.id,
         partyBId = partyB.id,
-        partyA = partyA,
-        partyB = partyB,
         x = 123,
         y = 456
     }
@@ -107,7 +105,10 @@ local function testPartialCasualtiesAndPausedState()
         battleResult = result,
         worldTime = {day = 4, hour = 9.5}
     })
+    local partyAInventory, partyBInventory = partyA.inventory, partyB.inventory
     LootApplication.apply(plan)
+    assert(partyA.inventory == partyAInventory and partyB.inventory == partyBInventory,
+        "loot application replaced an inventory table")
     assert(#map:getBattlefieldRemains() == 1, "casualties did not create a remains site")
     local remains = map:getBattlefieldRemains()[1]
     assert(#remains.corpses == 2, "living actors were recorded as corpses")

@@ -172,9 +172,10 @@ function QuestAvailabilitySystem.rollOfferForNpc(npc)
 end
 
 function QuestAvailabilitySystem.refreshLocationOffers(location)
-    if not location or not location.npcs then return end
+    if not location then return end
 
-    for _, npc in ipairs(location.npcs) do
+    local LocationSystem = require("src.systems.location_system")
+    for _, npc in ipairs(LocationSystem.getAvailableNpcs(location)) do
         QuestAvailabilitySystem.rollOfferForNpc(npc)
     end
 end

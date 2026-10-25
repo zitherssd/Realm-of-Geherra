@@ -9,27 +9,7 @@ local Button = require("src.ui.widgets.button")
 local Tooltip = require("src.ui.widgets.tooltip")
 local InventoryGrid = require("src.ui.widgets.inventory_grid")
 local PartySystem = require("src.systems.party_system")
-
--- Add one unit of an item definition to a merchant's stock, stacking onto an
--- existing entry with the same id. Used when selling so the item goes into the
--- trader's inventory instead of vanishing.
-local function addToStock(stock, itemDef)
-    if not stock or not itemDef then return end
-
-    for _, existing in ipairs(stock) do
-        if existing.id == itemDef.id then
-            existing.quantity = (existing.quantity or 1) + 1
-            return
-        end
-    end
-
-    local copy = {}
-    for k, v in pairs(itemDef) do
-        copy[k] = v
-    end
-    copy.quantity = 1
-    table.insert(stock, copy)
-end
+local InventorySystem = require("src.systems.inventory_system")
 
 function ShopScreen.new(playerParty, merchant, onClose)
     local self = setmetatable({}, ShopScreen)
@@ -108,21 +88,17 @@ function ShopScreen:buyItem(index)
     if not item then return false end
 
     local price = item.value or 0
-    if not PartySystem.withdrawTreasury(self.playerParty, price) then
+    if type(price) ~= "number" or price < 0 or price % 1 ~= 0 or
+        PartySystem.getTreasury(self.playerParty) < price then
         self.lastMessage = "You can't afford " .. (item.name or "that") .. "."
         self.lastMessageTimer = 2.5
         return false
     end
 
-    -- Give the player a fresh copy of the item
-    PartySystem.addItemDefCopy(self.playerParty, item, 1)
-
-    -- Deplete the merchant's stock
-    if item.quantity and item.quantity > 1 then
-        item.quantity = item.quantity - 1
-    else
-        table.remove(self.merchantStock, index)
+    if not InventorySystem.transferItem(self.merchant, index, self.playerParty, 1) then
+        return false
     end
+    PartySystem.withdrawTreasury(self.playerParty, price)
 
     self.lastMessage = "Bought " .. (item.name or "item") .. " for " .. price .. " gold."
     self.lastMessageTimer = 2.5
@@ -143,15 +119,9 @@ function ShopScreen:sellItem(index)
 
     local price = math.floor((item.value or 0) * self.sellPriceFactor)
 
-    -- Remove the item from the player's inventory
-    if item.quantity and item.quantity > 1 then
-        item.quantity = item.quantity - 1
-    else
-        table.remove(self.playerInventory, index)
+    if not InventorySystem.transferItem(self.playerParty, index, self.merchant, 1) then
+        return false
     end
-
-    -- The sold item goes into the merchant's stock
-    addToStock(self.merchantStock, item)
 
     PartySystem.addTreasury(self.playerParty, price)
     self.lastMessage = "Sold " .. (item.name or "item") .. " for " .. price .. " gold."

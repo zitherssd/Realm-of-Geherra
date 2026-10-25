@@ -18,6 +18,9 @@ function love.load()
         require("loot_resolver_scenario").run()
         require("battlefield_remains_scenario").run()
         require("battlefield_interaction_scenario").run()
+        require("campaign_architecture_milestone_1_scenario").run()
+        require("campaign_identity_milestone_2_scenario").run()
+        require("travel_activity_scenario").run()
     end, debug.traceback)
 
     if not ok then
@@ -26,6 +29,6 @@ function love.load()
         return
     end
 
-    print("World activity, Raid visibility, battle simulation, headless battle, campaign result, encounter, loot resolver, battlefield remains, and battlefield interaction scenarios passed")
+    print("World activity, Raid visibility, battle simulation, headless battle, campaign result, encounter, loot resolver, battlefield remains, battlefield interaction, and campaign identity scenarios passed")
     love.event.quit(0)
 end

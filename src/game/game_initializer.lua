@@ -21,6 +21,7 @@ local PaintedMapLoader = require("src.systems.painted_map_loader")
 local LocationPopulationSystem = require("src.systems.location_population_system")
 local PartyAiSystem = require("src.systems.party_ai_system")
 local TraderSystem = require("src.systems.trader_system")
+local InventorySystem = require("src.systems.inventory_system")
 
 -- Debug trader: spawns in the starter location and sells every item (for testing)
 local DEBUG_TRADER_ENABLED = true
@@ -69,12 +70,7 @@ function GameInitializer.beginNewGame(options)
         end
     end
 
-    GameContext.data.playerParty = playerParty
-
-    -- Quest instances live as Concord entities in the campaign world;
-    -- only the id counters remain here.
-    GameContext.data.questInstanceCounter = 0
-    GameContext.data.questOfferCounter = 0
+    GameContext.setPlayerParty(playerParty)
 
     return playerParty
 end
@@ -102,11 +98,9 @@ function GameInitializer.finalizeNewGame(map, locations)
 
         -- Stock the trader with every item from the catalog
         debugTrader.inventory = {}
+        debugTrader.inventoryFormat = "list"
         for _, def in pairs(Items) do
-            local item = {}
-            for k, v in pairs(def) do
-                item[k] = v
-            end
+            local item = InventorySystem.deepClone(def)
             item.quantity = DEBUG_TRADER_STOCK_QTY
             table.insert(debugTrader.inventory, item)
         end

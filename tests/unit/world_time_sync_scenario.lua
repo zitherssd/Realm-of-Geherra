@@ -1,12 +1,13 @@
 local EcsWorld = require("src.ecs.world")
 local Party = require("src.ecs.assemblages.party")
+local Location = require("src.ecs.assemblages.location")
 local Unit = require("src.ecs.assemblages.unit")
 local PartySystem = require("src.systems.party_system")
 local Map = require("src.world.map")
 local GameContext = require("src.game.game_context")
 local Input = require("src.core.input")
 local TimeSystem = require("src.systems.time_system")
-local TraderTravelSystem = require("src.systems.trader_travel_system")
+local WorldActivitySystem = require("src.systems.world_activity_system")
 local WorldState = require("src.game.states.world_state")
 local WorldEncounterSystem = require("src.systems.world_encounter_system")
 
@@ -17,9 +18,6 @@ local function addParty(world, map, id, x, y, config)
     party.state = config.state or "idle"
     party.hostile = config.hostile or false
     party.isTraderParty = config.isTraderParty or false
-    party.pathWaypoints = config.pathWaypoints or {}
-    party.waypointIndex = 1
-
     for index = 1, config.actorCount or 1 do
         local actor = Unit.create(world, config.troopType or "soldier", id .. "-actor-" .. index)
         if config.health then
@@ -47,12 +45,28 @@ local function runScenario()
     local world = EcsWorld.init()
     local map = Map.new("world-time-sync-map")
     map.width, map.height = 2000, 2000
+    local origin = Location.create(world, "time-origin", "Origin")
+    origin.siteId, origin.x, origin.y = "time-origin-site", 300, 300
+    local destination = Location.create(world, "time-destination", "Destination")
+    destination.siteId, destination.x, destination.y = "time-destination-site", 1500, 300
+    map:addLocation(origin)
+    map:addLocation(destination)
+    map.worldGen = {
+        roads = {{
+            from = origin.siteId,
+            to = destination.siteId,
+            points = {{x = origin.x, y = origin.y}, {x = destination.x, y = destination.y}}
+        }}
+    }
     local player = addParty(world, map, "time-player", 20, 20)
     local caravan = addParty(world, map, "time-caravan", 300, 300, {
-        state = "travel",
-        isTraderParty = true,
-        pathWaypoints = {{x = 1500, y = 300}}
+        isTraderParty = true
     })
+    assert(map:removeParty(caravan.id))
+    assert(map:stationParty(origin, caravan))
+    assert(WorldActivitySystem.start(caravan, "travel", {
+        destinationLocationId = destination.id
+    }, map))
     local wanderingTrader = addParty(world, map, "time-wandering-trader", 645, 600, {
         state = "wander",
         isTraderParty = true,
@@ -175,21 +189,6 @@ local function runScenario()
 
     assert(math.abs(TimeSystem.worldHoursToSeconds(0.15) - 0.1) < 1e-7,
         "world-hour to world-second conversion is incorrect")
-
-    local dayTrader = {
-        troopType = "trader",
-        daysAtLocation = 0,
-        travelThresholdDays = 100
-    }
-    map.locations = {{npcs = {dayTrader}}}
-    TimeSystem.setTimeScale(1)
-    GameContext.data.time = {day = 1, hour = 0}
-    TraderTravelSystem.resetDayTick()
-    TraderTravelSystem.update(0.1, map)
-    GameContext.data.time.day = 4
-    TraderTravelSystem.update(0.1, map)
-    assert(dayTrader.daysAtLocation == 4,
-        "trader daily timers did not catch up after accelerated world time")
 
     encounter.runner:cleanup()
     map.activeEncounters[encounter.id] = nil

@@ -7,6 +7,7 @@ LocationScreen.__index = LocationScreen
 local Button = require("src.ui.widgets.button")
 local StateManager = require("src.core.state_manager")
 local LocationActions = require("src.systems.location_actions")
+local LocationSystem = require("src.systems.location_system")
 local LocationSpawnRules = require("src.data.location_npc_spawn_rules")
 local DialogueData = require("src.data.dialogue")
 local QuestAvailabilitySystem = require("src.systems.quest_availability_system")
@@ -45,7 +46,8 @@ function LocationScreen:refreshButtons()
     local padding = 20
     local startX = 50
     
-    for i, npc in ipairs(location.npcs) do
+    local npcs = LocationSystem.getAvailableNpcs(location)
+    for i, npc in ipairs(npcs) do
         -- Empty text because we will draw the name manually at the bottom
         local btnText = ""
         -- Arrange horizontally

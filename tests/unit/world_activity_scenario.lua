@@ -2,7 +2,6 @@ local EcsWorld = require("src.ecs.world")
 local Party = require("src.ecs.assemblages.party")
 local EventBus = require("src.core.event_bus")
 local PartyAiSystem = require("src.systems.party_ai_system")
-local TraderTravelSystem = require("src.systems.trader_travel_system")
 local WorldActivitySystem = require("src.systems.world_activity_system")
 local RaidActivity = require("src.systems.world_activities.raid_activity")
 
@@ -25,7 +24,6 @@ end
 
 local function runRaidScenario(world)
     EventBus.init()
-    TraderTravelSystem.resetDayTick()
 
     local raider = createParty(world, "raider", 100, 100)
     raider.hostile = true
@@ -33,10 +31,9 @@ local function runRaidScenario(world)
     raider.wanderTarget = { x = 0, y = 500 }
 
     local caravan = createParty(world, "caravan", 300, 100)
-    caravan.state = "travel"
+    caravan.state = "wander"
     caravan.isTraderParty = true
-    caravan.pathWaypoints = { { x = 10000, y = 100 } }
-    caravan.waypointIndex = 1
+    caravan.wanderTarget = { x = 10000, y = 100 }
 
     local playerParty = createParty(world, "player", 4000, 4000)
     local map = newMap({ raider, caravan, playerParty })
@@ -53,9 +50,8 @@ local function runRaidScenario(world)
     local oldRaidSpeed = RaidActivity.speed
     RaidActivity.speed = 400
     for _ = 1, 200 do
-        TraderTravelSystem.update(0.25, map)
-        WorldActivitySystem.update(0.25, map, playerParty)
         PartyAiSystem.update(0.25, map, playerParty)
+        WorldActivitySystem.update(0.25, map, playerParty)
         if raider.world_activity.phase == "contact" then
             break
         end
@@ -63,13 +59,13 @@ local function runRaidScenario(world)
     RaidActivity.speed = oldRaidSpeed
 
     assert(raider.world_activity.targetId == caravan.id, "raider did not acquire the caravan")
-    assert(caravan.x > initialCaravanX, "merchant travel did not move the caravan")
+    assert(caravan.x > initialCaravanX, "fallback movement did not move the caravan")
     assert(raider.x > initialRaiderX, "raid pursuit did not move the raider")
     assert(raider.world_activity.status == "active" and raider.world_activity.phase == "contact",
         "raider did not enter the contact handoff phase")
     assert(#contacts == 1, "raid should emit exactly one party_contact event")
     assert(contacts[1].sourcePartyId == raider.id and contacts[1].targetPartyId == caravan.id)
-    assert(caravan.state == "travel", "raid changed merchant travel state")
+    assert(caravan.state == "wander", "raid changed the target's movement state")
 
     WorldActivitySystem.update(1, map, playerParty)
     assert(#contacts == 1, "completed raid emitted a duplicate contact")
@@ -87,7 +83,7 @@ local function runFailureScenarios(world)
     local raider = createParty(world, "missing-target-raider", 0, 0)
     raider.hostile = true
     local caravan = createParty(world, "vanishing-caravan", 100, 0)
-    caravan.state = "travel"
+    caravan.state = "wander"
     caravan.isTraderParty = true
     local playerParty = createParty(world, "failure-test-player", 500, 500)
     local map = newMap({ raider, caravan, playerParty })
@@ -102,7 +98,7 @@ local function runFailureScenarios(world)
     local blockedRaider = createParty(world, "blocked-raider", 0, 0)
     blockedRaider.hostile = true
     local blockedCaravan = createParty(world, "blocked-caravan", 100, 0)
-    blockedCaravan.state = "travel"
+    blockedCaravan.state = "wander"
     blockedCaravan.isTraderParty = true
     local blockedMap = newMap({ blockedRaider, blockedCaravan, playerParty })
     blockedMap.isWalkable = function() return false end

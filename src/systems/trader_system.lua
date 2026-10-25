@@ -7,6 +7,7 @@ local TraderSystem = {}
 local TimeSystem = require("src.systems.time_system")
 local TroopsData = require("src.data.troops")
 local Items = require("src.data.items")
+local InventorySystem = require("src.systems.inventory_system")
 
 -- Build a fresh inventory list from a troop def's `stock` entries. Always
 -- copies each item def so the shared data/items.lua catalog is never mutated.
@@ -19,10 +20,7 @@ function TraderSystem.buildStockInventory(troopDef)
     for _, entry in ipairs(troopDef.stock) do
         local itemDef = Items[entry.id]
         if itemDef then
-            local copy = {}
-            for k, v in pairs(itemDef) do
-                copy[k] = v
-            end
+            local copy = InventorySystem.deepClone(itemDef)
             copy.quantity = entry.quantity or 1
             table.insert(inventory, copy)
         end
@@ -34,7 +32,7 @@ end
 -- Refill `npc.inventory` from its troop def's `stock` list once
 -- `npc.restockIntervalDays` days have passed since the last refresh.
 -- No-op for NPCs without a `restockIntervalDays` (e.g. traders, whose stock
--- only changes via travel).
+-- changes through the existing shop interactions).
 function TraderSystem.maybeRefreshStock(npc)
     if not npc or not npc.restockIntervalDays then
         return
@@ -48,6 +46,7 @@ function TraderSystem.maybeRefreshStock(npc)
 
     local troopDef = TroopsData[npc.troopType]
     npc.inventory = TraderSystem.buildStockInventory(troopDef)
+    npc.inventoryFormat = "list"
     npc.lastStockRefreshDay = currentDay
 end
 
