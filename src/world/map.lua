@@ -2,6 +2,7 @@
 -- Individual map or location
 
 local PartySystem = require("src.systems.party_system")
+local DebugMode = require("src.debug.mode")
 
 local Map = {}
 Map.__index = Map
@@ -550,18 +551,20 @@ function Map:drawParties(inverseScale)
                 love.graphics.printf(party.name, -40, -25, 80, "center")
             end
 
-            local activity = party.world_activity
-            local activityLabel
-            if activity and activity.type and activity.status ~= "idle" then
-                activityLabel = activity.type .. ": " ..
-                    (activity.phase or activity.status)
-            else
-                activityLabel = party.state or "idle"
+            if DebugMode.enabled then
+                local activity = party.world_activity
+                local activityLabel
+                if activity and activity.type and activity.status ~= "idle" then
+                    activityLabel = activity.type .. ": " ..
+                        (activity.phase or activity.status)
+                else
+                    activityLabel = party.state or "idle"
+                end
+                love.graphics.setColor(0, 0, 0, 0.85)
+                love.graphics.printf(activityLabel, -50, 15, 100, "center")
+                love.graphics.setColor(0.9, 0.95, 1, 1)
+                love.graphics.printf(activityLabel, -50, 14, 100, "center")
             end
-            love.graphics.setColor(0, 0, 0, 0.85)
-            love.graphics.printf(activityLabel, -50, 15, 100, "center")
-            love.graphics.setColor(0.9, 0.95, 1, 1)
-            love.graphics.printf(activityLabel, -50, 14, 100, "center")
             love.graphics.setColor(1, 1, 1, 1)
             love.graphics.pop()
         end

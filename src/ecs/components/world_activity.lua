@@ -17,6 +17,8 @@ return Concord.component.new("world_activity", function(component)
     component.reason = nil
     component.encounterId = nil
     component.lastActivity = nil
+    component.sequence = 0
+    component.goalActorId = nil
     component.retryCooldownSeconds = 0
     component.outcome = nil
     component.waypoints = nil

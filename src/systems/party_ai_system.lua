@@ -13,7 +13,7 @@ PartyAiSystem.wanderPauseMax = 6
 local function moveToward(party, tx, ty, speed, dt, map)
     local dx, dy = tx - party.x, ty - party.y
     local dist = math.sqrt(dx * dx + dy * dy)
-    if dist < 1 then return end
+    if dist <= 0.000001 then return end
 
     local effectiveSpeed = speed
     if map and map.getTravelSpeedMod then
@@ -50,32 +50,32 @@ function PartyAiSystem.moveToward(party, tx, ty, speed, dt, map)
     moveToward(party, tx, ty, speed, dt, map)
 end
 
--- Advance `party` along `waypoints` starting at `index`, returning the
--- (possibly advanced) index and whether the party has reached the end.
--- Shared by TravelActivity for road-following.
+-- Follow every node without snapping or discarding time at cell boundaries.
+-- Short movement steps retain the shared biome/road and collision behavior.
 function PartyAiSystem.followWaypoints(party, waypoints, index, speed, dt, map)
-    if not waypoints or #waypoints == 0 then
-        return index, true
-    end
-
-    local waypoint = waypoints[index]
-    if not waypoint then
-        return index, true
-    end
-
-    moveToward(party, waypoint.x, waypoint.y, speed, dt, map)
-
-    local dx, dy = waypoint.x - party.x, waypoint.y - party.y
-    if (dx * dx + dy * dy) <= 16 then
-        index = index + 1
-        if index > #waypoints then
-            return index, true
+    local remaining = math.max(0, dt)
+    local grid = map and map.worldGen and map.worldGen.navigationGrid
+    local maxStep = math.min(grid and grid.cellSize / 4 or 8, (map and map.roadOnDistance or 16) / 2)
+    while waypoints and waypoints[index] do
+        local point = waypoints[index]
+        local dx, dy = point.x - party.x, point.y - party.y
+        local distance = math.sqrt(dx * dx + dy * dy)
+        if distance <= 0.000001 then
+            index = index + 1
+        else
+            if remaining <= 0 then break end
+            local modifier = map and map.getTravelSpeedMod and map:getTravelSpeedMod(party.x, party.y) or 1
+            local effectiveSpeed = speed * modifier
+            if effectiveSpeed <= 0 then break end
+            local stepTime = math.min(remaining, math.min(distance, maxStep) / effectiveSpeed)
+            local oldX, oldY = party.x, party.y
+            moveToward(party, point.x, point.y, speed, stepTime, map)
+            remaining = remaining - stepTime
+            if math.abs(party.x - oldX) + math.abs(party.y - oldY) <= 0.000001 then break end
         end
     end
-
-    return index, false
+    return index, not waypoints or index > #waypoints
 end
-
 local function distanceTo(ax, ay, bx, by)
     local dx, dy = ax - bx, ay - by
     return math.sqrt(dx * dx + dy * dy)

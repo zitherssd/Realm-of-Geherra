@@ -8,7 +8,7 @@
 -- back to a freshly generated in-memory map via MapGenerator.generateWorld.
 -- Esc (or Backspace) pops back to the dialogue.
 
-local WorldMapState = {}
+local WorldMapState = {debugOnly = true}
 
 local StateManager = require("src.core.state_manager")
 local GameContext = require("src.game.game_context")

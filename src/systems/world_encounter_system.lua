@@ -58,9 +58,9 @@ local function addCooldown(map, encounter)
     map.partyEncounterCooldowns[encounter.partyBId] = duration
 end
 
-local function releaseParties(map, encounter)
-    local partyA = findParty(map, encounter.partyAId)
-    local partyB = findParty(map, encounter.partyBId)
+local function releaseParties(map, encounter, participants)
+    local partyA = participants and participants[1] or findParty(map, encounter.partyAId)
+    local partyB = participants and participants[2] or findParty(map, encounter.partyBId)
     if partyA and partyA.activeEncounterId == encounter.id then
         partyA.activeEncounterId = nil
     end
@@ -159,7 +159,8 @@ local function finishEncounter(map, encounter, result)
     encounter.state = "completed"
     addCooldown(map, encounter)
     removeActiveEncounter(map, encounter)
-    releaseParties(map, encounter)
+    -- Casualty application may already have removed an eliminated party from the map.
+    releaseParties(map, encounter, {partyA, partyB})
     local casualties = 0
     for _, actorResult in pairs(result.actors) do
         if actorResult.defeated then casualties = casualties + 1 end

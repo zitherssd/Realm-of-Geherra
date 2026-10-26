@@ -13,6 +13,7 @@ function ShopState.enter(params)
 
     local playerParty = GameContext.data.playerParty
     local merchant = params.merchant
+    ShopState.debugOnly = require("src.debug.mode").isDebugActor(merchant)
 
     if not playerParty or not merchant then
         StateManager.pop()

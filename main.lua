@@ -10,6 +10,8 @@ local GameManager = require("src.core.game")
 local StateManager = require("src.core.state_manager")
 local EventBus = require("src.core.event_bus")
 local Input = require("src.core.input")
+local DebugMode = require("src.debug.mode")
+local debugFont
 
 -- Initialize
 function love.load()
@@ -30,11 +32,25 @@ end
 
 function love.draw()
     StateManager.draw()
+    if DebugMode.enabled then
+        love.graphics.push("all")
+        debugFont = debugFont or love.graphics.newFont(12)
+        love.graphics.setFont(debugFont)
+        love.graphics.setColor(0.08, 0.07, 0.06, 0.92)
+        love.graphics.rectangle("fill", 8, love.graphics.getHeight() - 58, 320, 24)
+        love.graphics.setColor(1, 0.75, 0.25, 1)
+        love.graphics.print("DEBUG [F1] - Right-click parties / locations", 14, love.graphics.getHeight() - 54)
+        love.graphics.pop()
+    end
 end
 
-function love.keypressed(key)
+function love.keypressed(key, scancode, isRepeat)
+    if StateManager.keypressed(key, isRepeat) then return end
     Input.keypressed(key)
-    StateManager.keypressed(key)
+end
+
+function love.textinput(text)
+    StateManager.textinput(text)
 end
 
 function love.keyreleased(key)

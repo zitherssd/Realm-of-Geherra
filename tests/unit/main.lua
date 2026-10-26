@@ -8,6 +8,7 @@ package.path = repositoryRoot .. "/?.lua;" ..
 function love.load()
     local ok, err = xpcall(function()
         require("world_activity_scenario").run()
+        require("npc_goals_scenario").run()
         require("raid_visibility_scenario").run()
         require("battle_simulation_scenario").run()
         require("headless_battle_scenario").run()
@@ -21,6 +22,7 @@ function love.load()
         require("campaign_architecture_milestone_1_scenario").run()
         require("campaign_identity_milestone_2_scenario").run()
         require("travel_activity_scenario").run()
+        require("debug_mode_scenario").run()
     end, debug.traceback)
 
     if not ok then
@@ -29,6 +31,6 @@ function love.load()
         return
     end
 
-    print("World activity, Raid visibility, battle simulation, headless battle, campaign result, encounter, loot resolver, battlefield remains, battlefield interaction, and campaign identity scenarios passed")
+    print("All 16 scenarios passed, including NPC goals, campaign identity, travel, and debug mode")
     love.event.quit(0)
 end

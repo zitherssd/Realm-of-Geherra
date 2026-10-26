@@ -11,6 +11,7 @@ local LocationSystem = require("src.systems.location_system")
 local LocationSpawnRules = require("src.data.location_npc_spawn_rules")
 local DialogueData = require("src.data.dialogue")
 local QuestAvailabilitySystem = require("src.systems.quest_availability_system")
+local DebugMode = require("src.debug.mode")
 
 function LocationScreen.new(location, onLeave)
     local self = setmetatable({}, LocationScreen)
@@ -46,7 +47,12 @@ function LocationScreen:refreshButtons()
     local padding = 20
     local startX = 50
     
-    local npcs = LocationSystem.getAvailableNpcs(location)
+    local npcs = {}
+    for _, npc in ipairs(LocationSystem.getAvailableNpcs(location)) do
+        if DebugMode.enabled or not DebugMode.isDebugActor(npc) then
+            npcs[#npcs + 1] = npc
+        end
+    end
     for i, npc in ipairs(npcs) do
         -- Empty text because we will draw the name manually at the bottom
         local btnText = ""

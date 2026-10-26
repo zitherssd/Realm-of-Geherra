@@ -67,6 +67,8 @@ local function runScenario()
     assert(WorldActivitySystem.start(caravan, "travel", {
         destinationLocationId = destination.id
     }, map))
+    -- Consume the initial waypoint at the origin before comparing movement deltas.
+    WorldActivitySystem.update(0.01, map, player)
     local wanderingTrader = addParty(world, map, "time-wandering-trader", 645, 600, {
         state = "wander",
         isTraderParty = true,

@@ -3,6 +3,12 @@
 
 local LocationSystem = {}
 local PartySystem = require("src.systems.party_system")
+local EcsWorld = require("src.ecs.world")
+
+local function isRemoved(entity)
+    return entity.__isEntity and (not entity.__world
+        or EcsWorld.findEntityById(entity.id, nil, entity.__world) ~= entity)
+end
 
 local function ensureNpcs(location)
     if not location.npcs then
@@ -63,7 +69,7 @@ function LocationSystem.addStationedParty(map, location, party)
     if not map or not location or not party or type(map.getLocations) ~= "function" then
         return false
     end
-    if party.__isEntity and not party.__world then return false end
+    if isRemoved(party) then return false end
 
     local locationIsOnMap = false
     for _, candidate in ipairs(map:getLocations() or {}) do
@@ -147,7 +153,7 @@ function LocationSystem.getAvailableNpcs(location)
     local residents = location.npcs or {}
     for index = #residents, 1, -1 do
         local npc = residents[index]
-        if npc.__isEntity and not npc.__world then
+        if isRemoved(npc) then
             table.remove(residents, index)
         end
     end
@@ -158,14 +164,14 @@ function LocationSystem.getAvailableNpcs(location)
     local parties = ensureStationedParties(location)
     for index = #parties, 1, -1 do
         local party = parties[index]
-        if party.__isEntity and not party.__world then
+        if isRemoved(party) then
             table.remove(parties, index)
         else
             local actors = party.actors
             if type(actors) == "table" then
                 for actorIndex = #actors, 1, -1 do
                     local actor = actors[actorIndex]
-                    if actor.__isEntity and not actor.__world then
+                    if isRemoved(actor) then
                         PartySystem.removeActor(party, actor)
                     end
                 end

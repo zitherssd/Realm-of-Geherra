@@ -25,18 +25,18 @@ end
 -- Melee accuracy: d20 + attack vs d20 + defense. Ties go to the defender.
 -- Returns: isHit, margin, shieldDefense
 function CombatSystem.rollAttack(attacker, defender, skill)
-    local attStats = attacker.stats or {}
-    local defStats = defender.stats or {}
+local attStats = attacker.stats or {}
+local defStats = defender.stats or {}
 
-    local attack = attStats.attack or 10
-    local defense = defStats.defense or 0
-    local shieldDefense = CombatSystem._getShieldDefense(defender)
+local attack = attStats.attack or 10
+local defense = defStats.defense or 0
+local shieldDefense = CombatSystem._getShieldDefense(defender)
 
-    local offenseTotal = math.random(20) + attack
-    local defenseTotal = math.random(20) + defense
-    local margin = offenseTotal - defenseTotal
+local offenseTotal = math.random(20) + attack
+local defenseTotal = math.random(20) + defense
+local margin = offenseTotal - defenseTotal
 
-    return margin > 0, margin, shieldDefense
+return margin > 0, margin, shieldDefense
 end
 
 function CombatSystem.rollProjectileHitChance(defender)

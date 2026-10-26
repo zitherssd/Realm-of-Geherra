@@ -17,10 +17,14 @@ local VisibilitySystem = require("src.systems.visibility_system")
 local PartyAiSystem = require("src.systems.party_ai_system")
 local PartyInteractionSystem = require("src.systems.party_interaction_system")
 local WorldActivitySystem = require("src.systems.world_activity_system")
+local GoalSystem = require("src.systems.goal_system")
 local WorldEncounterSystem = require("src.systems.world_encounter_system")
 local BattlefieldInteraction = require("src.systems.battlefield_interaction")
+local DebugMode = require("src.debug.mode")
+local DebugOverlay = require("src.ui.screens.debug_overlay")
 
 local WorldState = {
+    debugOverlay = DebugOverlay.new(),
     camera = nil,
     currentMap = nil,
     defaultZoom = 2.0,       -- world map shown 2x (zoomed in, slightly pixelated)
@@ -195,6 +199,7 @@ local function healPartyOverTime(dt, multiplier)
 end
 
 local function initializeWorldPresentation()
+    WorldState.debugOverlay:close()
     WorldState.currentMap = GameContext.data.currentMap
 
     if not WorldState.currentMap then
@@ -244,6 +249,7 @@ function WorldState.requestRestMode(enabled)
 end
 
 function WorldState.resume()
+    WorldState.debugOverlay:close()
     if not WorldState.currentMap or not WorldState.camera then
         initializeWorldPresentation()
     end
@@ -258,6 +264,7 @@ function WorldState.resume()
 end
 
 function WorldState.exit()
+    WorldState.debugOverlay:close()
     -- Cleanup world state
     WorldState.camera = nil
     WorldState.currentMap = nil
@@ -282,6 +289,11 @@ end
 function WorldState.update(dt)
     local playerParty = GameContext.data.playerParty
     if not playerParty or not WorldState.currentMap then return end
+    if not DebugMode.enabled then WorldState.debugOverlay:close() end
+    if WorldState.debugOverlay:blocksWorldInput() then
+        TimeSystem.setPaused(true)
+        return
+    end
 
     -- Advance the floating favor notification timer (non-blocking)
     if WorldState.popup then
@@ -430,6 +442,7 @@ function WorldState.update(dt)
     updateHoveredEncounter()
 
     if elapsedWorldSeconds > 0 then
+        GoalSystem.update(elapsedWorldSeconds, WorldState.currentMap, playerParty)
         WorldActivitySystem.ensureDefaultActivities(WorldState.currentMap, playerParty)
         PartyAiSystem.update(elapsedWorldSeconds, WorldState.currentMap, playerParty)
     end
@@ -562,7 +575,7 @@ function WorldState.draw()
     
     -- DEBUG: Draw interaction radius
     local playerParty = GameContext.data.playerParty
-    if playerParty then
+    if DebugMode.enabled and playerParty then
         local VisibilityConfig = require("src.data.visibility")
         local divisor = VisibilityConfig.radiusDivisor or 1
 
@@ -645,7 +658,7 @@ function WorldState.draw()
 
     -- Draw current biome (debug)
     local playerParty = GameContext.data.playerParty
-    if playerParty and WorldState.currentMap then
+    if DebugMode.enabled and playerParty and WorldState.currentMap then
         local biomeId = WorldState.currentMap:getBiomeAt(playerParty.x, playerParty.y)
         local isOnRoad = WorldState.currentMap:isOnRoad(playerParty.x, playerParty.y)
         local speedMod = WorldState.currentMap:getTravelSpeedMod(playerParty.x, playerParty.y)
@@ -719,7 +732,7 @@ function WorldState.draw()
     end
 
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.printf("World View - WASD to move, [I] Inventory, [L] Quests", 0, love.graphics.getHeight() - 30, love.graphics.getWidth() - 20, "right")
+    love.graphics.printf("WASD: move | I: inventory | L: quests | F1: debug", 0, love.graphics.getHeight() - 30, love.graphics.getWidth() - 20, "right")
 
     -- Draw location interaction hint
     if WorldState.nearbyLocation then
@@ -772,6 +785,27 @@ function WorldState.draw()
         end
         love.graphics.setColor(1, 1, 1, 1)
     end
+    WorldState.debugOverlay:draw(WorldState.currentMap)
+end
+
+function WorldState.debugModeChanged()
+    WorldState.debugOverlay:close()
+end
+
+function WorldState.mousepressed(x, y, button)
+    return WorldState.debugOverlay:mousepressed(WorldState.currentMap, WorldState.camera, x, y, button)
+end
+
+function WorldState.keypressed(key)
+    return WorldState.debugOverlay:keypressed(key)
+end
+
+function WorldState.textinput(text)
+    WorldState.debugOverlay:textinput(text)
+end
+
+function WorldState.wheelmoved(_, y)
+    return WorldState.debugOverlay:wheelmoved(WorldState.currentMap, y)
 end
 
 return WorldState

@@ -365,7 +365,12 @@ local function testSearchDialogueActionAndUpdatedOptions()
     map:addBattlefieldRemains(site)
     local previousMap = GameContext.data.currentMap
     local previousParty = GameContext.data.playerParty
-    local party = makePlayerParty()
+    -- Dialogue resolves the player party through its persistent campaign ID.
+    local EcsWorld = require("src.ecs.world")
+    local Party = require("src.ecs.assemblages.party")
+    local party = Party.create(EcsWorld.campaign or EcsWorld.init(), "Supply collectors")
+    local resources = makePlayerParty()
+    party.inventory, party.treasury = resources.inventory, resources.treasury
     GameContext.data.currentMap = map
     GameContext.data.playerParty = party
     UIManager.init()

@@ -2,6 +2,7 @@
 local EventBus = require("src.core.event_bus")
 local RaidActivity = require("src.systems.world_activities.raid_activity")
 local TravelActivity = require("src.systems.world_activities.travel_activity")
+local PartySystem = require("src.systems.party_system")
 
 local WorldActivitySystem = {}
 
@@ -47,6 +48,21 @@ local function findParty(map, partyId)
     return nil
 end
 
+local function allMapParties(map)
+    local parties, seen = {}, {}
+    local function add(party)
+        if not seen[party.id] then
+            seen[party.id] = true
+            parties[#parties + 1] = party
+        end
+    end
+    for _, party in ipairs(map:getParties() or {}) do add(party) end
+    for _, location in ipairs(map.getLocations and map:getLocations() or {}) do
+        for _, party in ipairs(location.stationedParties or {}) do add(party) end
+    end
+    return parties
+end
+
 local function cleanupTerminalActivity(party, map)
     local activity = party.world_activity
     if not activity or (activity.status ~= "completed" and
@@ -64,6 +80,7 @@ local function cleanupTerminalActivity(party, map)
         implementation.onTerminal(party, activity, activity.status)
     end
     activity.lastActivity = {
+        sequence = activity.sequence,
         type = activity.type,
         status = activity.status,
         reason = activity.reason,
@@ -85,11 +102,12 @@ local function cleanupTerminalActivity(party, map)
     activity.waypoints = nil
     activity.waypointIndex = nil
     activity.previousPartyState = nil
+    activity.goalActorId = nil
     return true
 end
 
 local function updateRetryCooldowns(dt, map)
-    for _, party in ipairs(map:getParties() or {}) do
+    for _, party in ipairs(allMapParties(map)) do
         local activity = party.world_activity
         if activity and (activity.retryCooldownSeconds or 0) > 0 then
             activity.retryCooldownSeconds = math.max(0, activity.retryCooldownSeconds - math.max(0, dt))
@@ -173,6 +191,8 @@ function WorldActivitySystem.start(party, activityType, params, map)
     end
 
     activity.type = activityType
+    activity.goalActorId = nil
+    activity.sequence = (activity.sequence or 0) + 1
     activity.phase = implementation.initialPhase or "acquire"
     activity.status = "active"
     activity.params = copiedParams
@@ -214,7 +234,9 @@ end
 local function startDefaultRaids(map, playerParty)
     for _, party in ipairs(map:getParties() or {}) do
         local activity = party.world_activity
+        local leader = PartySystem.getLeader(party)
         if party ~= playerParty and not party.activeEncounterId and isHostile(party)
+            and not (leader and leader.npc_goals)
             and activity and activity.status == "idle" and activity.type == nil
             and (activity.retryCooldownSeconds or 0) <= 0
             and RaidActivity.hasEligibleTarget(party, map, playerParty) then
@@ -234,7 +256,7 @@ function WorldActivitySystem.update(dt, map, playerParty)
 
     updateRetryCooldowns(dt, map)
 
-    for _, party in ipairs(map:getParties() or {}) do
+    for _, party in ipairs(allMapParties(map)) do
         cleanupTerminalActivity(party, map)
     end
 

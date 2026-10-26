@@ -179,8 +179,8 @@ local function testBattleCasualtyKeepsCampaignActorIdentity()
     local result = {
         partyAId = partyA.id,
         partyBId = partyB.id,
-        outcome = "victory",
-        winnerPartyId = partyB.id,
+        -- Partial casualties with survivors on both sides are a timeout, not victory.
+        outcome = "timeout",
         actors = {
             [fallen.id] = {partyId = partyA.id, finalHp = 0, defeated = true},
             [survivor.id] = {partyId = partyA.id, finalHp = 25, defeated = false},
@@ -198,6 +198,7 @@ local function testBattleCasualtyKeepsCampaignActorIdentity()
         "survivor could not be resolved after battle")
     assertEqual(EcsWorld.findActorById(fallen.id), fallen,
         "campaign actor identity was lost when removed from a roster")
+    assertEqual(fallen.hp, 0, "retained casualty did not receive its final HP")
 end
 
 local Scenario = {}

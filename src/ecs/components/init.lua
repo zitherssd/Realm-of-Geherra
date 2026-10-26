@@ -9,5 +9,6 @@ require("src.ecs.components.battle_unit")
 require("src.ecs.components.quest")
 require("src.ecs.components.location")
 require("src.ecs.components.world_activity")
+require("src.ecs.components.npc_goals")
 
 return true

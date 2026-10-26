@@ -314,6 +314,9 @@ local function testConcurrentEncountersAndUnengagedTravel(world)
         y = 200
     })
     freeTrader.wanderTarget = {x = 1000, y = 200}
+    local player = createParty(world, map, "concurrent-player", "concurrent-player-actor", {
+        x = 1800, y = 1800
+    })
     local _, first = WorldEncounterSystem.start(map, a1, b1, {
         maxTicks = 100,
         ticksPerWorldHour = 4
@@ -325,7 +328,7 @@ local function testConcurrentEncountersAndUnengagedTravel(world)
     local firstRunner, secondRunner = first.runner, second.runner
 
     WorldEncounterSystem.update(0.25, map)
-    PartyAiSystem.update(0.25, map, nil)
+    PartyAiSystem.update(0.25, map, player)
     assert(firstRunner.simulation.context.data.tick == 1)
     assert(secondRunner.simulation.context.data.tick == 2)
     assert(freeTrader.x > 100, "engagement reservation blocked an unrelated trader")
@@ -334,9 +337,9 @@ local function testConcurrentEncountersAndUnengagedTravel(world)
         encounter.runner:cleanup()
         encounter.state = "cancelled"
         map.activeEncounters[encounter.id] = nil
-        raider.activeEncounterId = nil
-        caravan.activeEncounterId = nil
     end
+    a1.activeEncounterId, b1.activeEncounterId = nil, nil
+    a2.activeEncounterId, b2.activeEncounterId = nil, nil
 end
 
 local Scenario = {}

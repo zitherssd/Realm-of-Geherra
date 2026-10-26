@@ -251,7 +251,8 @@ function RenderSystem.draw(context)
 
     local bounds = context.data.bounds
     local debug = context.data.debug or {}
-    local showCollisionCircles = debug.showCollisionCircles == false
+    local showCollisionCircles = require("src.debug.mode").enabled
+        and debug.showCollisionCircles ~= false
     if bounds then
         love.graphics.setColor(0.16, 0.16, 0.16, 0.85)
         love.graphics.rectangle("fill", 0, 0, bounds.width, bounds.height)

@@ -2,6 +2,7 @@
 -- Push/pop/swap game states
 
 local StateManager = {}
+local DebugMode = require("src.debug.mode")
 
 local stateStack = {}
 local states = {}
@@ -95,13 +96,29 @@ function StateManager.getCurrentState()
     return nil
 end
 
-function StateManager.keypressed(key)
+function StateManager.keypressed(key, isRepeat)
+    if key == "f1" then
+        if not isRepeat then
+            DebugMode.toggle()
+            while not DebugMode.enabled and #stateStack > 0 and stateStack[#stateStack].state.debugOnly do
+                StateManager.pop()
+            end
+            local current = StateManager.getCurrentState()
+            if current and current.debugModeChanged then current.debugModeChanged() end
+        end
+        return true
+    end
     if #stateStack > 0 then
         local current = stateStack[#stateStack]
         if current.state.keypressed then
-            current.state.keypressed(key)
+            return current.state.keypressed(key)
         end
     end
+end
+
+function StateManager.textinput(text)
+    local current = StateManager.getCurrentState()
+    if current and current.textinput then current.textinput(text) end
 end
 
 function StateManager.keyreleased(key)

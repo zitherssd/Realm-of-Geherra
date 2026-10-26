@@ -523,6 +523,7 @@ end
 function DialogueState.enter(params)
     params = params or {}
     local target = params.target -- The entity/party we are talking to
+    DialogueState.debugOnly = require("src.debug.mode").isDebugActor(target)
     local location = params.location
     local options = {
         showFavor = params.showFavor,
