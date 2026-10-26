@@ -346,22 +346,22 @@ function WorldState.update(dt)
     -- Handle player movement and time progression
     local moveX, moveY = 0, 0
     local playerActivity = playerParty.world_activity
-    local playerTravelActive = playerActivity and playerActivity.type == "travel"
+    local playerMovementActivityActive = playerActivity and (playerActivity.type == "travel" or playerActivity.type == "roam")
         and playerActivity.status == "active"
     
-    if not WorldState.isResting and not playerTravelActive
+    if not WorldState.isResting and not playerMovementActivityActive
         and (Input.isKeyDown("up") or Input.isKeyDown("w")) then
         moveY = moveY - 1
     end
-    if not WorldState.isResting and not playerTravelActive
+    if not WorldState.isResting and not playerMovementActivityActive
         and (Input.isKeyDown("down") or Input.isKeyDown("s")) then
         moveY = moveY + 1
     end
-    if not WorldState.isResting and not playerTravelActive
+    if not WorldState.isResting and not playerMovementActivityActive
         and (Input.isKeyDown("left") or Input.isKeyDown("a")) then
         moveX = moveX - 1
     end
-    if not WorldState.isResting and not playerTravelActive
+    if not WorldState.isResting and not playerMovementActivityActive
         and (Input.isKeyDown("right") or Input.isKeyDown("d")) then
         moveX = moveX + 1
     end
@@ -370,7 +370,7 @@ function WorldState.update(dt)
     local isWaiting = (not WorldState.isResting) and Input.isKeyDown("space")
     local isMoving = (moveX ~= 0 or moveY ~= 0)
     local shouldAdvanceTime = WorldState.isResting or isMoving or isWaiting
-        or playerTravelActive
+        or playerMovementActivityActive
     local elapsedWorldHours = 0
     local elapsedWorldSeconds = 0
     

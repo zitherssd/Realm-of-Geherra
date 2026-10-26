@@ -9,6 +9,7 @@ local WorldActivitySystem = require("src.systems.world_activity_system")
 local WorldEncounterSystem = require("src.systems.world_encounter_system")
 local GameContext = require("src.game.game_context")
 local EventBus = require("src.core.event_bus")
+local PartyAiSystem = require("src.systems.party_ai_system")
 
 local function setup()
     EventBus.init()
@@ -177,11 +178,17 @@ local function realRaidTreasuryFeedback()
     actor.hp, actor.maxHp, actor.stats.health = 10000, 10000, 10000
     actor.stats.attack, actor.stats.defense, actor.stats.battle_speed = 500, 100, 120
     actor.skills = {javelin_throw = {learned = true}}
-    local target, victim = partyAt(world, map, "wealth-caravan", 110)
+    local target, victim = partyAt(world, map, "wealth-caravan", 4000)
     target.state, target.isTraderParty, target.treasury = "wander", true, 200
     victim.hp, victim.maxHp, victim.stats.health = 20, 20, 20
     victim.skills = {}
-    local goal = GoalSystem.configure(actor, {{type = "acquire_gold", amount = 1}}, {raid = true}).goals[1]
+    local goal = GoalSystem.configure(actor, {{type = "acquire_gold", amount = 1,
+        roam = {originX = 100, originY = 100, radius = 80}}}, {raid = true, roam = true}).goals[1]
+    tick(map, 0.1)
+    assert(party.world_activity.type == "roam", "gold goal did not seek an unseen opportunity")
+    target.x, target.y = party.x + 10, party.y
+    tick(map, 1)
+    assert(party.world_activity.status == "idle" and goal.detectedTargetId == target.id)
     tick(map, 0.1)
     assert(party.activeEncounterId, "goal-selected raid did not enter the real encounter pipeline")
     for _ = 1, 200 do
@@ -195,6 +202,98 @@ local function realRaidTreasuryFeedback()
     for _ = 1, 20 do tick(map, 1) end
     assert(goal.attempts == attempts and party.world_activity.type == nil,
         "wealth goal kept raiding after reaching the actual treasury target")
+end
+
+local function roamingOpportunityOwnership()
+    local world, map = setup()
+    local party, actor = partyAt(world, map, "seeker")
+    actor.sight, party.hostile = 400, true
+    local target = partyAt(world, map, "opportunity", 1500)
+    target.isTraderParty, target.state = true, "wander"
+    local territory = {originX = 100, originY = 100, radius = 80, durationSeconds = 30}
+    local goal = GoalSystem.configure(actor, {{type = "acquire_gold", amount = 100, roam = territory}},
+        {raid = true, roam = true}).goals[1]
+    -- Explicit roaming is never claimed or interrupted, even with visible prey.
+    assert(WorldActivitySystem.start(party, "roam", territory, map))
+    target.x = 150
+    GoalSystem.update(1, map)
+    assert(not goal.activity and party.world_activity.status == "active")
+    WorldActivitySystem.cancel(party, "manual_stop")
+    WorldActivitySystem.update(0, map)
+    WorldActivitySystem.update(5, map)
+    target.x = 1500
+    tick(map, 1)
+    local activity = party.world_activity
+    assert(activity.type == "roam" and activity.goalActorId == actor.id)
+    local sequence, x, y = activity.sequence, party.x, party.y
+    target.x, target.y = x + 80, y
+    goal.retrySeconds = 100 -- Active observation must not use attempt backoff.
+    tick(map, 0)
+    assert(activity.sequence == sequence and activity.status == "active" and not goal.detectedTargetId)
+    assert(party.x == x and party.y == y and goal.retrySeconds == 100)
+    party.activeEncounterId = "reservation"
+    tick(map, 1)
+    assert(activity.status == "active" and not goal.detectedTargetId)
+    party.activeEncounterId = nil
+    GoalSystem.update(1, map)
+    assert(activity.status == "cancelled" and activity.sequence == sequence)
+    assert(goal.detectedTargetId == target.id and activity.waypoints, "handoff bypassed cancellation")
+    PartyAiSystem.update(1, map, {})
+    WorldActivitySystem.update(1, map)
+    assert(activity.status == "idle" and not activity.waypoints and activity.retryCooldownSeconds == 0)
+    assert(party.x == x and party.y == y, "cancelled Roam kept moving")
+    GoalSystem.update(0.1, map)
+    assert(activity.type == "raid" and activity.params.targetPartyId == target.id)
+    assert(goal.activity.sequence == sequence + 1 and goal.lastOutcome.reason == "opportunity_detected")
+    -- Losing the selected target before acquisition cannot silently select another.
+    target.x = 1500
+    local other = partyAt(world, map, "other-caravan", x + 50)
+    other.y, other.isTraderParty, other.state = y, true, "wander"
+    WorldActivitySystem.update(0.1, map)
+    assert(activity.status == "cancelled" and activity.reason == "no_target" and not activity.targetId)
+    tick(map, 1)
+    assert(goal.lastOutcome.reason == "no_target" and goal.retrySeconds > 0)
+    other.x = 1500
+    for _ = 1, 11 do tick(map, 1) end
+    assert(activity.type == "roam", "failed raid did not return to seeking")
+    PartySystem.addTreasury(party, 100)
+    tick(map, 1)
+    assert(goal.status == "satisfied" and activity.status == "idle")
+    assert(activity.lastActivity.reason == "goal_satisfied")
+end
+
+local function disappearingOpportunityAndDuration()
+    local world, map = setup()
+    local party, actor = partyAt(world, map, "short-seeker")
+    actor.sight, party.hostile = 400, true
+    local target = partyAt(world, map, "vanishing-caravan", 1500)
+    target.isTraderParty, target.state = true, "wander"
+    local goal = GoalSystem.configure(actor, {{type = "acquire_gold", amount = 100,
+        roam = {originX = 100, originY = 100, radius = 80, durationSeconds = 2}}},
+        {raid = true, roam = true}).goals[1]
+    party.state = "wander"
+    party.wanderTarget = {x = 1500, y = 1500}
+    tick(map, 0.1)
+    target.x, target.y = party.x + 50, party.y
+    tick(map, 1)
+    assert(goal.detectedTargetId == target.id)
+    target.x = 1500
+    tick(map, 0.1)
+    assert(party.world_activity.type == "roam" and not goal.detectedTargetId)
+    tick(map, 2)
+    tick(map, 0.1)
+    assert(goal.status ~= "satisfied" and goal.lastOutcome.reason == "duration_elapsed" and goal.retrySeconds > 0)
+    local attempts = goal.attempts
+    local x, y = party.x, party.y
+    tick(map, 0)
+    assert(goal.attempts == attempts and goal.retrySeconds == GoalSystem.retrySeconds)
+    for _ = 1, 5 do
+        tick(map, 1)
+        PartyAiSystem.update(1, map, {})
+    end
+    assert(party.x == x and party.y == y, "legacy wandering moved a seeker during backoff")
+    for _ = 1, 6 do tick(map, 1) end
+    assert(goal.attempts > attempts, "duration-limited seeking did not retry")
 end
 
 local function invalidCommandOwners()
@@ -247,6 +346,8 @@ function Scenario.run()
     travelSelectionAndArrival()
     outcomesBackoffAndLegacy()
     realRaidTreasuryFeedback()
+    roamingOpportunityOwnership()
+    disappearingOpportunityAndDuration()
     invalidCommandOwners()
     GameContext.data.currentMap = nil
     GameContext.data.playerParty = nil

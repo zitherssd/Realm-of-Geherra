@@ -3,6 +3,7 @@
 -- movement; this system handles wandering otherwise.
 
 local PartyAiSystem = {}
+local PartySystem = require("src.systems.party_system")
 
 PartyAiSystem.wanderSpeed = 20
 PartyAiSystem.wanderRadiusDefault = 220
@@ -116,7 +117,17 @@ function PartyAiSystem.update(dt, map, playerParty)
         local activity = party.world_activity
         local activityOwnsParty = activity and activity.type
             and activity.status ~= "idle"
-        if party ~= playerParty and not party.activeEncounterId and not activityOwnsParty
+        -- A configured seeking territory also governs idle time between attempts.
+        -- Legacy wandering must not move the party out of that area during backoff.
+        local leader = PartySystem.getLeader(party)
+        local goals = leader and leader.npc_goals
+        local goalControlsRoaming = false
+        if goals and goals.capabilities.roam and goals.capabilities.raid then
+            for _, goal in ipairs(goals.goals) do
+                if goal.type == "acquire_gold" and goal.roam then goalControlsRoaming = true; break end
+            end
+        end
+        if party ~= playerParty and not party.activeEncounterId and not activityOwnsParty and not goalControlsRoaming
             and (party.state == "wander" or party.state == "chase") then
             updateWander(party, dt, map)
         end

@@ -67,6 +67,13 @@ function Scenario.run()
     assert(overlay.form.amount == "250")
     assert(Tools.configureGoal(map, party.id, actor.id, overlay.form))
     assert(actor.npc_goals.goals[1].amount == 250 and actor.npc_goals.capabilities.raid)
+    overlay.form.roam = true
+    overlay.form.radius = "-1"
+    assert(not Tools.configureGoal(map, party.id, actor.id, overlay.form))
+    overlay.form.radius, overlay.form.durationSeconds = "300", "30"
+    assert(Tools.configureGoal(map, party.id, actor.id, overlay.form))
+    assert(actor.npc_goals.capabilities.roam and actor.npc_goals.goals[1].roam.originX == 100)
+    assert(actor.npc_goals.goals[1].roam.durationSeconds == 30)
 
     local oldState = actor.npc_goals.goals
     assert(not Tools.configureGoal(map, party.id, actor.id, {type = "acquire_gold", amount = "-1", priority = "0"}))

@@ -84,6 +84,13 @@ function RaidActivity.hasEligibleTarget(raider, map, playerParty)
     return selectTarget(raider, map, playerParty) ~= nil
 end
 
+RaidActivity.selectTarget = selectTarget
+
+function RaidActivity.visibleTarget(raider, map, playerParty, id)
+    local target = findParty(map, id)
+    if target and isEligibleTarget(raider, target, map, playerParty) then return target end
+end
+
 function RaidActivity.update(raider, activity, dt, map, playerParty)
     if activity.phase == "contact" or activity.phase == "engaged" then
         return nil
@@ -94,7 +101,12 @@ function RaidActivity.update(raider, activity, dt, map, playerParty)
     end
 
     if activity.phase == "acquire" then
-        local target = selectTarget(raider, map, playerParty)
+        local target
+        if activity.params.targetPartyId ~= nil then
+            target = RaidActivity.visibleTarget(raider, map, playerParty, activity.params.targetPartyId)
+        else
+            target = selectTarget(raider, map, playerParty)
+        end
         if not target then
             return "failed", "no_target"
         end

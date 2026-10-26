@@ -87,6 +87,7 @@ function TravelActivity.update(party, activity, dt, map)
     if findParty(map, party.id) ~= party then
         return "failed", "party_missing"
     end
+    
     if not activity.waypoints or #activity.waypoints == 0 then
         return "failed", "route_unavailable"
     end

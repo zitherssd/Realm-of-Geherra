@@ -174,11 +174,15 @@ function GameInitializer._createStarterParties(map)
     traderParty.state = "wander"
     traderParty.wanderOriginX, traderParty.wanderOriginY = traderX, traderY
     traderParty.wanderRadius = PartyAiSystem.wanderRadiusDefault
+    traderParty.treasury = 500
 
     local traderDefinition = TroopsData.trader
     traderParty.inventory = TraderSystem.buildStockInventory(traderDefinition)
     traderParty.buysFromPlayers = traderDefinition.buysFromPlayers
     traderParty.sellPriceFactor = traderDefinition.sellPriceFactor
+
+    -- Give the trader party initial gold so it will be raided by bandits
+    PartySystem.addTreasury(traderParty, 10000)
 
     PartySystem.addActor(traderParty, trader)
     PartySystem.addActor(traderParty, Unit.create(EcsWorld.campaign, "soldier"))

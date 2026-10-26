@@ -31,13 +31,20 @@ function Overlay:edit(map, partyId)
     if not leader then self.message = err; return end
     local state = leader.npc_goals
     local goal = state and state.goals[1]
+    local roam = goal and goal.roam or {}
+    local origin = roam.originLocationId and Tools.resolve(map, "location", roam.originLocationId)
     self.form = {
         type = goal and goal.type or "acquire_gold",
         amount = tostring(goal and goal.amount or (party.treasury + 100)),
         priority = tostring(goal and goal.priority or 0),
         destinationLocationId = goal and goal.destinationLocationId,
         raid = state and state.capabilities.raid == true or not state,
-        travel = state and state.capabilities.travel == true or not state
+        travel = state and state.capabilities.travel == true or not state,
+        roam = state and state.capabilities.roam == true or false,
+        originX = tostring(roam.originX or (origin and origin.x) or party.x),
+        originY = tostring(roam.originY or (origin and origin.y) or party.y),
+        radius = tostring(roam.radius or 300),
+        durationSeconds = tostring(roam.durationSeconds or "")
     }
     self.leaderId, self.view = leader.id, "editor"
 end
@@ -85,6 +92,13 @@ function Overlay:rows(map)
         end)
         if self.form.type == "acquire_gold" then
             field("Party treasury target", "amount")
+            button((self.form.roam and "[x] " or "[ ] ") .. "Roam capability", function() self.form.roam = not self.form.roam end)
+            if self.form.roam then
+                field("Roam origin X", "originX")
+                field("Roam origin Y", "originY")
+                field("Roam radius", "radius")
+                field("Roam duration in world seconds (blank: unlimited)", "durationSeconds")
+            end
         else
             local destination = Tools.resolve(map, "location", self.form.destinationLocationId)
             button("Destination: " .. (destination and destination.name or "Choose location..."), function()
@@ -95,8 +109,8 @@ function Overlay:rows(map)
         button((self.form.raid and "[x] " or "[ ] ") .. "Raid capability", function() self.form.raid = not self.form.raid end)
         button((self.form.travel and "[x] " or "[ ] ") .. "Travel capability", function() self.form.travel = not self.form.travel end)
         text(self.form.type == "acquire_gold"
-            and "Raid currently requires a hostile traveling party and a visible eligible target."
-            or "Travel requires a connected road route. The goal waits if travel cannot start.")
+            and "Raid requires a hostile traveling party. Enable Roam to seek visible targets within the configured area."
+            or "Travel requires a reachable walkable route. The goal waits if travel cannot start.")
         button("Apply - replace leader goals", function()
             local ok, message = Tools.configureGoal(map, self.target.id, self.leaderId, self.form)
             if ok then self.view, self.scroll, self.focus = "inspect", 0, nil end
@@ -191,8 +205,18 @@ function Overlay:keypressed(key)
     if key == "escape" then self:close(); return true end
     if self.view == "editor" then
         if key == "tab" then
-            self.focus = self.focus == "amount" and "priority"
-                or (self.form.type == "acquire_gold" and "amount" or "priority")
+            local fields = self.form.type == "acquire_gold" and {"amount"} or {}
+            if self.form.type == "acquire_gold" and self.form.roam then
+                for _, field in ipairs({"originX", "originY", "radius", "durationSeconds"}) do
+                    fields[#fields + 1] = field
+                end
+            end
+            fields[#fields + 1] = "priority"
+            local nextIndex = 1
+            for index, field in ipairs(fields) do
+                if field == self.focus then nextIndex = index % #fields + 1; break end
+            end
+            self.focus = fields[nextIndex]
             self.selectAll = true
         elseif self.focus then
             if key == "a" and (love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl")) then

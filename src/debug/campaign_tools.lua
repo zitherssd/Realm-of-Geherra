@@ -92,6 +92,17 @@ function Tools.configureGoal(map, partyId, expectedLeaderId, form)
         local amount = number(form.amount)
         if not amount or amount < 0 then return false, "Gold target must be zero or a positive number." end
         definition.amount = amount
+        if form.roam == true then
+            local x, y, radius = number(form.originX), number(form.originY), number(form.radius)
+            local duration = form.durationSeconds ~= "" and number(form.durationSeconds) or nil
+            if not x or not y or not radius or radius <= 0 then
+                return false, "Roam needs finite origin coordinates and a positive radius."
+            end
+            if form.durationSeconds and form.durationSeconds ~= "" and (not duration or duration <= 0) then
+                return false, "Roam duration must be positive, or blank for no limit."
+            end
+            definition.roam = {originX = x, originY = y, radius = radius, durationSeconds = duration}
+        end
     elseif form.type == "reach_location" then
         if not Tools.resolve(map, "location", form.destinationLocationId) then
             return false, "Choose an existing destination on this map."
@@ -104,7 +115,8 @@ function Tools.configureGoal(map, partyId, expectedLeaderId, form)
     local stopped = GoalSystem.cancelActivities(leader, "debug_goal_replaced")
     if not stopped then return false, "An existing goal still owns an encounter. Finish it first." end
     Activities.cancel(party, "debug_goal_replaced")
-    GoalSystem.configure(leader, {definition}, {raid = form.raid == true, travel = form.travel == true})
+    GoalSystem.configure(leader, {definition}, {raid = form.raid == true, travel = form.travel == true,
+        roam = form.roam == true})
     return true, "Goal saved. Advance world time to evaluate it; existing cooldowns still apply."
 end
 

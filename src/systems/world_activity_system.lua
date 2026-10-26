@@ -1,7 +1,8 @@
--- Executes one active world activity per non-player party.
+-- Executes one active world activity per party; player movement activities are explicit.
 local EventBus = require("src.core.event_bus")
 local RaidActivity = require("src.systems.world_activities.raid_activity")
 local TravelActivity = require("src.systems.world_activities.travel_activity")
+local RoamActivity = require("src.systems.world_activities.roam_activity")
 local PartySystem = require("src.systems.party_system")
 
 local WorldActivitySystem = {}
@@ -12,7 +13,8 @@ end
 
 local ACTIVITY_TYPES = {
     raid = RaidActivity,
-    travel = TravelActivity
+    travel = TravelActivity,
+    roam = RoamActivity
 }
 
 WorldActivitySystem.terminalRetryCooldownSeconds = 5
@@ -72,7 +74,11 @@ local function cleanupTerminalActivity(party, map)
 
     local encounterCooldown = map and map.partyEncounterCooldowns
         and map.partyEncounterCooldowns[party.id] or 0
-    if encounterCooldown <= 0 then
+    -- A goal's Roam-to-Raid handoff is not a failed attempt. Cleanup still
+    -- releases all movement state before the next activity may start.
+    local opportunityHandoff = activity.type == "roam" and activity.goalActorId
+        and activity.reason == "opportunity_detected"
+    if encounterCooldown <= 0 and not opportunityHandoff then
         activity.retryCooldownSeconds = WorldActivitySystem.terminalRetryCooldownSeconds
     end
     local implementation = ACTIVITY_TYPES[activity.type]
@@ -273,7 +279,7 @@ function WorldActivitySystem.update(dt, map, playerParty)
 
     for _, party in ipairs(parties) do
         local activity = party.world_activity
-        if (party ~= playerParty or (activity and activity.type == "travel"))
+        if (party ~= playerParty or (activity and (activity.type == "travel" or activity.type == "roam")))
             and not party.activeEncounterId and
             activity and activity.status == "active" then
             local implementation = ACTIVITY_TYPES[activity.type]

@@ -28,6 +28,19 @@ local function newGoal(definition)
         assert(finiteNumber(definition.amount) and definition.amount >= 0,
             "Gold goal requires a finite non-negative amount")
         goal.amount = definition.amount
+        if definition.roam then
+            local roam = definition.roam
+            assert(type(roam) == "table" and finiteNumber(roam.radius) and roam.radius > 0,
+                "Roaming requires a positive radius")
+            assert((roam.originLocationId ~= nil and roam.originX == nil and roam.originY == nil
+                and (type(roam.originLocationId) == "string" or finiteNumber(roam.originLocationId)))
+                or (roam.originLocationId == nil and finiteNumber(roam.originX) and finiteNumber(roam.originY)),
+                "Roaming requires coordinates or a location ID")
+            assert(roam.durationSeconds == nil or (finiteNumber(roam.durationSeconds) and roam.durationSeconds > 0),
+                "Roaming duration must be positive")
+            goal.roam = {originX = roam.originX, originY = roam.originY,
+                originLocationId = roam.originLocationId, radius = roam.radius, durationSeconds = roam.durationSeconds}
+        end
     elseif goal.type == "reach_location" then
         local id = definition.destinationLocationId
         assert(type(id) == "string" or finiteNumber(id), "Location goal requires a stable ID")
@@ -50,8 +63,8 @@ function GoalSystem.configure(actor, definitions, capabilities)
         goals[#goals + 1] = newGoal(definition)
     end
     for method, allowed in pairs(capabilities or {}) do
-        assert((method == "raid" or method == "travel") and type(allowed) == "boolean",
-            "Capabilities must be raid/travel boolean flags")
+        assert((method == "raid" or method == "travel" or method == "roam") and type(allowed) == "boolean",
+            "Capabilities must be raid/travel/roam boolean flags")
         methods[method] = allowed
     end
     actor:ensure("npc_goals")
@@ -111,6 +124,11 @@ local function finishAttempt(goal, status, reason, activityType)
     goal.lastOutcome = {status = status, reason = reason, activityType = activityType}
     goal.activity = nil
     goal.retrySeconds = GoalSystem.retrySeconds
+    if activityType == "roam" and reason == "opportunity_detected" and goal.detectedTargetId then
+        goal.retrySeconds = 0
+    else
+        goal.detectedTargetId = nil
+    end
 end
 
 local function observeActivity(goal, actor, party)
@@ -145,10 +163,20 @@ local function requestActivity(goal, actor, party, map, playerParty, traveling)
         if not (party.hostile == true or party.faction == "bandits") then
             return false, "raider_not_hostile"
         end
-        if not RaidActivity.hasEligibleTarget(party, map, playerParty) then
+        local target
+        if goal.detectedTargetId then
+            target = RaidActivity.visibleTarget(party, map, playerParty, goal.detectedTargetId)
+            goal.detectedTargetId = nil
+        else
+            target = RaidActivity.selectTarget(party, map, playerParty)
+        end
+        if target then
+            activityType, params = "raid", {targetPartyId = target.id}
+        elseif capabilities.roam and goal.roam then
+            activityType, params = "roam", goal.roam
+        else
             return false, "no_eligible_target"
         end
-        activityType = "raid"
     else
         if not capabilities.travel then return false, "travel_not_allowed" end
         activityType = "travel"
@@ -209,6 +237,18 @@ local function updateActor(actor, party, dt, map, playerParty, traveling)
             end
         elseif goal.activity then
             goal.status, goal.reason = "active", reason
+            local activity = party and party.world_activity
+            if goal.type == "acquire_gold" and state.capabilities.raid and state.capabilities.roam
+                and party and not party.activeEncounterId and traveling[party.id]
+                and (party.hostile == true or party.faction == "bandits")
+                and goal.activity.partyId == party.id and activity
+                and activity.sequence == goal.activity.sequence and activity.goalActorId == actor.id
+                and activity.status == "active" and activity.type == "roam" then
+                local target = RaidActivity.selectTarget(party, map, playerParty)
+                if target and WorldActivitySystem.cancel(party, "opportunity_detected") then
+                    goal.detectedTargetId = target.id
+                end
+            end
         elseif reason then
             goal.status, goal.reason = "blocked", reason
         else

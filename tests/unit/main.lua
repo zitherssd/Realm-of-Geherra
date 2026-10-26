@@ -23,6 +23,7 @@ function love.load()
         require("campaign_identity_milestone_2_scenario").run()
         require("travel_activity_scenario").run()
         require("debug_mode_scenario").run()
+        require("roam_activity_scenario").run()
     end, debug.traceback)
 
     if not ok then
@@ -31,6 +32,6 @@ function love.load()
         return
     end
 
-    print("All 16 scenarios passed, including NPC goals, campaign identity, travel, and debug mode")
+    print("All 17 scenarios passed, including NPC goals, campaign identity, travel, debug mode, and roaming")
     love.event.quit(0)
 end

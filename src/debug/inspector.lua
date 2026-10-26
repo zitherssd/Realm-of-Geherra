@@ -30,7 +30,8 @@ function Inspector.lines(map, kind, id)
         add("Activity: " .. tostring(activity.type or "none") .. " / " .. tostring(activity.status or "idle")
             .. " / " .. tostring(activity.phase or "-"))
         add("Attempt: " .. tostring(activity.sequence or 0) .. " | Goal owner: " .. tostring(activity.goalActorId or "none"))
-        add("Target: " .. tostring(activity.targetId or (activity.params or {}).destinationLocationId or "none"))
+        add("Target: " .. tostring(activity.targetId or (activity.params or {}).targetPartyId
+            or (activity.params or {}).destinationLocationId or "none"))
         add(string.format("Activity retry: %.1fs", activity.retryCooldownSeconds or 0))
         if activity.reason then add("Activity reason: " .. activity.reason) end
         if activity.lastActivity then
@@ -43,11 +44,18 @@ function Inspector.lines(map, kind, id)
         add("LEADER GOALS")
         if not state then add("Unconfigured (legacy Raid behavior).")
         else
-            add("Capabilities: Raid " .. tostring(state.capabilities.raid == true) .. ", Travel " .. tostring(state.capabilities.travel == true))
+            add("Capabilities: Raid " .. tostring(state.capabilities.raid == true) .. ", Travel " .. tostring(state.capabilities.travel == true)
+                .. ", Roam " .. tostring(state.capabilities.roam == true))
             if #state.goals == 0 then add("Empty goal list (legacy Raid suppressed).") end
             for index, goal in ipairs(state.goals) do
                 add(index .. ". " .. goal.type .. " | priority " .. goal.priority .. " | " .. goal.status)
                 add("  Target: " .. tostring(goal.amount or goal.destinationLocationId))
+                if goal.detectedTargetId then add("  Detected raid target: " .. tostring(goal.detectedTargetId)) end
+                if goal.roam then
+                    add("  Roam origin: " .. tostring(goal.roam.originLocationId
+                        or (tostring(goal.roam.originX) .. ", " .. tostring(goal.roam.originY)))
+                        .. " | Radius: " .. goal.roam.radius)
+                end
                 add(string.format("  Attempts: %d | Retry: %.1fs", goal.attempts, goal.retrySeconds))
                 if goal.reason then add("  Reason: " .. goal.reason) end
                 if goal.lastOutcome then

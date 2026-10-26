@@ -22,21 +22,27 @@ function CombatSystem._getShieldDefense(defender)
     return 0
 end
 
--- Melee accuracy: d20 + attack vs d20 + defense. Ties go to the defender.
+-- Melee accuracy: two exploding d8s each, with attack/defense modifiers.
+-- Formula: attackRoll = attack + rollExploding(8) + rollExploding(8)
+--          defenseRoll = defense + shieldBonus + rollExploding(8) + rollExploding(8)
+-- Ties (margin == 0) are misses for the attacker.
 -- Returns: isHit, margin, shieldDefense
 function CombatSystem.rollAttack(attacker, defender, skill)
-local attStats = attacker.stats or {}
-local defStats = defender.stats or {}
+    local MATH = require("src.utils.math")
+    local attStats = attacker.stats or {}
+    local defStats = defender.stats or {}
 
-local attack = attStats.attack or 10
-local defense = defStats.defense or 0
-local shieldDefense = CombatSystem._getShieldDefense(defender)
+    local attack = attStats.attack or 10
+    local defense = defStats.defense or 0
+    local shieldDefense = CombatSystem._getShieldDefense(defender)
 
-local offenseTotal = math.random(20) + attack
-local defenseTotal = math.random(20) + defense
-local margin = offenseTotal - defenseTotal
+    -- Attack side: two exploding d8s
+    local attackRoll = attack + MATH.rollExploding(8) + MATH.rollExploding(8)
+    -- Defense side: defense stat plus shield bonus, two exploding d8s
+    local defenseRoll = defense + shieldDefense + MATH.rollExploding(8) + MATH.rollExploding(8)
+    local margin = attackRoll - defenseRoll
 
-return margin > 0, margin, shieldDefense
+    return margin > 0, margin, shieldDefense
 end
 
 function CombatSystem.rollProjectileHitChance(defender)
@@ -59,12 +65,29 @@ function CombatSystem.rollProjectileHitChance(defender)
     return math.max(5, math.min(hitChance, 95))
 end
 
--- Flat damage: baseDamage - protection, with ±20% variance.
-function CombatSystem.calculateDamage(defender, skill)
-    local damageType = skill.damageType or "blunt"
-    local baseDamage = skill.baseDamage or 0
+-- Damage formula: weaponDamage + strength/2 + rollExploding(6) - totalProtection - rollExploding(6)
+-- Returns clamped to [0, math.inf), floored to integer.
+function CombatSystem.calculateDamage(attacker, defender, skill)
+    local MATH = require("src.utils.math")
+    local Items = require("src.data.items")
 
-    -- Prefer pre-computed BattleUnit protections, fall back to a live tally.
+    -- Get weapon damage from equipped mainHand weapon's skillModifiers
+    local weaponDamage = 0
+    if attacker.equipment and attacker.equipment.mainHand then
+        local item = Items[attacker.equipment.mainHand]
+        if item and item.skillModifiers and item.skillModifiers.baseDamage then
+            weaponDamage = item.skillModifiers.baseDamage
+        end
+    end
+
+    -- Get damageType from skill or weapon, default to "blunt"
+    local damageType = skill.damageType or "blunt"
+
+    -- Strength contributes half its value to damage
+    local strength = attacker.stats.strength or 0
+    local strengthContribution = math.floor(strength / 2)
+
+    -- Get total protection (from battle unit and equipment)
     local totalProtection = 0
     if defender.protections and defender.protections[damageType] then
         totalProtection = defender.protections[damageType]
@@ -72,11 +95,11 @@ function CombatSystem.calculateDamage(defender, skill)
         totalProtection = CombatSystem.getTotalProtection(defender, damageType)
     end
 
-    local damage = math.max(0, baseDamage - totalProtection)
+    -- Calculate raw damage with two exploding d6s: one for attack variance, one for AC mitigation
+    local rollToAttack = MATH.rollExploding(6)  -- Attacker's chance to wound
+    local rollForAC = MATH.rollExploding(6)     -- Defender's armor class/DR die (damage mitigation)
 
-    -- Apply 20% variance (±20%, range 0.8 to 1.2)
-    local variance = 0.8 + math.random() * 0.4
-    damage = damage * variance
+    local damage = math.max(0, weaponDamage + strengthContribution + rollToAttack - totalProtection - rollForAC)
 
     return math.floor(damage)
 end
@@ -217,7 +240,7 @@ function CombatSystem.resolveAttack(attacker, defender, skill)
     local isHit, margin, shieldDefense = CombatSystem.rollAttack(attacker, defender, skill)
 
     if isHit then
-        local damage = CombatSystem.calculateDamage(defender, skill)
+        local damage = CombatSystem.calculateDamage(attacker, defender, skill)
         local defeated = CombatSystem._applyBattleDamage(defender, damage)
 
         -- Visual: Damage Flash (Red)
@@ -252,7 +275,7 @@ function CombatSystem.resolveProjectileAttack(attacker, defender, skill)
     local roll = math.random(100)
 
     if roll <= hitChance then
-        local damage = CombatSystem.calculateDamage(defender, skill)
+        local damage = CombatSystem.calculateDamage(attacker, defender, skill)
         local defeated = CombatSystem._applyBattleDamage(defender, damage)
 
         if defender.visualEffects then

@@ -24,4 +24,7 @@ return Concord.component.new("world_activity", function(component)
     component.waypoints = nil
     component.waypointIndex = nil
     component.previousPartyState = nil
+    component.roamOriginX = nil
+    component.roamOriginY = nil
+    component.elapsedSeconds = nil
 end)

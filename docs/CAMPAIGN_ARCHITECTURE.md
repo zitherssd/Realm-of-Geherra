@@ -318,3 +318,162 @@ combat progress. These snippets change only the running campaign, with no genera
 - NPC archetype templates will eventually supply initial goals and capabilities.
 
 These are design considerations only; none is implemented in Milestone 4A.
+
+### Milestone 5B: generic RoamActivity
+
+`WorldActivitySystem.start(party, "roam", params, map)` starts explicit roaming
+for any party (including the player). Parameters are primitive values:
+
+- `originX`, `originY`: finite world coordinates; alternatively supply
+  `originLocationId` for a persistent location in this map and campaign.
+- `radius`: positive finite radius in world pixels. The party must already be
+  inside this circle; Roam does not travel to or teleport into its area.
+- `durationSeconds` (optional): positive duration in world simulation seconds,
+  using the same scaled time passed to Travel, not wall-clock seconds or game hours.
+  Omit it to continue until cancelled or unable to proceed.
+
+Each destination selection samples at most 12 points uniformly over the circle.
+Candidates must be at least `min(16, radius / 4)` pixels from the party. Existing
+`Navigation.findPath` validates bounds, walkability and reachability. Every returned
+waypoint must lie within the circle; convexity keeps the connecting segments inside.
+No new navigation grid, terrain model or pathfinder is introduced. A rejected batch
+returns `no_roaming_destination`; it does not retry forever.
+
+Roam follows the accepted route with the shared waypoint movement helper at base
+speed 70, retaining existing biome penalties and road bonuses. It selects another
+route on the update after arrival, with at most one selection batch per update.
+Only explicit world simulation time advances movement, duration and stall timers.
+World pauses and encounter reservations freeze them. Duration expiry completes with
+`duration_elapsed`; 15 simulation seconds without progress fails with `route_stalled`.
+As with Travel, update failures use the activity system's cancelled outcome convention.
+
+The existing single-activity guard rejects attempts to replace active work. Fallback
+AI and player keyboard movement yield to Roam. Stationed parties depart through
+`Map:addParty`. Removal cancels roaming; destroyed parties are removed on update.
+A deleted origin location fails with `origin_missing`, and moving that location fails
+with `origin_moved`. External displacement outside the circle also terminates roaming.
+Cancellation uses `WorldActivitySystem.cancel(party, reason)` and normal terminal cleanup
+and retry cooldown. Completion/cancellation restores the previous party state without
+returning home or stationing. Ordinary fallback behavior may resume afterward.
+
+Retained component state consists of primitive params, origin coordinates,
+`elapsedSeconds`, waypoint coordinates/index, and the previous state. It holds no
+entity references. Existing debug inspection shows activity type, phase and last
+outcome; the debugger can inspect the full serialized component.
+
+Limitations: finite random sampling can miss viable destinations. A* may prefer a
+route outside the circle even when a more expensive contained path exists; that
+candidate is rejected rather than modifying navigation. Very small circles relative
+to grid cells may provide no suitable route. There is no dynamic replanning or pause
+between destinations, and leftover time at a destination is not used for a second
+destination selection in the same update. Goals are neither created nor changed;
+goal-driven interruption and Roam-to-Raid transitions are added in Milestone 5C below.
+
+#### Manual roaming demonstration
+
+For explicit activity assignment independent of goals, run **Debug Love**, break
+in `WorldState.update`, and use the
+debugger console with an idle party ID (no active encounter or retry cooldown):
+
+```lua
+(function()
+    local map = require("src.game.game_context").data.currentMap
+    local party = assert(require("src.ecs.world").findPartyById("PARTY_ID"))
+    return require("src.systems.world_activity_system").start(party, "roam", {
+        originX = party.x, originY = party.y, radius = 300, durationSeconds = 30
+    }, map)
+end)()
+```
+
+Resume and hold Space for an NPC party; release it while stationary to verify pause.
+An explicitly roaming player advances time automatically, like Travel; use time scale
+zero to freeze it. Enable F1 and inspect the party to see `roam / active / roam` and
+the final `duration_elapsed` outcome. In the debugger inspect `party.world_activity`
+for the route and elapsed time. Omit duration for continuous roaming; cancel with
+`WorldActivitySystem.cancel(party, "manual_stop")`. Location-centered roaming uses
+`{originLocationId = "LOCATION_ID", radius = 300}` with a party already in that area.
+Try terrain obstacles and roads, and observe encounter suspension and subsequent resume.
+
+### Milestone 5C: goal-driven opportunity seeking
+
+Acquire Gold may use the existing Roam activity when no eligible Raid target is
+visible. Both `raid` and `roam` capabilities must be explicitly enabled, and the
+goal must have a configured territory. Goals still belong to persistent actors
+and command only their current party. No additional goal type is introduced.
+
+```lua
+GoalSystem.configure(leader, {{
+    type = "acquire_gold", amount = 200,
+    roam = {originX = 500, originY = 500, radius = 300, durationSeconds = 60}
+}}, {raid = true, roam = true})
+```
+
+`roam` accepts the same parameters as RoamActivity: world-coordinate origin or
+`originLocationId`, positive radius, and optional positive `durationSeconds`.
+Configuration copies these values, retaining no entity references. The commanded
+party must already be traveling and inside the circle. This goal does not launch
+stationed parties. Explicit Travel/Roam departure APIs remain available.
+
+While goal-owned Roam runs, the evaluator checks for opportunities at its existing
+one-world-second evaluation interval, independent of attempt retry timers.
+`RaidActivity.selectTarget` reuses the existing nearest eligible visible target
+selection; `visibleTarget` revalidates a specific ID. Neither selection uses unseen
+target positions to plan destinations. Pausing world time freezes evaluation,
+movement, and retry timers. Encounter reservations prevent interruption.
+
+A transition checks the goal's party ID and activity sequence plus `goalActorId`.
+It stores only `detectedTargetId`, then calls normal cancellation with
+`opportunity_detected`. The activity executor releases Roam's waypoints and restores
+its previous party state before Raid can start on the next simulation update.
+Only this goal-owned Roam cancellation skips the ordinary five-second activity
+cooldown and ten-second goal backoff; its cancelled outcome is still recorded.
+GoalSystem waits for idle activity state, rechecks visibility/eligibility, and starts
+Raid with `targetPartyId`. Raid rechecks that ID at acquisition and never substitutes
+another target. If it disappeared during the handoff, the goal resumes seeking;
+if lost during Raid, the existing pursuit/lost-sight failure and backoff apply.
+External/manual activities are neither claimed nor cancelled by opportunity detection.
+
+Ordinary completions and failures retain retry behavior. Expired Roam remains an
+unsatisfied attempt and may run again after backoff. Legacy fallback wandering is
+suppressed for leaders with Raid/Roam capabilities and an Acquire Gold territory,
+including while waiting or satisfied, so it cannot move them outside that territory
+between attempts. Other parties retain existing fallback movement and goal-free
+hostile parties retain automatic Raid. Active explicit activities still own movement.
+
+Raid uses the existing encounter, casualty, and loot pipeline. Only actual party
+treasury satisfies Acquire Gold; cargo is not valued as money. Satisfaction cancels
+owned roaming, while reserved encounters finish normally. Existing dead/removed
+leader and party checks release commands and prevent further attempts.
+
+#### Debug configuration and manual verification
+
+1. Enable F1 and right-click a traveling hostile NPC party. Select **Configure leader
+   goal**, choose **Acquire Gold**, and enter a treasury target above its current gold.
+2. Enable **Raid capability** and **Roam capability**. Set origin X/Y and radius so
+   the party is inside walkable territory; optionally set a duration in world seconds
+   (blank means unlimited). Defaults show its current position and radius 300.
+   Applying a location-origin goal through this coordinate editor converts its origin
+   to the displayed coordinates. The API also accepts location IDs directly.
+3. Apply, then hold Space to advance world time. The live inspector shows goal state,
+   treasury, capabilities, territory, current activity, target ID, and latest outcomes.
+   Release Space while stationary to verify pause. Editing the form pauses world input.
+4. With no detectable target, observe Roam. When an eligible caravan enters sight,
+   observe the cancellation outcome followed by Raid against that ID. Watch the real
+   encounter outcome and treasury: sufficient gold satisfies the goal; insufficient
+   gold or failure leads to backoff and another seeking attempt.
+
+Limitations: existing hostility restrictions and eligible target categories (traveling
+or wandering trader parties and the player) remain. No unseen knowledge, automatic
+territory choice, fortress departures, return-home behavior, or new planner is added.
+Roam remains bounded; Raid pursuit retains its existing behavior and may leave that
+circle. If it does, subsequent Roam fails with `party_outside_roaming_area` until the
+party is returned or its territory is explicitly reconfigured. Existing bounded random
+sampling and navigation limitations still apply. Fast targets can pass through sight
+between evaluation ticks. No generation or high-level simulation design changed.
+
+Verification: the existing NPC-goals scenario now covers Roam selection, owned
+handoff, disappearing targets, fixed Raid targeting, duration/retry, manual ownership,
+pause, and real encounter gold feedback. The debug scenario covers territory input
+validation. The suite remains 14/17 passing: the previously reported combat timeouts
+in `headless_battle_scenario`, `world_encounter_scenario`, and
+`battlefield_remains_scenario` remain outside this milestone.

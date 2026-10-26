@@ -29,4 +29,17 @@ function Math.normalize(x, y)
     return x / length, y / length
 end
 
+-- Roll an exploding die of the specified size
+-- Returns: sum of all rolls (excluding the first roll's value from the explosion chain)
+-- Behavior: 
+--   If roll is LESS than max (1-dieSize), stop and return just that roll
+--   If roll EQUALS max, add to sum and roll again (explode)
+function Math.rollExploding(dieSize)
+    local sum = math.random(dieSize)
+    while sum == dieSize do
+        sum = sum + math.random(dieSize)
+    end
+    return sum
+end
+
 return Math
