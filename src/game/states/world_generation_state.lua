@@ -9,7 +9,6 @@
 local StateManager = require("src.core.state_manager")
 local GameInitializer = require("src.game.game_initializer")
 local LocationPopulationSystem = require("src.systems.location_population_system")
-local PaintedMapLoader = require("src.systems.painted_map_loader")
 
 local WorldGenerationState = {
     options = {},
@@ -27,7 +26,8 @@ local WorldGenerationState = {
 function WorldGenerationState.enter(params)
     params = params or {}
     WorldGenerationState.options = params.options or {}
-    WorldGenerationState.generator = PaintedMapLoader.createGeneration(WorldGenerationState.options)
+    local loader = GameInitializer.getMapLoader(WorldGenerationState.options)
+    WorldGenerationState.generator = loader.createGeneration(WorldGenerationState.options)
     WorldGenerationState.totalSteps = WorldGenerationState.generator.totalSteps
     WorldGenerationState.started = false
     WorldGenerationState.finished = false
@@ -64,8 +64,9 @@ function WorldGenerationState.update(dt)
 
     if done then
         WorldGenerationState.finished = true
-        local map = PaintedMapLoader.buildMap(gen.result, WorldGenerationState.options)
-        local locations = LocationPopulationSystem.populate(map, map.worldGen)
+        local loader = GameInitializer.getMapLoader(WorldGenerationState.options)
+        local map = loader.buildMap(gen.result, WorldGenerationState.options)
+        local locations = LocationPopulationSystem.populate(map, map.worldGen, WorldGenerationState.options)
         GameInitializer.finalizeNewGame(map, locations)
         StateManager.swap("world")
     end

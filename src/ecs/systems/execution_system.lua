@@ -2,7 +2,8 @@
 -- Resolves intents, updates positions, and applies damage in world space.
 
 local Concord = require("src.libs.concord")
-local Skills = require("src.data.skills")
+local Statuses = require("src.data.statuses")
+local RangeUtils = require("src.systems.battle.range_utils")
 local CombatSystem = require("src.systems.combat_system")
 
 local ExecutionSystem = Concord.system({pool = {"battleUnit"}})
@@ -39,18 +40,15 @@ local function clampUnitToBounds(unit, context)
     if unit.y > height - r then unit.y = height - r end
 end
 
-local function effectiveSkillRange(attacker, target, skillData)
-    local baseRange = ((skillData and skillData.range) or 1.5) * WORLD_RANGE_SCALE
-    local attackerRadius = attacker.collisionRadius or 0
-    local targetRadius = (target and target.collisionRadius) or 0
-    return baseRange + attackerRadius + targetRadius
-end
-
 local function applyOnHitStatuses(targetUnit, skillData)
     if not targetUnit or not skillData or not skillData.onHitStatuses then return end
 
     targetUnit.statusEffects = targetUnit.statusEffects or {}
     for statusId, statusConfig in pairs(skillData.onHitStatuses) do
+        if type(statusId) == "number" then
+            statusId = statusConfig
+            statusConfig = Statuses[statusId]
+        end
         local duration = 0
 
         if type(statusConfig) == "number" then
@@ -272,7 +270,7 @@ end
 
 function ExecutionSystem._initiateSkill(unit, intent, context)
     local skillId = intent.skillId
-    local skillData = Skills[skillId]
+    local skillData = CombatSystem.getEffectiveSkill(unit, skillId)
 
     if intent.target then
         if intent.target.x > unit.x then
@@ -327,7 +325,7 @@ function ExecutionSystem._completeCast(unit, context)
 end
 
 function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, targetPoint, context)
-    local skillData = Skills[skillId]
+    local skillData = CombatSystem.getEffectiveSkill(unit, skillId)
     if not skillData then return end
 
     local targetUnit = context.data.units[targetUnitId]
@@ -348,7 +346,7 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
             local dx = castTargetX - unit.x
             local dy = castTargetY - unit.y
             local distSq = dx * dx + dy * dy
-            local maxRange = (skillData.range or 1.5) * WORLD_RANGE_SCALE
+            local maxRange = RangeUtils.effectiveSkillRange(unit, nil, skillData)
             if distSq > (maxRange * maxRange) + 0.01 then
                 local fallback = context.findNearestHostile(unit, maxRange)
                 if fallback then
@@ -368,14 +366,14 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
             local dx = targetUnit.x - unit.x
             local dy = targetUnit.y - unit.y
             local distSq = dx * dx + dy * dy
-            local range = effectiveSkillRange(unit, targetUnit, skillData)
+            local range = RangeUtils.effectiveSkillRange(unit, targetUnit, skillData)
             if distSq <= (range * range) + 0.01 then
                 isValid = true
             end
         end
 
         if not isValid then
-            local fallbackRange = (skillData.range or 1.5) * WORLD_RANGE_SCALE
+            local fallbackRange = RangeUtils.effectiveSkillRange(unit, nil, skillData)
             targetUnit = context.findNearestHostile(unit, fallbackRange)
         end
 
@@ -410,6 +408,7 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
                 targetUnitId = targetUnit and targetUnit.id or targetUnitId,
                 attackerUnit = unit,
                 skillId = skillId,
+                skillData = skillData,
                 style = skillData.projectile.style,
                 speed = skillData.projectile.speed or 10,
                 sprite = skillData.projectile.sprite,
@@ -451,10 +450,6 @@ function ExecutionSystem.applyAttackResult(result, target, context, skillData)
             context.addFloatingText(target.visualX, target.visualY, tostring(result.damage), {1, 0.2, 0.2, 1})
         end
     else
-        if result.action == "block" then
-            CombatSystem.applyBlockDurabilityLoss(target)
-        end
-
         if context.addFloatingText then
             local missText = result.action and string.upper(result.action) or "MISS"
             context.addFloatingText(target.visualX, target.visualY, missText, {0.8, 0.8, 0.8, 1})
@@ -475,7 +470,7 @@ function ExecutionSystem._updateProjectiles(context)
         local dist = math.sqrt(dx * dx + dy * dy)
 
         if dist <= proj.speed then
-            local skillData = Skills[proj.skillId]
+            local skillData = proj.skillData
 
             if skillData and skillData.projectile and skillData.projectile.style == "fireball" and context.addVfx then
                 context.addVfx({
@@ -534,7 +529,7 @@ function ExecutionSystem._updateProjectiles(context)
                 end
 
                 if selectedTarget then
-                    local impactSkill = Skills[proj.skillId]
+                    local impactSkill = proj.skillData
                     local result = CombatSystem.resolveProjectileAttack(proj.attackerUnit, selectedTarget, impactSkill)
                     ExecutionSystem.applyAttackResult(result, selectedTarget, context, impactSkill)
                 end
@@ -547,7 +542,7 @@ function ExecutionSystem._updateProjectiles(context)
             proj.x = proj.x + moveX
             proj.y = proj.y + moveY
 
-            local skillData = Skills[proj.skillId]
+            local skillData = proj.skillData
             if skillData and skillData.projectile and skillData.projectile.style == "fireball" and proj.trailParticles then
                 proj.trailSpawnTimer = (proj.trailSpawnTimer or 0) + 1
                 if proj.trailSpawnTimer >= 1 then

@@ -18,10 +18,14 @@ local PartyAiSystem = require("src.systems.party_ai_system")
 local PartyInteractionSystem = require("src.systems.party_interaction_system")
 local WorldActivitySystem = require("src.systems.world_activity_system")
 local GoalSystem = require("src.systems.goal_system")
+local Recovery = require("src.systems.recovery")
 local WorldEncounterSystem = require("src.systems.world_encounter_system")
 local BattlefieldInteraction = require("src.systems.battlefield_interaction")
 local DebugMode = require("src.debug.mode")
 local DebugOverlay = require("src.ui.screens.debug_overlay")
+local EventViewer = require("src.ui.screens.world_event_viewer")
+local ServiceViewer = require("src.ui.screens.service_viewer")
+local EcsWorld = require("src.ecs.world")
 
 local WorldState = {
     debugOverlay = DebugOverlay.new(),
@@ -29,8 +33,6 @@ local WorldState = {
     currentMap = nil,
     defaultZoom = 2.0,       -- world map shown 2x (zoomed in, slightly pixelated)
     playerPartySpeed = 80,  -- pixels per second (halved to stay consistent at 2x zoom)
-    passiveHealSecondsToFull = 300,
-    restHealMultiplier = 10,
     nearbyParty = nil,       -- The party currently in interaction range
     nearbyLocation = nil,    -- The location currently in interaction range
     nearbyBattlefield = nil, -- Discovered remains within interaction range
@@ -181,24 +183,9 @@ local function updateHoveredEncounter()
     end
 end
 
-local function healPartyOverTime(dt, multiplier)
-    local playerParty = GameContext.data.playerParty
-    if not playerParty then return end
-
-    local secondsToFull = math.max(1, WorldState.passiveHealSecondsToFull)
-    local appliedMultiplier = math.max(0, multiplier or 1)
-
-    for _, actor in ipairs(PartySystem.getActors(playerParty) or {}) do
-        if actor and actor.stats and actor.stats.health then
-            local maxHp = actor.maxHp or actor.stats.health
-            local currentHp = actor.hp or maxHp
-            local healPerSecond = (maxHp / secondsToFull) * appliedMultiplier
-            actor.hp = math.min(maxHp, currentHp + healPerSecond * dt)
-        end
-    end
-end
-
 local function initializeWorldPresentation()
+    WorldState.serviceViewer = nil
+    WorldState.eventViewer = nil
     WorldState.debugOverlay:close()
     WorldState.currentMap = GameContext.data.currentMap
 
@@ -211,6 +198,10 @@ local function initializeWorldPresentation()
     WorldState.camera = Camera.new(screenWidth, screenHeight)
     WorldState.camera:setBounds(0, 0, WorldState.currentMap.width, WorldState.currentMap.height)
     WorldState.camera:setZoom(WorldState.defaultZoom or 1.0)
+    if WorldState.currentMap.worldGen and WorldState.currentMap.worldGen.debugLayout then
+        WorldState.camera:setZoom(math.min((screenWidth - 64) / WorldState.currentMap.width,
+            (screenHeight - 120) / WorldState.currentMap.height))
+    end
 
     local playerParty = GameContext.data.playerParty
     if playerParty then
@@ -223,6 +214,10 @@ local function initializeWorldPresentation()
     WorldState.nearbyParty = nil
     WorldState.hoveredEncounterId = nil
     WorldState.pendingRaidBattle = nil
+    local fixture = GameContext.data.debugCampaign
+    if fixture and DebugMode.enabled then
+        WorldState.debugOverlay:inspect("location", fixture.homeId)
+    end
 end
 
 function WorldState.enter()
@@ -249,6 +244,8 @@ function WorldState.requestRestMode(enabled)
 end
 
 function WorldState.resume()
+    WorldState.serviceViewer = nil
+    WorldState.eventViewer = nil
     WorldState.debugOverlay:close()
     if not WorldState.currentMap or not WorldState.camera then
         initializeWorldPresentation()
@@ -264,6 +261,8 @@ function WorldState.resume()
 end
 
 function WorldState.exit()
+    WorldState.serviceViewer = nil
+    WorldState.eventViewer = nil
     WorldState.debugOverlay:close()
     -- Cleanup world state
     WorldState.camera = nil
@@ -290,7 +289,7 @@ function WorldState.update(dt)
     local playerParty = GameContext.data.playerParty
     if not playerParty or not WorldState.currentMap then return end
     if not DebugMode.enabled then WorldState.debugOverlay:close() end
-    if WorldState.debugOverlay:blocksWorldInput() then
+    if WorldState.serviceViewer or WorldState.eventViewer or WorldState.debugOverlay:blocksWorldInput() then
         TimeSystem.setPaused(true)
         return
     end
@@ -383,10 +382,6 @@ function WorldState.update(dt)
         TimeSystem.setPaused(true)
     end
 
-    if elapsedWorldSeconds > 0 then
-        local healMultiplier = WorldState.isResting and WorldState.restHealMultiplier or 1
-        healPartyOverTime(elapsedWorldSeconds, healMultiplier)
-    end
     
     -- Normalize diagonal movement
     local magnitude = math.sqrt(moveX * moveX + moveY * moveY)
@@ -422,6 +417,15 @@ function WorldState.update(dt)
         end
     end
     
+    -- Travel arrivals station the existing player party. Manual movement must
+    -- release that membership before moving, just as another Travel would.
+    if newX ~= currentX or newY ~= currentY then
+        for _, location in ipairs(WorldState.currentMap:getLocations()) do
+            for _, stationed in ipairs(location.stationedParties or {}) do
+                if stationed == playerParty then WorldState.currentMap:addParty(playerParty); break end
+            end
+        end
+    end
     PartySystem.setPosition(playerParty, newX, newY)
     
     -- Update camera to follow party
@@ -436,6 +440,8 @@ function WorldState.update(dt)
         EncounterSystem.update(elapsedWorldSeconds, distanceTraveled)
     end
 
+    local recoveryReservations = elapsedWorldSeconds > 0
+        and Recovery.encounterReservations(WorldState.currentMap, playerParty) or nil
     if elapsedWorldHours > 0 then
         WorldEncounterSystem.update(elapsedWorldHours, WorldState.currentMap)
     end
@@ -443,6 +449,7 @@ function WorldState.update(dt)
 
     if elapsedWorldSeconds > 0 then
         GoalSystem.update(elapsedWorldSeconds, WorldState.currentMap, playerParty)
+        Recovery.update(elapsedWorldSeconds, WorldState.currentMap, playerParty, WorldState.isResting, recoveryReservations)
         WorldActivitySystem.ensureDefaultActivities(WorldState.currentMap, playerParty)
         PartyAiSystem.update(elapsedWorldSeconds, WorldState.currentMap, playerParty)
     end
@@ -732,7 +739,7 @@ function WorldState.draw()
     end
 
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.printf("WASD: move | I: inventory | L: quests | F1: debug", 0, love.graphics.getHeight() - 30, love.graphics.getWidth() - 20, "right")
+    love.graphics.printf("WASD: move | I: inventory | L: quests | F1: debug | F2: events | F3: services", 0, love.graphics.getHeight() - 30, love.graphics.getWidth() - 20, "right")
 
     -- Draw location interaction hint
     if WorldState.nearbyLocation then
@@ -786,6 +793,8 @@ function WorldState.draw()
         love.graphics.setColor(1, 1, 1, 1)
     end
     WorldState.debugOverlay:draw(WorldState.currentMap)
+    if WorldState.eventViewer then WorldState.eventViewer:draw() end
+    if WorldState.serviceViewer then WorldState.serviceViewer:draw() end
 end
 
 function WorldState.debugModeChanged()
@@ -793,19 +802,61 @@ function WorldState.debugModeChanged()
 end
 
 function WorldState.mousepressed(x, y, button)
+    if WorldState.serviceViewer then
+        if WorldState.serviceViewer:mousepressed(x, y, button) == "close" then WorldState.serviceViewer = nil; Input.init() end
+        return true
+    end
+    if WorldState.eventViewer then
+        if WorldState.eventViewer:mousepressed(x, y, button) == "close" then WorldState.eventViewer = nil end
+        return true
+    end
     return WorldState.debugOverlay:mousepressed(WorldState.currentMap, WorldState.camera, x, y, button)
 end
 
-function WorldState.keypressed(key)
+function WorldState.keypressed(key, isRepeat)
+    if key == "f3" then
+        if not isRepeat then
+            WorldState.serviceViewer = not WorldState.serviceViewer and ServiceViewer.new(EcsWorld.campaign, WorldState.currentMap) or nil
+            WorldState.eventViewer = nil
+            WorldState.debugOverlay:close()
+            Input.init()
+        end
+        return true
+    end
+    if key == "f2" then
+        if not isRepeat then
+            WorldState.eventViewer = not WorldState.eventViewer and EventViewer.new(EcsWorld.campaign) or nil
+            WorldState.serviceViewer = nil
+            WorldState.debugOverlay:close()
+            Input.init()
+        end
+        return true
+    end
+    if WorldState.serviceViewer then
+        if key == "escape" then WorldState.serviceViewer = nil; Input.init()
+        else WorldState.serviceViewer:keypressed(key) end
+        return true
+    end
+    if WorldState.eventViewer then
+        if key == "escape" then WorldState.eventViewer = nil end
+        return true
+    end
     return WorldState.debugOverlay:keypressed(key)
 end
 
 function WorldState.textinput(text)
+    if WorldState.serviceViewer or WorldState.eventViewer then return end
     WorldState.debugOverlay:textinput(text)
 end
 
 function WorldState.wheelmoved(_, y)
+    if WorldState.serviceViewer then WorldState.serviceViewer:wheelmoved(y); return true end
+    if WorldState.eventViewer then WorldState.eventViewer:wheelmoved(y); return true end
     return WorldState.debugOverlay:wheelmoved(WorldState.currentMap, y)
+end
+
+function WorldState.blocksPointerInput()
+    return WorldState.eventViewer ~= nil or WorldState.serviceViewer ~= nil
 end
 
 return WorldState

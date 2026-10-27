@@ -438,8 +438,10 @@ ecs/
 * Two Concord worlds: the persistent `EcsWorld.campaign` (parties, actors,
   locations, quests) and an ephemeral `EcsWorld.battle` created by
   `EcsWorld.startBattle()` and torn down by `EcsWorld.endBattle()` per fight.
-  Battle-world unit entities hold a direct reference to their campaign actor
-  entity, so HP/death changes are visible without an explicit sync step.
+  Battle-world units retain a reference to their campaign actor, but simulate HP,
+  equipment, durability and statuses independently. Interactive battles apply
+  player survivors' changes at completion; headless battles return final HP and
+  equipment/durability maps for the campaign result and loot application steps.
 
 ---
 

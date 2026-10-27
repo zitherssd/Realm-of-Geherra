@@ -7,8 +7,9 @@ LocationScreen.__index = LocationScreen
 local Button = require("src.ui.widgets.button")
 local StateManager = require("src.core.state_manager")
 local LocationActions = require("src.systems.location_actions")
+local ActionRegistry = require("src.systems.location_action_registry")
 local LocationSystem = require("src.systems.location_system")
-local LocationSpawnRules = require("src.data.location_npc_spawn_rules")
+local PopulationCatalog = require("src.data.population.catalog")
 local DialogueData = require("src.data.dialogue")
 local QuestAvailabilitySystem = require("src.systems.quest_availability_system")
 local DebugMode = require("src.debug.mode")
@@ -23,7 +24,8 @@ function LocationScreen.new(location, onLeave)
     self.smallFont = love.graphics.newFont(12)
     
     -- Load background image based on location type
-    local bgPath = "src/assets/locations/" .. location.type .. ".png"
+    local definition = PopulationCatalog.locations[location.definitionId or location.type]
+    local bgPath = "src/assets/locations/" .. (definition and definition.mapMarker or location.type) .. ".png"
     if love.filesystem.getInfo(bgPath) then
         self.backgroundImage = love.graphics.newImage(bgPath)
     end
@@ -46,19 +48,20 @@ function LocationScreen:refreshButtons()
     local btnSize = 120
     local padding = 20
     local startX = 50
+    local columns = math.max(1, math.floor((self.width - startX * 2 + padding) / (btnSize + padding)))
     
     local npcs = {}
     for _, npc in ipairs(LocationSystem.getAvailableNpcs(location)) do
-        if DebugMode.enabled or not DebugMode.isDebugActor(npc) then
+        if (not (npc.archetypeId or npc.populationSlot) or npc.memory) and (DebugMode.enabled or not DebugMode.isDebugActor(npc)) then
             npcs[#npcs + 1] = npc
         end
     end
     for i, npc in ipairs(npcs) do
         -- Empty text because we will draw the name manually at the bottom
         local btnText = ""
-        -- Arrange horizontally
-        local btnX = startX + (i-1) * (btnSize + padding)
-        local btnY = startY
+        -- Keep populated settlements' residents reachable within the viewport.
+        local btnX = startX + ((i - 1) % columns) * (btnSize + padding)
+        local btnY = startY + math.floor((i - 1) / columns) * (btnSize + padding)
         
         local btn = Button.new(btnText, btnX, btnY, btnSize, btnSize, function()
             -- Enter dialogue with this NPC
@@ -82,13 +85,13 @@ function LocationScreen:refreshButtons()
     
     -- 2. Create Location Type Options
     -- Position these below the NPC row
-    local optionsY = startY + btnSize + 40
+    local optionsY = startY + math.max(1, math.ceil(#npcs / columns)) * (btnSize + padding) + 20
     local btnWidth = 300
     local btnHeight = 50
     
-    local typeRules = LocationSpawnRules[location.type]
-    if typeRules and typeRules.actions then
-        for i, actionDef in ipairs(typeRules.actions) do
+    local definition = PopulationCatalog.locations[location.definitionId or location.type]
+    if definition then
+        for i, actionDef in ipairs(definition.actions) do
             local label    = actionDef.label
             local disabled = false
 
@@ -101,7 +104,7 @@ function LocationScreen:refreshButtons()
                 end
             end
 
-            local handler = actionDef.action and LocationActions[actionDef.action] or function() end
+            local handler = ActionRegistry.resolve(actionDef.action)
             local btn = Button.new(label, startX, optionsY + (i - 1) * 60, btnWidth, btnHeight, function()
                 handler(location)
             end)
@@ -164,7 +167,8 @@ function LocationScreen:draw()
     
     love.graphics.setColor(0.7, 0.7, 0.7, 1)
     love.graphics.setFont(love.graphics.newFont(18))
-    love.graphics.printf(string.upper(self.location.type), 0, 80, self.width, "center")
+    local definition = PopulationCatalog.locations[self.location.definitionId or self.location.type]
+    love.graphics.printf(string.upper(definition and definition.displayName or self.location.type), 0, 80, self.width, "center")
     
     -- Draw Buttons
     for _, btn in ipairs(self.buttons) do

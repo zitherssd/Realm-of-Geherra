@@ -159,6 +159,10 @@ local function outcomesBackoffAndLegacy()
     assert(legacy.world_activity.type == "raid", "legacy automatic Raid no longer works")
 
     local resident = Unit.create(world, "soldier")
+    resident:ensure("memory") -- Important resident; generic partyless troops have no AI.
+    local residence = Location.create(world, "goal-residence", "Residence")
+    map:addLocation(residence)
+    require("src.systems.location_system").addNPC(residence, resident)
     local stranded = GoalSystem.configure(resident, {{type = "acquire_gold", amount = 50}}, {raid = true})
     local partyCount = #map:getParties()
     tick(map, 1)
@@ -168,7 +172,7 @@ local function outcomesBackoffAndLegacy()
     assert(invalid.status == "blocked" and invalid.reason == "destination_missing")
     party:destroy()
     tick(map, 1)
-    assert(goal.status == "blocked" and goal.reason == "no_commanded_party")
+    assert(not goal.activity and actor.npc_goals.evaluationMode == "inactive")
 end
 
 local function realRaidTreasuryFeedback()

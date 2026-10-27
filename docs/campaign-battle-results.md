@@ -12,7 +12,11 @@ changing campaign state. It persists final HP, removes defeated actors through
 `party_killed` once per eliminated party. Draws apply their final HP and may
 eliminate both parties. Timeouts apply partial casualties and HP, but require
 at least one survivor in each party; a timeout alone cannot eliminate a party.
-Inventories, treasury, equipment, and loot are not changed.
+Runner results also include copied `equipment` and `itemDurability` maps per
+actor. The applier persists these maps for survivors; legacy results without
+them leave equipment unchanged. Defeated actors' equipment belongs to the loot
+application step, which runs before casualty removal. Inventories, treasury,
+and loot are not changed by the result applier.
 
 The encounter handle carries a `resultApplied` flag to reject duplicate
 application for that encounter lifecycle. The applier does not maintain a
@@ -90,6 +94,12 @@ resolver does not roll troop drop tables; they remain a potential separate
 compatibility source and are not combined with recovered possessions. NPC world
 encounters use the resolver and its separate application layer; interactive
 player battles remain on the existing reward path.
+
+Equipment worn during the battle uses its final durability in recovered loot.
+Equipment broken during the battle is recorded as destroyed, preserving resource
+accounting without returning the broken item as loot. Headless simulation never
+mutates campaign equipment before result application. Interactive battles copy
+surviving player units' equipment and durability back at battle completion.
 
 NPC world encounters now resolve and apply `LootResult` before campaign casualty
 removal. Raid contacts supply an explicit plunder policy; encounters without one

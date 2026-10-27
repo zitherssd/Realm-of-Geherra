@@ -15,6 +15,8 @@ local QuestAvailabilitySystem = require("src.systems.quest_availability_system")
 local RelationshipSystem = require("src.systems.relationship_system")
 local PartySystem = require("src.systems.party_system")
 local TraderSystem = require("src.systems.trader_system")
+local Services = require("src.systems.service_system")
+local Caravans = require("src.systems.caravan_system")
 -- npc_introductions was removed — all introductions now use introDialogue in dialogue trees
 local GameContext = require("src.game.game_context")
 local WorldState = require("src.game.states.world_state")
@@ -174,6 +176,15 @@ local function filterDialogueTreeOptions(dialogueTree, questDialogContext, relat
             })
         end
 
+        local provider = target and (target.party and PartySystem.getLeader(target) or target)
+        if lineIndex == 1 and provider and Caravans.canVolunteer(provider, GameContext.data.player,
+            {world = provider.__world, map = GameContext.data.currentMap}) then
+            table.insert(allowedOptions, 1, {text = "I volunteer my party and treasury. Depart now; deliver all remaining gold on return.", action = "volunteer_caravan"})
+        end
+        if lineIndex == 1 and provider and Services.isProviding(provider, {map = GameContext.data.currentMap})
+            and provider.npc_goals.capabilities.heal then
+            table.insert(allowedOptions, 1, {text = "Heal my wounds (" .. Services.healPrice .. " gold).", action = "purchase_healing"})
+        end
         line.options = allowedOptions
     end
 
@@ -371,7 +382,23 @@ local function handleDialogueAction(choice, context)
         completionPopup = nil
     }
 
-    if choice.action == "battle" then
+    if choice.action == "volunteer_caravan" then
+        local sponsor = target and (target.party and PartySystem.getLeader(target) or target)
+        local ok, reason = Caravans.dispatch(sponsor, GameContext.data.player,
+            {world = sponsor and sponsor.__world, map = GameContext.data.currentMap}, true)
+        StateManager.swap("dialogue", {dialogueTree = buildSystemDialogueTree(ok and "The caravan has departed."
+            or ("Unable to depart: " .. tostring(reason))), location = location})
+        result.handledNavigation = true
+        return result
+    elseif choice.action == "purchase_healing" then
+        local provider = target and (target.party and PartySystem.getLeader(target) or target)
+        local ok, outcome = Services.perform(provider, GameContext.data.player, "heal", {map = GameContext.data.currentMap})
+        local message = ok and ("Restored " .. outcome.healed .. " HP for " .. outcome.price .. " gold.")
+            or ("Healing unavailable: " .. tostring(outcome))
+        StateManager.swap("dialogue", {dialogueTree = buildSystemDialogueTree(message), location = location})
+        result.handledNavigation = true
+        return result
+    elseif choice.action == "battle" then
         StateManager.swap("battle", { enemyParty = target })
     elseif choice.action == "recruit_volunteers" then
         local resultText = LocationActions.performRecruitment(location, favorCost)

@@ -28,6 +28,8 @@ local function battleUnitAssemblage(e, actor, worldX, worldY, team)
     -- Persistent Data Reference
     e.actor = actor
     e.id = actor.id
+    e.equipment = copyTable(actor.equipment or {})
+    e.itemDurability = copyTable(actor.itemDurability or {})
 
     -- Logical State (World)
     e.x = worldX

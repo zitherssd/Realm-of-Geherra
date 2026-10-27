@@ -3,6 +3,7 @@
 
 local EventBus = require("src.core.event_bus")
 local PartySystem = require("src.systems.party_system")
+local InventorySystem = require("src.systems.inventory_system")
 
 local CampaignBattleResultApplier = {}
 
@@ -112,6 +113,25 @@ local function validateAndResolve(result, context)
             if actorResult.defeated ~= (actorResult.finalHp <= 0) then
                 error("EncounterResult has inconsistent defeated status for actor " .. tostring(actor.id), 3)
             end
+            if actorResult.equipment ~= nil then
+                if type(actorResult.equipment) ~= "table" or type(actorResult.itemDurability) ~= "table" then
+                    error("EncounterResult requires equipment and durability maps", 3)
+                end
+                for slot, itemId in pairs(actorResult.equipment) do
+                    if type(slot) ~= "string" or type(itemId) ~= "string" or
+                        (not actorResult.defeated and (actor.equipment or {})[slot] ~= itemId) then
+                        error("EncounterResult changed an equipped item", 3)
+                    end
+                end
+                for itemId, remaining in pairs(actorResult.itemDurability) do
+                    if type(itemId) ~= "string" or type(remaining) ~= "number" or
+                        remaining ~= remaining or remaining <= 0 or remaining == math.huge then
+                        error("EncounterResult has invalid equipment durability", 3)
+                    end
+                end
+            elseif actorResult.itemDurability ~= nil then
+                error("EncounterResult durability requires equipment", 3)
+            end
             actorsById[actor.id] = {actor = actor, party = party, result = actorResult}
             if actorResult.finalHp > 0 then
                 livingByPartyId[party.id] = livingByPartyId[party.id] + 1
@@ -156,6 +176,9 @@ function CampaignBattleResultApplier.apply(result, context)
         entry.actor.hp = entry.result.finalHp
         if entry.result.defeated then
             PartySystem.removeFromParty(entry.party, actorId)
+        elseif entry.result.equipment then
+            entry.actor.equipment = InventorySystem.deepClone(entry.result.equipment)
+            entry.actor.itemDurability = InventorySystem.deepClone(entry.result.itemDurability)
         end
     end
 

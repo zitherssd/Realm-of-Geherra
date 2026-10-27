@@ -6,7 +6,7 @@ local StateManager = require("src.core.state_manager")
 
 local MenuState = {
     selectedOption = 1,
-    options = {"New Game", "Load Game", "Quit"},
+    options = {"New Game", "Load Game", "Quit", "Debug Campaign"},
     lastInputTime = 0,
     inputCooldown = 0.25  -- 250ms between inputs
 }
@@ -59,6 +59,8 @@ function MenuState.update(dt)
         MenuState._selectOption(2)
     elseif quit then
         MenuState._selectOption(3)
+    elseif Input.isKeyDown("d") then
+        MenuState._selectOption(4)
     end
 end
 
@@ -78,6 +80,9 @@ function MenuState._selectOption(optionIndex)
     elseif optionIndex == 3 then
         -- Quit
         love.event.quit()
+    elseif optionIndex == 4 then
+        StateManager.swap("world_generation", {options = {playerName = "Wanderer",
+            difficulty = "normal", debugCampaign = "normal"}})
     end
 end
 
@@ -108,7 +113,7 @@ function MenuState.draw()
     love.graphics.setFont(love.graphics.newFont(16))
     love.graphics.setColor(0.5, 0.5, 0.5)
     love.graphics.printf("Use ↑↓ or WASD to navigate, ENTER or SPACE to select", 0, 650, 1024, "center")
-    love.graphics.printf("Or press: [N] New Game, [L] Load, [Q] Quit", 0, 680, 1024, "center")
+    love.graphics.printf("Or press: [N] New Game, [L] Load, [Q] Quit, [D] Debug Campaign", 0, 680, 1024, "center")
 end
 
 return MenuState

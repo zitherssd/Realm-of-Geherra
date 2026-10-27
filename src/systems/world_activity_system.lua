@@ -3,6 +3,7 @@ local EventBus = require("src.core.event_bus")
 local RaidActivity = require("src.systems.world_activities.raid_activity")
 local TravelActivity = require("src.systems.world_activities.travel_activity")
 local RoamActivity = require("src.systems.world_activities.roam_activity")
+local RestActivity = require("src.systems.world_activities.rest_activity")
 local PartySystem = require("src.systems.party_system")
 
 local WorldActivitySystem = {}
@@ -14,7 +15,8 @@ end
 local ACTIVITY_TYPES = {
     raid = RaidActivity,
     travel = TravelActivity,
-    roam = RoamActivity
+    roam = RoamActivity,
+    rest = RestActivity
 }
 
 WorldActivitySystem.terminalRetryCooldownSeconds = 5
@@ -272,14 +274,15 @@ function WorldActivitySystem.update(dt, map, playerParty)
 
     WorldActivitySystem.ensureDefaultActivities(map, playerParty)
 
-    local parties = {}
-    for _, party in ipairs(map:getParties() or {}) do
-        parties[#parties + 1] = party
-    end
+    -- Rest can execute in place at a location; movement activities still use
+    -- only traveling parties (Travel unstations its party in onStart).
+    local parties, traveling = allMapParties(map), {}
+    for _, party in ipairs(map:getParties() or {}) do traveling[party] = true end
 
     for _, party in ipairs(parties) do
         local activity = party.world_activity
         if (party ~= playerParty or (activity and (activity.type == "travel" or activity.type == "roam")))
+            and (traveling[party] or (activity and activity.type == "rest"))
             and not party.activeEncounterId and
             activity and activity.status == "active" then
             local implementation = ACTIVITY_TYPES[activity.type]

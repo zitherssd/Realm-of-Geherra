@@ -27,6 +27,11 @@ local accumulator = 0
 local paused = false
 local timeScale = DEFAULT_TIME_SCALE
 
+function TimeSystem.reset()
+    accumulator, paused, timeScale = 0, false, DEFAULT_TIME_SCALE
+    GameContext.data.time = {day = 1, hour = 6}
+end
+
 -- Helper to access time data safely
 local function getTimeData()
     if not GameContext.data then

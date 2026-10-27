@@ -6,6 +6,7 @@ local IdAllocator = require("src.core.id_allocator")
 
 local function partyAssemblage(e, name, leaderId, id)
     e:give("party")
+    e:give("memory")
     e:give("world_activity")
     local allocator = IdAllocator.forWorld(e.__world)
     if id ~= nil then

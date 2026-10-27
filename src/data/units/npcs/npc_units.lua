@@ -8,10 +8,11 @@ return {
         type = "player",
         sprite = "src/assets/sprites/units/commander.png",
         stats = {
-            health = 30,
-            attack = 30,
-            defense = 25,
+            health = 25,
+            attack = 10,
+            defense = 10,
             speed = 10,
+            strength = 10,
             battle_speed = 10
         },
         equipment = {
@@ -29,8 +30,8 @@ return {
             navigation = 0,
             shadowcraft = 1
         },
-        sight = 100,
-        profile = 1
+        sight = 50,
+        profile = 15,
     },
 
     ["companion"] = {
@@ -41,9 +42,8 @@ return {
         sprite = "src/assets/sprites/units/heavyinfantry.png",
         stats = {
             health = 30,
-            defense = 45,
-            attack = 34,
-            speed = 7
+            defense = 10,
+            attack = 10
         },
         equipment = {
             mainHand = "iron_sword",
@@ -61,10 +61,11 @@ return {
         type = "elder",
         sprite = "src/assets/sprites/units/elder.png",
         stats = {
-            health = 60,
-            defense = 110,
-            attack = 120,
-            speed = 7
+            health = 25,
+            defense = 11,
+            attack = 8,
+            speed = 7,
+            battle_speed = 7
         },
         equipment = {
             mainHand = "iron_sword",
@@ -92,8 +93,10 @@ return {
         },
         stats = {
             health = 28,
-            defense = 4,
-            speed = 7
+            defense = 10,
+            attack = 10,
+            speed = 11,
+            battle_speed = 11
         },
         equipment = {
             mainHand = "dagger"
@@ -140,8 +143,10 @@ return {
         },
         stats = {
             health = 30,
-            defense = 4,
-            speed = 7
+            defense = 10,
+            attack = 10,
+            speed = 10,
+            battle_speed = 10
         },
         equipment = {
             mainHand = "dagger"

@@ -5,10 +5,37 @@ package.path = repositoryRoot .. "/?.lua;" ..
     testDirectory .. "/?.lua;" ..
     package.path
 
-function love.load()
+function love.load(args)
+    if args and args[1] == "caravan_scenario" and (args[2] == "--preview" or args[2] == "--preview-smoke") then
+        require("caravan_scenario").preview(args[2] == "--preview-smoke")
+        return
+    end
+    if args and args[1] == "services_scenario" and args[2] == "--preview" then
+        require("services_scenario").preview()
+        return
+    end
     local ok, err = xpcall(function()
+        -- Run one existing scenario independently, including past suite failures.
+        if args and args[1] and args[1]:match("^[%w_]+_scenario$") then
+            require(args[1]).run()
+            return
+        end
+        require("navigation_tests").run()
+        require("combat_regression_scenario").run()
+        require("location_types_scenario").run()
+        require("population_scenario").run()
+        require("retinue_scenario").run()
+        require("inline_party_scenario").run()
+        require("debug_campaign_scenario").run()
+        require("caravan_scenario").run()
+        require("services_scenario").run()
+        require("knowledge_scenario").run()
+        require("travel_knowledge_scenario").run()
+        require("battle_knowledge_scenario").run()
+        require("world_events_scenario").run()
         require("world_activity_scenario").run()
         require("npc_goals_scenario").run()
+        require("recovery_scenario").run()
         require("raid_visibility_scenario").run()
         require("battle_simulation_scenario").run()
         require("headless_battle_scenario").run()
@@ -32,6 +59,7 @@ function love.load()
         return
     end
 
-    print("All 17 scenarios passed, including NPC goals, campaign identity, travel, debug mode, and roaming")
+    print(args and args[1] and (args[1] .. " passed")
+        or "All 30 scenarios and navigation tests passed, including typed locations, inline parties, retinues, caravans and services")
     love.event.quit(0)
 end

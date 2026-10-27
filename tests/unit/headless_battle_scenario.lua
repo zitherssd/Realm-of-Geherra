@@ -64,6 +64,7 @@ local function createActor(world, actorId, config)
     local actor = Unit.create(world, "soldier", actorId)
     actor.stats.health = config.health or 100
     actor.stats.attack = config.attack or 10
+    actor.stats.strength = config.strength or 0
     actor.stats.defense = config.defense or 0
     actor.stats.battle_speed = config.battleSpeed or 120
     actor.hp = actor.stats.health
@@ -71,8 +72,8 @@ local function createActor(world, actorId, config)
     actor.skills = config.skills or {}
     actor.statusEffects = config.statusEffects and copyTable(config.statusEffects) or {}
     actor.inventory = {{id = "actor_supply", quantity = 2, metadata = {bound = false}}}
-    actor.equipment = {mainHand = "test_blade", offHand = "test_shield"}
-    actor.itemDurability = {test_shield = 7}
+    actor.equipment = config.equipment or {}
+    actor.itemDurability = {}
     return actor
 end
 
@@ -138,6 +139,8 @@ local function testVictoryForBothSides()
     local strongA, strongAActor = createParty(world, "strong-a", "strong-a-actor", {
         health = 10000,
         attack = 1000,
+        strength = 1000,
+        equipment = {mainHand = "iron_sword", rangedWeapon = "javelin"},
         defense = 1000,
         skills = {javelin_throw = {learned = true}}
     })
@@ -169,6 +172,8 @@ local function testVictoryForBothSides()
     local strongB, strongBActor = createParty(world, "strong-b", "strong-b-actor", {
         health = 10000,
         attack = 1000,
+        strength = 1000,
+        equipment = {mainHand = "iron_sword", rangedWeapon = "javelin"},
         defense = 1000,
         skills = {javelin_throw = {learned = true}}
     })
@@ -214,6 +219,8 @@ local function testIncrementalEncounters()
     local continuousA, continuousActorA = createParty(world, "continuous-a", "continuous-actor-a", {
         health = 10000,
         attack = 1000,
+        strength = 1000,
+        equipment = {mainHand = "iron_sword", rangedWeapon = "javelin"},
         defense = 1000,
         skills = {javelin_throw = {learned = true}}
     })
@@ -227,6 +234,8 @@ local function testIncrementalEncounters()
     local batchA, batchActorA = createParty(world, "batch-a", "batch-actor-a", {
         health = 10000,
         attack = 1000,
+        strength = 1000,
+        equipment = {mainHand = "iron_sword", rangedWeapon = "javelin"},
         defense = 1000,
         skills = {javelin_throw = {learned = true}}
     })

@@ -8,7 +8,7 @@ return {
         type = "melee",
         description = "Basic melee attack",
         damageType = "slashing",
-        baseDamage = 5,
+        baseDamage = 3,
         windup = 30,
         cooldown = 10,
         cost = 0,
@@ -22,7 +22,7 @@ return {
         type = "melee",
         description = "Basic melee attack",
         damageType = "piercing",
-        baseDamage = 5,
+        baseDamage = 3,
         windup = 10,
         cooldown = 15,
         cost = 0,
@@ -93,7 +93,7 @@ return {
         type = "ranged",
         description = "Throw a javelin (Limited uses)",
         damageType = "piercing",
-        baseDamage = 17,
+        baseDamage = 15,
         range = 8.5,
         windup = 20,
         cooldown = 30,
@@ -111,7 +111,7 @@ return {
         type = "ranged",
         description = "Throw one javelin with limited battle supply",
         damageType = "piercing",
-        baseDamage = 16,
+        baseDamage = 15,
         range = 8.5,
         windup = 20,
         cooldown = 30,
@@ -120,6 +120,23 @@ return {
             sprite = "src/assets/sprites/projectiles/spear.png",
             speed = 32,
             arc = 30
+        }
+    },
+
+    ["sling_stone"] = {
+        id = "sling_stone",
+        name = "Sling Stone",
+        type = "ranged",
+        description = "Hurl a stone with a sling",
+        damageType = "blunt",
+        baseDamage = 9,
+        range = 7.0,
+        windup = 20,
+        cooldown = 30,
+        projectile = {
+            style = "sling_stone",
+            speed = 36,
+            arc = 25
         }
     },
 

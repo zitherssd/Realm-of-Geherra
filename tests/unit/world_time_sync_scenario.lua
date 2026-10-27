@@ -134,9 +134,13 @@ local function runScenario()
     local initialRaiderX = raider.x
     local initialEncounterTicks = encounter.runner.simulation.context.data.tick
     local initialTargetLost = raider.world_activity.targetLostSeconds
+    local recoveringActor = caravan.actors[1]
+    recoveringActor.hp = recoveringActor.maxHp * 0.5
+    local initialHp = recoveringActor.hp
 
     runWorldUpdate({}, 0.1)
     assert(TimeSystem.isPaused())
+    assert(recoveringActor.hp == initialHp, "NPC healed while world time was paused")
     assert(caravan.x == initialCaravanX and wanderingTrader.x == initialWandererX,
         "NPC traders moved while world time was paused")
     assert(raider.x == initialRaiderX, "raider moved while world time was paused")
@@ -150,6 +154,8 @@ local function runScenario()
         "active battle advanced while world time was paused")
 
     runWorldUpdate({space = true}, 0.1)
+    assert(math.abs(recoveringActor.hp - initialHp - recoveringActor.maxHp / 300 * 0.1) < 1e-7,
+        "WorldState did not apply passive recovery to NPC parties exactly once")
     assert(caravan.x > initialCaravanX, "waiting did not advance trader travel")
     assert(wanderingTrader.x ~= initialWandererX, "waiting did not advance fallback wandering")
     assert(raider.x > initialRaiderX,
@@ -174,9 +180,12 @@ local function runScenario()
     assert(restTravel > 0, "resting did not advance trader travel")
 
     local previousCaravanXAtNormalScale = caravan.x
+    local hpBeforeAcceleration = recoveringActor.hp
     TimeSystem.setTimeScale(2)
     runWorldUpdate({space = true}, 0.1)
     local acceleratedTravel = caravan.x - previousCaravanXAtNormalScale
+    assert(math.abs(recoveringActor.hp - hpBeforeAcceleration - recoveringActor.maxHp / 300 * 0.2) < 1e-7,
+        "accelerated world time did not scale recovery proportionally")
     assert(math.abs(acceleratedTravel - restTravel * 2) < 1e-6,
         "time acceleration did not scale world movement consistently")
 
@@ -192,6 +201,22 @@ local function runScenario()
     assert(math.abs(TimeSystem.worldHoursToSeconds(0.15) - 0.1) < 1e-7,
         "world-hour to world-second conversion is incorrect")
 
+    -- Completion during the current update must not heal the time spent fighting.
+    local combatActor = encounterA.actors[1]
+    combatActor.hp = combatActor.maxHp / 2
+    local combatHp = combatActor.hp
+    local originalEncounterUpdate = WorldEncounterSystem.update
+    WorldEncounterSystem.update = function()
+        encounterA.activeEncounterId, encounterB.activeEncounterId = nil, nil
+        map.activeEncounters[encounter.id] = nil
+    end
+    local completionOk, completionError = pcall(runWorldUpdate, {space = true}, 0.1)
+    WorldEncounterSystem.update = originalEncounterUpdate
+    assert(completionOk, completionError)
+    assert(combatActor.hp == combatHp, "encounter completion granted recovery for combat time")
+    runWorldUpdate({space = true}, 0.1)
+    assert(math.abs(combatActor.hp - combatHp - combatActor.maxHp / 300 * 0.2) < 1e-7,
+        "passive recovery did not resume on the update after combat")
     encounter.runner:cleanup()
     map.activeEncounters[encounter.id] = nil
     encounterA.activeEncounterId, encounterB.activeEncounterId = nil, nil

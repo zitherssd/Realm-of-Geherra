@@ -1,229 +1,88 @@
 local EcsWorld = require("src.ecs.world")
-local Location = require("src.ecs.assemblages.location")
-local Unit = require("src.ecs.assemblages.unit")
 local Navigation = require("src.systems.world_navigation")
 local Map = require("src.world.map")
 
 local Tests = {}
 
--- Test 1: Pathfinding to same coordinates
+local function makeMap(id, walkable)
+    EcsWorld.init()
+    local map = Map.new(id)
+    map.width, map.height = 640, 640
+    local grid = {cellSize = 64, cols = 10, rows = 10, cells = {}}
+    for y = 1, grid.rows do
+        grid.cells[y] = {}
+        for x = 1, grid.cols do
+            grid.cells[y][x] = {walkable = not walkable or walkable(x, y)}
+        end
+    end
+    map.worldGen = {navigationGrid = grid}
+    return map
+end
+
 function Tests.testSameStartAndGoal()
-    local world = EcsWorld.init()
-    local map = Map.new("test-same-point")
-    local origin = Location.create(world, "test-origin", "Origin")
-    origin.siteId, origin.x, origin.y = "site-a", 100, 100
-    
-    local gridCol = math.floor(100 / 64) + 1
-    local gridRow = math.floor(100 / 64) + 1
-    
-    map.worldGen = {
-        navigationGrid = {
-            cellSize = 64,
-            cols = 50,
-            rows = 50,
-            cells = {}
-        }
-    }
-    
-    for y = 1, 50 do
-        map.worldGen.navigationGrid.cells[y] = {}
-        for x = 1, 50 do
-            local cell = {walkable = true}
-            if (x == gridCol and y == gridRow) then
-                cell.blockedReason = "water"
-                cell.walkable = false
-            end
-            map.worldGen.navigationGrid.cells[y][x] = cell
-        end
-    end
-    
-    local waypoints, reason = Navigation.findPath(map, 100, 100, 100, 100)
-    assert(waypoints and #waypoints == 1 and waypoints[1].x == 100,
-        "same-point path: " .. tostring(reason))
+    local path, reason = Navigation.findPath(makeMap("same"), 100, 100, 100, 100)
+    assert(path and #path == 1 and path[1].x == 100 and path[1].y == 100, tostring(reason))
 end
 
--- Test 2: Blocked destination
 function Tests.testBlockedDestination()
-    local world = EcsWorld.init()
-    local map = Map.new("test-blocked-dest")
-    
-    local function makeGrid(walkableFn)
-        return {
-            cellSize = 64,
-            cols = 10,
-            rows = 10,
-            cells = {}
-        }
-    end
-    
-    for y = 1, 10 do
-        makeGrid.walkable = walkableFn
-        map.worldGen.navigationGrid.cells[y] = {}
-        for x = 1, 10 do
-            local cell = {walkable = walkableFn(x * 64, y * 64)}
-            map.worldGen.navigationGrid.cells[y][x] = cell
-        end
-    end
-    
-    local waypoints, reason = Navigation.findPath(map, 50, 50, 512, 50)
-    assert(not waypoints and reason == "destination_blocked",
-        "blocked-dest: " .. tostring(reason))
-    
-    map.worldGen = makeGrid(function() return true end)
+    local map = makeMap("blocked-destination", function(x, y) return x ~= 9 or y ~= 1 end)
+    local path, reason = Navigation.findPath(map, 50, 50, 544, 50)
+    assert(not path and reason == "destination_blocked", tostring(reason))
 end
 
--- Test 3: Unreachable destination (no path exists)
 function Tests.testUnreachableGoal()
-    local world = EcsWorld.init()
-    local map = Map.new("test-unreachable")
-    
-    for y = 1, 10 do
-        map.worldGen.navigationGrid.cells[y] = {}
-        for x = 1, 10 do
-            local cell = {walkable = true}
-            if x == 6 and y <= 5 then
-                cell.walkable = false
-            end
-            map.worldGen.navigationGrid.cells[y][x] = cell
-        end
-    end
-    
-    local waypoints, reason = Navigation.findPath(map, 100, 100, 550, 100)
-    assert(not waypoints and reason == "destination_unreachable",
-        "unreachable goal: " .. tostring(reason))
+    local map = makeMap("unreachable", function(x) return x ~= 6 end)
+    local path, reason = Navigation.findPath(map, 100, 100, 550, 100)
+    assert(not path and reason == "destination_unreachable", tostring(reason))
 end
 
--- Test 4: Start position is blocked
 function Tests.testBlockedStart()
-    local world = EcsWorld.init()
-    local map = Map.new("test-blocked-start")
-    
-    local function makeGrid()
-        local grid = {
-            cellSize = 64,
-            cols = 10,
-            rows = 10,
-            cells = {}
-        }
-        for y = 1, 10 do
-            grid.cells[y] = {}
-            for x = 1, 10 do
-                local cell = {walkable = true}
-                if (x == math.floor(50 / 64) + 1 then
-                    cell.walkable = false
-                end
-                grid.cells[y][x] = cell
-            end
-        end
-        return grid
-    end
-    
-    map.worldGen = makeGrid()
-    
-    local waypoints, reason = Navigation.findPath(map, 50, 50, 512, 50)
-    assert(not waypoints and reason == "start_blocked",
-        "blocked start: " .. tostring(reason))
+    local map = makeMap("blocked-start", function(x, y) return x ~= 1 or y ~= 1 end)
+    local path, reason = Navigation.findPath(map, 50, 50, 544, 50)
+    assert(not path and reason == "start_blocked", tostring(reason))
+    path, reason = Navigation.findPath(map, 50, 50, 50, 50)
+    assert(not path and reason == "start_blocked", "A same-point route must still reject blocked ground")
 end
 
--- Test 5: Missing map should return error
 function Tests.testMissingMap()
-    local waypoints, reason = Navigation.findPath(nil, 100, 100, 200, 200)
-    assert(not waypoints and reason == "map_unavailable",
-        "missing map: " .. tostring(reason))
+    local path, reason = Navigation.findPath(nil, 100, 100, 200, 200)
+    assert(not path and reason == "map_unavailable", tostring(reason))
 end
 
--- Test 6: Out of bounds start
 function Tests.testOutOfBoundsStart()
-    local world = EcsWorld.init()
-    local map = Map.new("test-outbounds-start")
-    
-    for y = 1, 5 do
-        map.worldGen.navigationGrid.cells[y] = {}
-        for x = 1, 5 do
-            map.worldGen.navigationGrid.cells[y][x] = {walkable = true}
-        end
-    end
-    
-    local waypoints, reason = Navigation.findPath(map, 9999, 9999, 100, 100)
-    assert(not waypoints and reason == "start_out_of_bounds",
-        "out of bounds start: " .. tostring(reason))
+    local path, reason = Navigation.findPath(makeMap("start-bounds"), 9999, 9999, 100, 100)
+    assert(not path and reason == "start_out_of_bounds", tostring(reason))
 end
 
--- Test 7: Out of bounds goal
 function Tests.testOutOfBoundsGoal()
-    local world = EcsWorld.init()
-    local map = Map.new("test-outbounds-goal")
-    
-    for y = 1, 5 do
-        map.worldGen.navigationGrid.cells[y] = {}
-        for x = 1, 5 do
-            map.worldGen.navigationGrid.cells[y][x] = {walkable = true}
-        end
-    end
-    
-    local waypoints, reason = Navigation.findPath(map, 100, 100, 9999, 9999)
-    assert(not waypoints and reason == "destination_out_of_bounds",
-        "out of bounds goal: " .. tostring(reason))
+    local path, reason = Navigation.findPath(makeMap("goal-bounds"), 100, 100, 9999, 9999)
+    assert(not path and reason == "destination_out_of_bounds", tostring(reason))
 end
 
--- Test 8: No navigation grid (should return direct path)
 function Tests.testNoNavigationGrid()
-    local world = EcsWorld.init()
-    local map = Map.new("test-no-grid")
-    
-    local origin = Location.create(world, "no-grid-origin", "Origin")
-    origin.siteId, origin.x, origin.y = "site-a", 100, 100
-    
-    local destination = Location.create(world, "no-grid-dest", "Dest")
-    destination.siteId, destination.x, destination.y = "site-b", 500, 500
-    map:addLocation(destination)
-    
-    local waypoints, reason = Navigation.findPath(map, 100, 100, 500, 500)
-    assert(waypoints and #waypoints > 0 and waypoints[2].x == 500,
-        "no grid path: " .. tostring(reason))
+    local map = makeMap("no-grid")
+    map.worldGen = nil
+    local path, reason = Navigation.findPath(map, 100, 100, 500, 500)
+    assert(path and #path == 1 and path[1].x == 500 and path[1].y == 500, tostring(reason))
 end
 
--- Test 9: Empty waypoints list
 function Tests.testEmptyResult()
-    local world = EcsWorld.init()
-    local map = Map.new("test-empty")
-    
-    for y = 1, 5 do
-        map.worldGen.navigationGrid.cells[y] = {}
-        for x = 1, 5 do
-            map.worldGen.navigationGrid.cells[y][x] = {walkable = true}
-        end
-    end
-    
-    local waypoints, reason = Navigation.findPath(map, 100, 100, 200000, 50)
-    assert(not waypoints and reason == "destination_unreachable",
-        "empty result: " .. tostring(reason))
+    local path, reason = Navigation.findPath(makeMap("empty"), 100, 100, 200000, 50)
+    assert(not path and reason == "destination_out_of_bounds", tostring(reason))
 end
 
--- Test 10: Diagonal movement costs
 function Tests.testDiagonalMovement()
-    local world = EcsWorld.init()
-    local map = Map.new("test-diagonal")
-    
-    for y = 1, 10 do
-        map.worldGen.navigationGrid.cells[y] = {}
-        for x = 1, 10 do
-            map.worldGen.navigationGrid.cells[y][x] = {walkable = true}
-        end
-    end
-    
-    local waypoints, _ = Navigation.findPath(map, 50, 50, 64 * 9 + 32, 64 * 9 + 32)
-    if waypoints then
-        -- Verify path exists and moves diagonally
-        assert(waypoints[1].x < waypoints[#waypoints - 1].x,
-            "diagonal path: x should increase")
-        assert(waypoints[1].y < waypoints[#waypoints - 1].y,
-            "diagonal path: y should increase")
-    end
+    local path, reason = Navigation.findPath(makeMap("diagonal"), 32, 32, 608, 608)
+    assert(path and #path == 11, "Expected a direct diagonal route: " .. tostring(reason))
+    for _, point in ipairs(path) do assert(point.x == point.y, "Route detoured off the diagonal") end
+    local map = makeMap("blocked-corner", function(x, y)
+        return (x == 1 and y == 1) or (x == 2 and y == 2)
+    end)
+    path, reason = Navigation.findPath(map, 32, 32, 96, 96)
+    assert(not path and reason == "destination_unreachable", "Route cut through a blocked corner")
 end
 
-Tests.run = function()
-    print("Running navigation unit tests...")
+function Tests.run()
     Tests.testSameStartAndGoal()
     Tests.testBlockedDestination()
     Tests.testUnreachableGoal()
@@ -234,7 +93,7 @@ Tests.run = function()
     Tests.testNoNavigationGrid()
     Tests.testEmptyResult()
     Tests.testDiagonalMovement()
-    print("All navigation tests passed!")
+    print("All navigation tests passed")
 end
 
 return Tests

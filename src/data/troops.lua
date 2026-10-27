@@ -4,7 +4,16 @@
 local groups = {
     require("src.data.units.neutral.neutral_units"),
     require("src.data.units.pelasgians.pelasgian_units"),
-    require("src.data.units.npcs.npc_units")
+    require("src.data.units.npcs.npc_units"),
+    require("src.data.units.gaia.gaia_minotaurs"),
+    require("src.data.units.gaia.gaia_centaurs"),
+    require("src.data.units.gaia.gaia_satyrs"),
+    require("src.data.units.gaia.gaia_giants"),
+    require("src.data.units.gaia.gaia_animals"),
+    require("src.data.units.gaia.gaia_trolls"),
+    require("src.data.units.gaia.gaia_nymphs"),
+    require("src.data.units.gaia.gaia_plants"),
+    require("src.data.units.gaia.gaia_monsters")
 }
 
 local troops = {}

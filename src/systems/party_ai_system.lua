@@ -122,12 +122,16 @@ function PartyAiSystem.update(dt, map, playerParty)
         local leader = PartySystem.getLeader(party)
         local goals = leader and leader.npc_goals
         local goalControlsRoaming = false
+        local recovering = false
+        for _, goal in ipairs(goals and goals.goals or {}) do
+            if goal.type == "rest_and_recover" and goal.recovering then recovering = true end
+        end
         if goals and goals.capabilities.roam and goals.capabilities.raid then
             for _, goal in ipairs(goals.goals) do
                 if goal.type == "acquire_gold" and goal.roam then goalControlsRoaming = true; break end
             end
         end
-        if party ~= playerParty and not party.activeEncounterId and not activityOwnsParty and not goalControlsRoaming
+        if party ~= playerParty and not party.activeEncounterId and not activityOwnsParty and not goalControlsRoaming and not recovering
             and (party.state == "wander" or party.state == "chase") then
             updateWander(party, dt, map)
         end

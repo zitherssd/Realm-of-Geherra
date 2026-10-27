@@ -4,6 +4,7 @@
 
 local PartySystem = require("src.systems.party_system")
 local VisibilityConfig = require("src.data.visibility")
+local BattleKnowledge = require("src.systems.battle_knowledge_system")
 
 local VisibilitySystem = {}
 
@@ -57,6 +58,15 @@ function VisibilitySystem.update(playerParty, map)
         site.currentlyVisible = currentlyVisible
         if currentlyVisible then
             site.discovered = true
+            BattleKnowledge.discover(playerParty, site, map)
+        end
+        -- The render flags above belong to the player. Other traveling parties
+        -- observe with the same sight rule, without revealing markers to the player.
+        for _, observer in ipairs(map:getParties() or {}) do
+            if observer ~= playerParty and position and
+                canSeePoint(observer, position.x, position.y, site.profile) then
+                BattleKnowledge.discover(observer, site, map)
+            end
         end
     end
 end

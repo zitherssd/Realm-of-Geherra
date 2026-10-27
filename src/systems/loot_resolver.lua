@@ -213,7 +213,7 @@ local function actorItemSnapshot(itemId, quantity, actor, sourceKind, sourceSlot
     return item, durabilityRemaining
 end
 
-local function appendActorPossessions(result, party, actor, disposition, recipientPartyId)
+local function appendActorPossessions(result, party, actor, disposition, recipientPartyId, actorResult)
     local target = disposition == "combatLoot" and result.combatLoot or result.retainedResources.items
     local inventory = actor.inventory or {}
     if type(inventory) ~= "table" then
@@ -237,13 +237,16 @@ local function appendActorPossessions(result, party, actor, disposition, recipie
     end
     for slot, itemId in pairs(equipment) do
         requireStableId(itemId, "Equipped item")
-        local item, durabilityRemaining = actorItemSnapshot(itemId, 1, actor, "equipment", slot)
-        appendResource(target, party.id, item, actor.id, "equipment", slot)
-        local entry = target[#target]
+        local snapshot = actorResult and actorResult.equipment and actorResult or actor
+        local item, durabilityRemaining = actorItemSnapshot(itemId, 1, snapshot, "equipment", slot)
+        local broken = actorResult and actorResult.equipment and not actorResult.equipment[slot]
+        local equipmentTarget = broken and result.destroyedResources.items or target
+        appendResource(equipmentTarget, party.id, item, actor.id, "equipment", slot)
+        local entry = equipmentTarget[#equipmentTarget]
         if durabilityRemaining ~= nil then
             entry.durabilityRemaining = durabilityRemaining
         end
-        if disposition == "combatLoot" then
+        if disposition == "combatLoot" and not broken then
             entry.recipientPartyId = recipientPartyId
         end
     end
@@ -376,7 +379,8 @@ function LootResolver.resolve(partyA, partyB, battleResult, policy, randomSource
                 entry.party,
                 entry.actor,
                 isWinningParty and "retained" or (winnerPartyId and "combatLoot" or "retained"),
-                winnerPartyId
+                winnerPartyId,
+                entry.result
             )
         end
     end

@@ -27,15 +27,30 @@ local InventorySystem = require("src.systems.inventory_system")
 local DEBUG_TRADER_ENABLED = true
 local DEBUG_TRADER_STOCK_QTY = 5
 
+function GameInitializer.getMapLoader(options)
+    if options and options.debugCampaign then return require("src.debug.campaign_map") end
+    return PaintedMapLoader
+end
+
 -- Fast setup phase: player character, player party, starter inventory and the
 -- (empty) quest tables. No world/map work happens here so a generation splash
 -- can run afterwards without blocking.
 function GameInitializer.beginNewGame(options)
     options = options or {}
+    require("src.systems.location_action_registry").validateHandlers()
+    local profile = options.debugCampaign
+    if profile then
+        local fixture = require("src.debug.campaign_fixture")
+        fixture.validate(profile)
+        math.randomseed(fixture.seed)
+        love.math.setRandomSeed(fixture.seed)
+    end
 
     -- Reset game context to clean state
     GameContext.init()
     local world = EcsWorld.init()
+    GameContext.data.debugCampaignProfile = profile
+    if profile then require("src.systems.time_system").reset() end
 
     -- Set game options
     GameContext.data.difficulty = options.difficulty or "normal"
@@ -78,6 +93,7 @@ end
 -- Finalize phase: place the player beside the starter location, inject the
 -- debug trader, and register the player party + starter parties on the map.
 function GameInitializer.finalizeNewGame(map, locations)
+    if GameContext.data.campaignFinalized then return end
     local playerParty = GameContext.data.playerParty
     local starterLocation = locations and locations[1]
 
@@ -92,6 +108,7 @@ function GameInitializer.finalizeNewGame(map, locations)
     -- Sells (and buys back) every item in data/items.lua.
     if DEBUG_TRADER_ENABLED and starterLocation then
         local debugTrader = Unit.create(EcsWorld.campaign, "debug_trader")
+        debugTrader:give("memory")
         debugTrader.name = "Merchant of Everything"
         debugTrader.dialogueId = "debug_trader_greeting"
         debugTrader.buysFromPlayers = true
@@ -114,7 +131,12 @@ function GameInitializer.finalizeNewGame(map, locations)
     map:addParty(playerParty)
 
     -- Create starter parties
-    GameInitializer._createStarterParties(map)
+    if GameContext.data.debugCampaignProfile then
+        require("src.debug.campaign_fixture").populate(map, GameContext.data.debugCampaignProfile)
+    else
+        GameInitializer._createStarterParties(map)
+    end
+    GameContext.data.campaignFinalized = true
 end
 
 -- Synchronous convenience wrapper: begin -> generate -> populate -> finalize.
@@ -122,8 +144,8 @@ end
 function GameInitializer.initNewGame(options)
     options = options or {}
     GameInitializer.beginNewGame(options)
-    local map = PaintedMapLoader.generate(options)
-    local locations = LocationPopulationSystem.populate(map, map.worldGen)
+    local map = GameInitializer.getMapLoader(options).generate(options)
+    local locations = LocationPopulationSystem.populate(map, map.worldGen, options)
     GameInitializer.finalizeNewGame(map, locations)
     return true
 end
@@ -136,6 +158,7 @@ function GameInitializer._createStarterParties(map)
 
     -- Create a bandit party
     local banditLeader = Unit.create(EcsWorld.campaign, "bandit")
+    banditLeader:give("memory") -- Explicit important NPC, independent of leadership.
     
     local banditParty = Party.create(EcsWorld.campaign, "Forest Bandits", banditLeader.id)
     PartySystem.setPosition(banditParty, spawnX, spawnY)
@@ -159,6 +182,7 @@ function GameInitializer._createStarterParties(map)
 
     -- Create a neutral trader caravan that wanders near the starter location.
     local trader = Unit.create(EcsWorld.campaign, "trader")
+    trader:give("memory")
     trader.name = "Wandering Trader"
 
     local traderParty = Party.create(EcsWorld.campaign, trader.name, trader.id)

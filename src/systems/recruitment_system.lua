@@ -7,11 +7,12 @@ local RecruitmentData = require("src.data.recruitment")
 local EcsWorld = require("src.ecs.world")
 local Unit = require("src.ecs.assemblages.unit")
 local PartySystem = require("src.systems.party_system")
+local LocationRules = require("src.systems.location_rules")
 
 function RecruitmentSystem.roll(location)
     -- Determine faction and location type to select the correct pool
     local faction = location.faction or "neutral"
-    local locType = location.type or "default"
+    local locType = LocationRules.recruitmentPool(location)
 
     -- Lookup recruitment pool from data/recruitment.lua
     local factionData = RecruitmentData[faction] or RecruitmentData["neutral"]

@@ -4,6 +4,7 @@ local PartyAiSystem = require("src.systems.party_ai_system")
 local PartyInteractionSystem = require("src.systems.party_interaction_system")
 
 local Navigation = require("src.systems.world_navigation")
+local TravelKnowledge = require("src.systems.travel_knowledge_system")
 
 local TravelActivity = {}
 
@@ -57,6 +58,7 @@ function TravelActivity.prepare(party, params, map)
 
     return {
         destinationLocationId = destination.id,
+        journey = TravelKnowledge.captureJourney(party, destination, map),
         waypoints = waypoints
     }
 end
@@ -71,11 +73,15 @@ function TravelActivity.onStart(party, activity, prepared, map)
     activity.stalledSeconds = 0
     activity.lastDistance = nil
     activity.previousPartyState = party.state
+    activity.travelJourney = prepared.journey
     party.state = "travel"
+    TravelKnowledge.depart(party, activity.travelJourney, map)
     return true
 end
 
 function TravelActivity.update(party, activity, dt, map)
+    if activity.status ~= "active" or dt <= 0 then return nil end
+    if activity.travelJourney and activity.travelJourney.arrivalEventId then return "completed", "arrived" end
     local destination = findMapLocation(map, activity.params.destinationLocationId)
     if not destination then
         return "failed", "destination_missing"
@@ -98,6 +104,7 @@ function TravelActivity.update(party, activity, dt, map)
         if not map:stationParty(destination, party) then
             return "failed", "arrival_stationing_failed"
         end
+        TravelKnowledge.arrive(party, activity.travelJourney, destination, map)
         return "completed", "arrived"
     end
 
@@ -135,6 +142,7 @@ function TravelActivity.onTerminal(party, activity, status)
     activity.previousPartyState = nil
     activity.stalledSeconds = 0
     activity.lastDistance = nil
+    activity.travelJourney = nil
 end
 
 return TravelActivity

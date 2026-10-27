@@ -1,6 +1,7 @@
 -- Runs the shared battle simulation to a terminal outcome without presentation.
 
 local BattleSimulation = require("src.game.battle.battle_simulation")
+local InventorySystem = require("src.systems.inventory_system")
 
 local HeadlessBattleRunner = {}
 
@@ -111,7 +112,9 @@ local function addActorResults(result, party, unitsByActorId)
         result.actors[actor.id] = {
             partyId = party.id,
             finalHp = finalHp,
-            defeated = finalHp <= 0
+            defeated = finalHp <= 0,
+            equipment = InventorySystem.deepClone(battleUnit and battleUnit.equipment or actor.equipment or {}),
+            itemDurability = InventorySystem.deepClone(battleUnit and battleUnit.itemDurability or actor.itemDurability or {})
         }
     end
 end

@@ -11,17 +11,17 @@ return {
             "src/assets/sprites/units/bandit3.png"
         },
         stats = {
-            health = 20,
-            defense = 20,
-            attack = 28,
-            speed = 8,
+            health = 18,
+            defense = 9,
+            attack = 10,
+            speed = 10,
             battle_speed = 10
         },
         equipment = {
             mainHand = "iron_sword",
         },
         size = 3,
-        profile = 30,  -- stealthier than a size-3 default (30); harder to spot
+        profile = 20,  -- stealthier than a size-3 default (30); harder to spot
         loot = {
             {currency = "gold", chance = 0.6, min = 1, max = 15},
             {id = "iron_sword", chance = 0.1, min = 1, max = 1}
@@ -34,9 +34,9 @@ return {
         type = "soldier",
         sprite = "src/assets/sprites/units/heavyinfantry.png",
         stats = {
-            health = 35,
-            defense = 30,
-            attack = 37,
+            health = 24,
+            defense = 11,
+            attack = 12,
             speed = 8
         },
         size = 4,
@@ -102,10 +102,11 @@ return {
         sprite = "src/assets/sprites/units/direwolf.png",
         stats = {
             health = 18,
-            defense = 12,
-            attack = 22,
-            speed = 12,
-            battle_speed = 18
+            defense = 10,
+            attack = 12,
+            speed = 15,
+            battle_speed = 18,
+            strength = 10
         },
         size = 3,
         equipment = {},
@@ -123,11 +124,12 @@ return {
         -- Placeholder sprite until a dedicated bear sprite exists.
         sprite = "src/assets/sprites/units/bear.png",
         stats = {
-            health = 60,
-            defense = 30,
-            attack = 45,
-            speed = 7,
-            battle_speed = 10
+            health = 68,
+            defense = 7,
+            attack = 12,
+            speed = 11,
+            battle_speed = 12,
+            strength = 26
         },
         size = 4,
         equipment = {},
@@ -212,10 +214,10 @@ return {
         sprite = "src/assets/sprites/units/ogre.png",
         stats = {
             health = 105,
-            attack = 70,
-            defense = 45,
-            speed = 5,
-            battle_speed = 9
+            attack = 14,
+            defense = 8,
+            speed = 10,
+            battle_speed = 10
         },
         size = 5,
         equipment = {

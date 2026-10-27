@@ -6,11 +6,16 @@ local Input = require("src.core.input")
 local BattleSimulation = require("src.game.battle.battle_simulation")
 local BattleUnitSystem = require("src.systems.battle.battle_unit_system")
 local StateManager = require("src.core.state_manager")
-local Skills = require("src.data.skills")
+local CombatSystem = require("src.systems.combat_system")
+local InventorySystem = require("src.systems.inventory_system")
 local LootGeneratorSystem = require("src.systems.loot_generator_system")
 local EventBus = require("src.core.event_bus")
 local PartySystem = require("src.systems.party_system")
 local PlayerSystem = require("src.systems.player_system")
+local WorldEvents = require("src.systems.world_events")
+local BattleKnowledge = require("src.systems.battle_knowledge_system")
+local TimeSystem = require("src.systems.time_system")
+local IdAllocator = require("src.core.id_allocator")
 local BattleState = {}
 
 local RenderSystem = require("src.systems.battle.render_system")
@@ -86,12 +91,34 @@ function BattleState.enter(params)
     local playerParty = GameContext.data.playerParty
     BattleState.simulation = BattleSimulation.new(playerParty, enemyParty, true)
     BattleContext = BattleState.simulation.context
+    BattleState.completed = false
+    local world = playerParty:getWorld()
+    local map = GameContext.data.currentMap
+    local data = {
+        encounterId = IdAllocator.forWorld(world):allocate("player_battle"),
+        mapId = map and map.id,
+        x = playerParty.x, y = playerParty.y,
+        participants = {}, subjectIds = {}, eliminatedPartyIds = {}
+    }
+    for _, party in ipairs({playerParty, enemyParty}) do
+        local participant = {partyId = party.id, name = party.name or tostring(party.id),
+            actorIds = {}, casualties = 0}
+        data.subjectIds[#data.subjectIds + 1] = party.id
+        for _, actor in ipairs(party.actors) do
+            participant.actorIds[#participant.actorIds + 1] = actor.id
+            data.subjectIds[#data.subjectIds + 1] = actor.id
+        end
+        data.participants[#data.participants + 1] = participant
+    end
+    if data.mapId then data.subjectIds[#data.subjectIds + 1] = data.mapId end
+    BattleState.history = {world = world, data = data}
 end
 
 function BattleState.exit()
     BattleState.enemyParty = nil
     BattleState.onVictory = nil
     BattleState.onComplete = nil
+    BattleState.history = nil
     if BattleState.simulation then
         BattleState.simulation:destroy()
         BattleState.simulation = nil
@@ -183,7 +210,7 @@ function BattleState.update(dt)
             if Input.isKeyDown("space") and BattleContext.data.inputCooldown <= 0 then
                 if playerUnit.skillList and #playerUnit.skillList > 0 then
                     local skillId = playerUnit.skillList[BattleContext.data.selectedSkillIndex]
-                    local skillData = Skills[skillId]
+                    local skillData = CombatSystem.getEffectiveSkill(playerUnit, skillId)
 
                     if skillData then
                         if isTargetedAoeSkill(skillData) then
@@ -249,6 +276,7 @@ function BattleState.update(dt)
 end
 
 function BattleState.checkBattleEnd()
+    if not BattleContext or BattleState.completed then return end
     local playerAlive = false
     local enemyAlive = false
 
@@ -279,7 +307,28 @@ function BattleState.checkBattleEnd()
     end
 
     if not playerAlive or not enemyAlive then
+        -- Guard before notifications/callbacks, which may check completion again.
+        BattleState.completed = true
         local playerParty = GameContext.data.playerParty
+        local history = BattleState.history
+        local event = history.data
+        local winnerIndex = playerAlive and 1 or (enemyAlive and 2 or nil)
+        event.time = {day = TimeSystem.getDay(), hour = TimeSystem.getHour()}
+        event.ticks = BattleContext.data.tick
+        event.outcome = winnerIndex and "victory" or "draw"
+        event.winnerPartyId = winnerIndex and event.participants[winnerIndex].partyId or nil
+        event.defeatedPartyIds = winnerIndex and {event.participants[3 - winnerIndex].partyId} or {}
+        local survivingActorIds = {}
+        for _, participant in ipairs(event.participants) do
+            for _, actorId in ipairs(participant.actorIds) do
+                local unit = BattleContext.data.units[actorId]
+                if not unit or unit.hp <= 0 then
+                    participant.casualties = participant.casualties + 1
+                else
+                    survivingActorIds[actorId] = true
+                end
+            end
+        end
 
         if playerAlive and playerParty and generatedGold > 0 then
             PartySystem.addTreasury(playerParty, generatedGold)
@@ -290,6 +339,8 @@ function BattleState.checkBattleEnd()
                 unit.actor.hp = unit.hp
                 unit.actor.maxHp = unit.maxHp
                 unit.actor.statusEffects = unit.statusEffects
+                unit.actor.equipment = InventorySystem.deepClone(unit.equipment)
+                unit.actor.itemDurability = InventorySystem.deepClone(unit.itemDurability)
             end
         end
 
@@ -303,7 +354,8 @@ function BattleState.checkBattleEnd()
         end
 
         if playerAlive and BattleState.enemyParty and GameContext.data.currentMap then
-            GameContext.data.currentMap:removeParty(BattleState.enemyParty.id)
+            local removed = GameContext.data.currentMap:removeParty(BattleState.enemyParty.id)
+            if removed then event.eliminatedPartyIds[1] = BattleState.enemyParty.id end
             print("BattleState: Emitting party_killed for " .. tostring(BattleState.enemyParty.id))
             EventBus.emit("party_killed", BattleState.enemyParty.id)
         end
@@ -318,6 +370,10 @@ function BattleState.checkBattleEnd()
             favorGained = math.floor(4 + difficulty * 8)
             PlayerSystem.addFavor(favorGained)
         end
+
+        local recorded = WorldEvents.record(history.world, "battle_ended", event,
+            "battle_ended:" .. event.encounterId)
+        BattleKnowledge.learnParticipants(history.world, recorded, survivingActorIds)
 
         if playerAlive then
             if BattleState.onVictory then
@@ -390,7 +446,7 @@ function BattleState.draw()
         love.graphics.rectangle("fill", uiX, uiY, 200, #playerUnit.skillList * 40 + 10)
 
         for i, skillId in ipairs(playerUnit.skillList) do
-            local skill = Skills[skillId]
+            local skill = CombatSystem.getEffectiveSkill(playerUnit, skillId)
             if skill then
                 local y = uiY + 10 + (i - 1) * 40
 

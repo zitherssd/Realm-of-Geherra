@@ -484,14 +484,22 @@ function InventoryScreen:mousereleased(x, y, button)
                 elseif self.dragging.source == "equipment" and self.dragging.slot ~= region.slotId then
                     local fromItemId = EquipmentSystem.getEquipped(self.actor, self.dragging.slot)
                     if fromItemId then
-                        local swappedOutId = EquipmentSystem.equip(self.actor, fromItemId, region.slotId)
-                        if swappedOutId ~= false then
-                            if swappedOutId then
-                                EquipmentSystem.equip(self.actor, swappedOutId, self.dragging.slot)
+                        local destinationItemId = EquipmentSystem.getEquipped(self.actor, region.slotId)
+                        local fitsDestination = EquipmentSystem.canEquip(self.actor, fromItemId, region.slotId)
+                        local fitsSource = not destinationItemId or
+                            EquipmentSystem.canEquip(self.actor, destinationItemId, self.dragging.slot)
+                        if fitsDestination and fitsSource then
+                            EquipmentSystem.equip(self.actor, fromItemId, region.slotId)
+                            if destinationItemId then
+                                EquipmentSystem.equip(self.actor, destinationItemId, self.dragging.slot)
                             else
                                 EquipmentSystem.unequip(self.actor, self.dragging.slot)
                             end
                             handled = true
+                        else
+                            -- A rejected swap must not fall through to unequipping the source.
+                            self.dragging, self.dragStart = nil, nil
+                            return
                         end
                     end
                 end

@@ -1,6 +1,7 @@
 -- data/static_locations.lua
 -- Hand-authored location catalog for a future handcrafted world map.
--- This file is intentionally not wired into generation yet.
+-- This file is intentionally not wired into generation yet. These older concept
+-- records are not live definitions; see docs/POPULATION_AUTHORING.md for the typed model.
 
 local StaticLocations = {
     meta = {
@@ -26,8 +27,7 @@ local StaticLocations = {
     -- x, y        : handcrafted map coordinates (optional for now)
     -- faction     : owning faction id
     -- description : short lore or gameplay intent
-    -- actions     : same shape as data/location_npc_spawn_rules.lua actions list
-    -- npcs        : same shape as data/location_npc_spawn_rules.lua npcs list
+    -- actions/npcs: legacy concept notes; migrate to location definitions/population profiles before use
     locations = {
         {
             id = "craiuva",

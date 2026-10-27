@@ -111,7 +111,7 @@ function StateManager.keypressed(key, isRepeat)
     if #stateStack > 0 then
         local current = stateStack[#stateStack]
         if current.state.keypressed then
-            return current.state.keypressed(key)
+            return current.state.keypressed(key, isRepeat)
         end
     end
 end

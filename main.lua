@@ -14,7 +14,7 @@ local DebugMode = require("src.debug.mode")
 local debugFont
 
 -- Initialize
-function love.load()
+function love.load(args)
     -- Initialize core systems
     EventBus.init()
     GameManager.init()
@@ -23,6 +23,15 @@ function love.load()
     
     -- Start in menu state
     StateManager.push("menu")
+    for _, argument in ipairs(args or {}) do
+        if argument == "--debug-campaign" or argument:match("^%-%-debug%-campaign=") then
+            local profile = argument:match("^%-%-debug%-campaign=(.+)$") or "normal"
+            require("src.debug.campaign_fixture").validate(profile)
+            StateManager.swap("world_generation", {options = {playerName = "Wanderer",
+                difficulty = "normal", debugCampaign = profile}})
+            break
+        end
+    end
 end
 
 function love.update(dt)
@@ -32,7 +41,8 @@ end
 
 function love.draw()
     StateManager.draw()
-    if DebugMode.enabled then
+    local state = StateManager.getCurrentState()
+    if DebugMode.enabled and not (state and state.blocksPointerInput and state.blocksPointerInput()) then
         love.graphics.push("all")
         debugFont = debugFont or love.graphics.newFont(12)
         love.graphics.setFont(debugFont)
@@ -59,6 +69,11 @@ function love.keyreleased(key)
 end
 
 function love.mousepressed(x, y, button)
+    local state = StateManager.getCurrentState()
+    if state and state.blocksPointerInput and state.blocksPointerInput() then
+        StateManager.mousepressed(x, y, button)
+        return
+    end
     Input.mousepressed(x, y, button)
     StateManager.mousepressed(x, y, button)
 end
@@ -73,6 +88,11 @@ function love.mousemoved(x, y, dx, dy)
 end
 
 function love.wheelmoved(x, y)
+    local state = StateManager.getCurrentState()
+    if state and state.blocksPointerInput and state.blocksPointerInput() then
+        StateManager.wheelmoved(x, y)
+        return
+    end
     Input.wheelmoved(x, y)
     StateManager.wheelmoved(x, y)
 end

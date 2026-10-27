@@ -3,7 +3,7 @@
 -- Executed once per battle tick (20Hz) by a BattleSimulation instance.
 
 local Concord = require("src.libs.concord")
-local Skills = require("src.data.skills")
+local CombatSystem = require("src.systems.combat_system")
 local RangeUtils = require("src.systems.battle.range_utils")
 local BattleUnitSystem = require("src.systems.battle.battle_unit_system")
 
@@ -48,7 +48,7 @@ function DecisionSystem._processAI(unit, context)
         
         -- Iterate through all skills the actor knows
         for skillId, _ in pairs(unit.skills or {}) do
-            local skillData = Skills[skillId]
+            local skillData = CombatSystem.getEffectiveSkill(unit, skillId)
             
             if skillData then
                 local range = RangeUtils.effectiveSkillRange(unit, nearestTarget, skillData)
@@ -75,7 +75,7 @@ function DecisionSystem._processAI(unit, context)
         end
         
         if bestSkillId then
-            local bestSkillData = Skills[bestSkillId]
+            local bestSkillData = CombatSystem.getEffectiveSkill(unit, bestSkillId)
             local intentTarget = nil
             local intentTargetUnitId = nearestTarget.id
 

@@ -9,6 +9,7 @@ RangeUtils.WORLD_RANGE_SCALE = 42
 -- units' collision radii.
 function RangeUtils.effectiveSkillRange(attacker, target, skillData)
     local baseRange = ((skillData and skillData.range) or 1.5) * RangeUtils.WORLD_RANGE_SCALE
+    if skillData and skillData.type == "aoe" and skillData.targeted then return baseRange end
     local attackerRadius = attacker.collisionRadius or 0
     local targetRadius = (target and target.collisionRadius) or 0
     return baseRange + attackerRadius + targetRadius

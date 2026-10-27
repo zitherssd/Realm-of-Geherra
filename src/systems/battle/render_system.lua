@@ -456,6 +456,9 @@ function RenderSystem.draw(context)
                 love.graphics.setColor(0.7, 0.85, 1, 0.4)
                 love.graphics.circle("line", proj.visualX, proj.visualY, 18)
                 love.graphics.setBlendMode("alpha")
+            elseif proj.style == "sling_stone" then
+                love.graphics.setColor(0.38, 0.34, 0.28, 1)
+                love.graphics.circle("fill", proj.visualX, proj.visualY, 3)
             elseif sprite then
                 local tx, ty = proj.targetX, proj.targetY
 

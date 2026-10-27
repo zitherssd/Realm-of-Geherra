@@ -65,20 +65,12 @@ function CombatSystem.rollProjectileHitChance(defender)
     return math.max(5, math.min(hitChance, 95))
 end
 
--- Damage formula: weaponDamage + strength/2 + rollExploding(6) - totalProtection - rollExploding(6)
+-- Damage formula: effective skill baseDamage + strength/2 + rollExploding(6) - totalProtection - rollExploding(6)
 -- Returns clamped to [0, math.inf), floored to integer.
 function CombatSystem.calculateDamage(attacker, defender, skill)
     local MATH = require("src.utils.math")
-    local Items = require("src.data.items")
-
-    -- Get weapon damage from equipped mainHand weapon's skillModifiers
-    local weaponDamage = 0
-    if attacker.equipment and attacker.equipment.mainHand then
-        local item = Items[attacker.equipment.mainHand]
-        if item and item.skillModifiers and item.skillModifiers.baseDamage then
-            weaponDamage = item.skillModifiers.baseDamage
-        end
-    end
+    skill = CombatSystem.getEffectiveSkill(attacker, skill.id) or skill
+    local weaponDamage = skill.baseDamage or 0
 
     -- Get damageType from skill or weapon, default to "blunt"
     local damageType = skill.damageType or "blunt"

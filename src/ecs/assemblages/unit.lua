@@ -40,6 +40,7 @@ local function unitAssemblage(e, troopType, id)
     e.availableSlots = {
         "mainHand", "offHand", "rangedWeapon", "head", "body", "hands", "feet"
     }
+    e.treasury = 0 -- Personal gold; party members transact through their party treasury.
     e.inventory = {}
     e.inventoryFormat = "map"
     e.equipment = {}
@@ -78,6 +79,9 @@ local function unitAssemblage(e, troopType, id)
     -- Load definition from data
     local data = TroopsData[e.troopType]
     if data then
+        -- Reuse existing character template conventions. A troop's display name
+        -- or appointment as leader alone does not make it an important character.
+        if data.type == "player" or data.type == "companion" then e:give("memory") end
         e.name = data.name
 
         if data.stats then

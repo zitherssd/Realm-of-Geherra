@@ -5,6 +5,11 @@ local PartySystem = require("src.systems.party_system")
 local BattleSimulation = require("src.game.battle.battle_simulation")
 local DecisionSystem = require("src.ecs.systems.decision_system")
 local ExecutionSystem = require("src.ecs.systems.execution_system")
+local WorldEvents = require("src.systems.world_events")
+local Knowledge = require("src.systems.knowledge_system")
+local TimeSystem = require("src.systems.time_system")
+local CombatSystem = require("src.systems.combat_system")
+local Skills = require("src.data.skills")
 
 local function createParty(world, partyId, actorId, skills)
     local party = Party.create(world, partyId, nil, partyId)
@@ -48,6 +53,17 @@ local function testSimulationInstances()
     assert(first.context.data ~= second.context.data, "simulations share mutable context data")
     assert(firstUnit ~= secondUnit, "simulations share battle-unit entities")
     assert(firstUnit.statusEffects.burn ~= secondUnit.statusEffects.burn, "status tables are shared between simulations")
+    assert(firstUnit.equipment.mainHand == actorA.equipment.mainHand,
+        "battle unit did not retain equipped weapon IDs")
+
+    local originalRandom = math.random
+    math.random = function()
+        return 1
+    end
+    local damageOk, damage = pcall(CombatSystem.calculateDamage, firstUnit, secondUnit, Skills.attack)
+    math.random = originalRandom
+    assert(damageOk and damage == 8,
+        "equipped weapon base damage was not included in battle damage")
 
     local secondUnitStartX = secondUnit.x
     first:tick()
@@ -68,6 +84,8 @@ local function testInteractiveBattle()
         javelin_throw = {learned = true}
     })
     local enemyParty, enemyActor = createParty(campaign, "interactive-enemy", "interactive-enemy-actor")
+    playerActor:give("memory")
+    enemyActor:give("memory")
     local GameContext = require("src.game.game_context")
     local BattleState = require("src.game.states.battle_state")
     local StateManager = require("src.core.state_manager")
@@ -92,7 +110,16 @@ local function testInteractiveBattle()
     end
 
     local ok, err = xpcall(function()
-        BattleState.enter({enemyParty = enemyParty})
+        local completions = 0
+        BattleState.enter({enemyParty = enemyParty, onComplete = function()
+            completions = completions + 1
+            assert(#WorldEvents.getByType(campaign, "battle_ended") == 1,
+                "player battle was not recorded before its completion callback")
+            local event = WorldEvents.getByType(campaign, "battle_ended")[1]
+            assert(Knowledge.knows(playerParty, event.id, campaign) and Knowledge.knows(playerActor, event.id, campaign),
+                "participation knowledge was not granted before the completion callback")
+            BattleState.checkBattleEnd()
+        end})
         local simulation = BattleState.simulation
         local context = simulation.context
         local playerUnit = context.data.units[playerActor.id]
@@ -135,10 +162,23 @@ local function testInteractiveBattle()
         assert(lastTransition and lastTransition.name == "battle_end", "victory did not open battle-end flow")
         assert(lastTransition.params.victory == true)
         assert(playerActor.statusEffects.burn.remaining < 50, "battle status effects were not applied to the campaign actor")
+        local victory = WorldEvents.getByType(campaign, "battle_ended")[1]
+        assert(victory.outcome == "victory" and victory.winnerPartyId == playerParty.id)
+        assert(victory.defeatedPartyIds[1] == enemyParty.id)
+        assert(victory.eliminatedPartyIds[1] == enemyParty.id)
+        assert(victory.participants[2].name == "interactive-enemy" and victory.participants[2].casualties == 1)
+        assert(victory.time.day == TimeSystem.getDay() and victory.time.hour == TimeSystem.getHour())
+        assert(victory.battlefieldId == nil and completions == 1)
+        assert(not Knowledge.knows(enemyParty, victory.id, campaign) and not Knowledge.knows(enemyActor, victory.id, campaign))
+        BattleState.checkBattleEnd()
+        assert(WorldEvents.count(campaign) == 1, "repeated player completion duplicated history")
+        assert(#Knowledge.getKnownEvents(playerParty, campaign) == 1)
         BattleState.exit()
+        assert(WorldEvents.get(campaign, victory.id).participants[2].name == "interactive-enemy")
 
         local defeatParty, defeatActor = createParty(campaign, "defeat-player", "defeat-player-actor")
-        local survivingEnemyParty = createParty(campaign, "defeat-enemy", "defeat-enemy-actor")
+        local survivingEnemyParty, survivingEnemy = createParty(campaign, "defeat-enemy", "defeat-enemy-actor")
+        survivingEnemy:give("memory")
         GameContext.data.playerParty = defeatParty
         GameContext.data.currentMap = nil
         lastTransition = nil
@@ -148,6 +188,30 @@ local function testInteractiveBattle()
         defeatContext.removeDeadUnits()
         BattleState.checkBattleEnd()
         assert(lastTransition and lastTransition.name == "menu", "defeat did not preserve the existing menu transition")
+        local defeat = WorldEvents.getAt(campaign, 2)
+        assert(defeat.outcome == "victory" and defeat.winnerPartyId == survivingEnemyParty.id)
+        assert(defeat.defeatedPartyIds[1] == defeatParty.id and #defeat.eliminatedPartyIds == 0)
+        assert(defeat.participants[1].casualties == 1 and defeat.id ~= victory.id)
+        assert(Knowledge.knows(survivingEnemyParty, defeat.id, campaign) and Knowledge.knows(survivingEnemy, defeat.id, campaign))
+        assert(not Knowledge.knows(defeatParty, defeat.id, campaign))
+        BattleState.exit()
+
+        local drawParty, drawActor = createParty(campaign, "draw-player", "draw-player-actor")
+        local drawEnemy, drawEnemyActor = createParty(campaign, "draw-enemy", "draw-enemy-actor")
+        GameContext.data.playerParty = drawParty
+        BattleState.enter({enemyParty = drawEnemy})
+        local drawContext = BattleState.simulation.context
+        drawContext.data.units[drawActor.id].hp = 0
+        drawContext.data.units[drawEnemyActor.id].hp = 0
+        drawContext.removeDeadUnits()
+        BattleState.checkBattleEnd()
+        local draw = WorldEvents.getAt(campaign, 3)
+        assert(draw.outcome == "draw" and draw.winnerPartyId == nil)
+        assert(draw.participants[1].casualties == 1 and draw.participants[2].casualties == 1)
+        assert(#draw.defeatedPartyIds == 0 and #draw.eliminatedPartyIds == 0)
+        assert(not Knowledge.knows(drawParty, draw.id, campaign) and not Knowledge.knows(drawEnemy, draw.id, campaign))
+        BattleState.checkBattleEnd()
+        assert(WorldEvents.count(campaign) == 3)
         BattleState.exit()
     end, debug.traceback)
 
