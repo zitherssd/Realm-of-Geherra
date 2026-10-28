@@ -14,7 +14,7 @@ local groups = {
     require("src.data.units.gaia.gaia_trolls"),
     require("src.data.units.gaia.gaia_nymphs"),
     require("src.data.units.gaia.gaia_plants"),
-    require("src.data.units.gaia.gaia_monsters")
+    require("src.data.units.gaia.gaia_monsters"),
 }
 
 local troops = {}

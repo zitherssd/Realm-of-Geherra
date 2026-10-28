@@ -10,7 +10,7 @@ return {
         value = 150,
         slot = "body",
         durability = 30,
-        maxDurability = 30
+        maxDurability = 30,
     },
 
     ["helmet"] = {
@@ -20,10 +20,12 @@ return {
         description = "A protective metal helmet",
         weight = 2.0,
         value = 80,
-        stats = {defense = 3},
+        stats = {
+            defense = 3,
+        },
         slot = "head",
         durability = 20,
-        maxDurability = 20
+        maxDurability = 20,
     },
 
     ["boots"] = {
@@ -33,10 +35,13 @@ return {
         description = "Sturdy leather boots for long travel",
         weight = 1.5,
         value = 75,
-        stats = {defense = 2, speed = 1},
+        stats = {
+            defense = 2,
+            speed = 1,
+        },
         slot = "feet",
         durability = 25,
-        maxDurability = 25
+        maxDurability = 25,
     },
 
     ["furs_armor"] = {
@@ -46,7 +51,9 @@ return {
         description = "Layered furs offering modest padding and warmth",
         weight = 3.0,
         value = 60,
-        stats = {defense = 1},
+        stats = {
+            defense = 1,
+        },
         slot = "body",
         durability = 18,
         maxDurability = 18,
@@ -57,8 +64,8 @@ return {
             fire = 0,
             ice = 0,
             shock = 0,
-            poison = 0
-        }
+            poison = 0,
+        },
     },
 
     ["fur_shoes"] = {
@@ -68,10 +75,13 @@ return {
         description = "Soft fur shoes that improve footing in a scuffle",
         weight = 0.8,
         value = 35,
-        stats = {defense = 1, attack = 1},
+        stats = {
+            defense = 1,
+            attack = 1,
+        },
         slot = "feet",
         durability = 14,
-        maxDurability = 14
+        maxDurability = 14,
     },
 
     ["bronze_cap"] = {
@@ -91,8 +101,8 @@ return {
             fire = 0,
             ice = 0,
             shock = 0,
-            poison = 0
-        }
+            poison = 0,
+        },
     },
 
     ["wooden_shield"] = {
@@ -102,7 +112,9 @@ return {
         description = "A sturdy wooden shield for defense",
         weight = 3.0,
         value = 120,
-        stats = {defense = 2},
+        stats = {
+            defense = 2,
+        },
         slot = "offHand",
         grantsSkill = "shield_bash",
         durability = 18,
@@ -114,7 +126,7 @@ return {
             fire = 0,
             ice = 0,
             shock = 0,
-            poison = 0
-        }
-    }
+            poison = 0,
+        },
+    },
 }

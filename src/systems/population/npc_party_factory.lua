@@ -35,7 +35,7 @@ function Factory.create(map, location, leader, spec, seed, key, context)
                 and faction.garrisonRoles[member.role] and faction.defaultCulture or location.culture
             for _ = 1, Registry.roll(member.count or 1, rng) do
                 if rng() < (member.chance or 1) then
-                    local actorContext = {rng = rng, culture = culture, faction = location.faction}
+                    local actorContext = {rng = rng, culture = culture, faction = location.faction, homeLocationId = location.id}
                     local actor
                     if member.troopType then actor = Actors.createTroop(location.__world, member.troopType, actorContext)
                     else actor = Actors.create(location.__world, archetypeId, actorContext) end

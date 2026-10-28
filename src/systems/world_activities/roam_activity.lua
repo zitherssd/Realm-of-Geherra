@@ -1,9 +1,10 @@
+local PartySystem = require("src.systems.parties.party_system")
 -- Generic bounded wandering. All retained state is primitive data or waypoints.
 local EcsWorld = require("src.ecs.world")
 local Navigation = require("src.world.world_navigation")
 local Movement = require("src.systems.parties.party_ai_system")
 
-local Roam = {initialPhase = "roam", speed = 70, maxAttempts = 12, maxStallSeconds = 15}
+local Roam = {initialPhase = "roam", speed = PartySystem.worldSpeed, maxAttempts = 12, maxStallSeconds = 15}
 
 local function finite(n)
     return type(n) == "number" and n == n and math.abs(n) < math.huge

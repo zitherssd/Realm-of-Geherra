@@ -11,10 +11,17 @@ return {
                 options = {
                     -- "Show me your wares." is auto-injected by dialogue_state.lua
                     -- whenever this NPC has a non-empty inventory.
-                    { text = "Show me the world map (debug).", action = "open_world_map", next = "end" },
-                    { text = "Another time.", next = "end" }
-                }
-            }
-        }
-    }
+                    {
+                        text = "Show me the world map (debug).",
+                        action = "open_world_map",
+                        next = "end",
+                    },
+                    {
+                        text = "Another time.",
+                        next = "end",
+                    },
+                },
+            },
+        },
+    },
 }

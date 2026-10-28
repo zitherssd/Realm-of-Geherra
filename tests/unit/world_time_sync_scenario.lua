@@ -192,7 +192,7 @@ local function runScenario()
     local previousPlayerX = player.x
     local previousCaravanXAtAcceleratedScale = caravan.x
     runWorldUpdate({right = true}, 0.1)
-    assert(math.abs(player.x - previousPlayerX - WorldState.playerPartySpeed * 0.1) < 1e-6,
+    assert(math.abs(player.x - previousPlayerX - PartySystem.getPartySpeed(player, nil, map) * 0.1) < 1e-6,
         "player movement speed changed with world time acceleration")
     assert(math.abs((caravan.x - previousCaravanXAtAcceleratedScale) -
         acceleratedTravel) < 1e-6,

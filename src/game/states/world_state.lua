@@ -28,7 +28,6 @@ local WorldState = {
     camera = nil,
     currentMap = nil,
     defaultZoom = 2.0,       -- world map shown 2x (zoomed in, slightly pixelated)
-    playerPartySpeed = 80,  -- pixels per second (halved to stay consistent at 2x zoom)
     nearbyParty = nil,       -- The party currently in interaction range
     nearbyLocation = nil,    -- The location currently in interaction range
     nearbyBattlefield = nil, -- Discovered remains within interaction range
@@ -386,9 +385,9 @@ function WorldState.update(dt)
     -- Update party position based on input (biome modifies travel speed,
     -- and roads halve that biome penalty)
     local currentX, currentY = PartySystem.getPosition(playerParty)
-    local speedMod = WorldState.currentMap:getTravelSpeedMod(currentX, currentY)
-    local newX = currentX + moveX * WorldState.playerPartySpeed * speedMod * dt
-    local newY = currentY + moveY * WorldState.playerPartySpeed * speedMod * dt
+    local speed = PartySystem.getPartySpeed(playerParty, nil, WorldState.currentMap)
+    local newX = currentX + moveX * speed * dt
+    local newY = currentY + moveY * speed * dt
     
     -- Clamp party position to map bounds
     newX = math.max(0, math.min(newX, WorldState.currentMap.width))

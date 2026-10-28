@@ -14,8 +14,8 @@ return {
         maxDurability = 25,
         skillModifiers = {
             damageType = "slashing",
-            baseDamage = 8
-        }
+            baseDamage = 8,
+        },
     },
 
     ["fire_sword"] = {
@@ -32,8 +32,10 @@ return {
         skillModifiers = {
             damageType = "fire",
             baseDamage = 13,
-            onHitStatuses = { "burn" }
-        }
+            onHitStatuses = {
+                "burn",
+            },
+        },
     },
 
     ["ice_sword"] = {
@@ -50,8 +52,10 @@ return {
         skillModifiers = {
             damageType = "ice",
             baseDamage = 12,
-            onHitStatuses = { "freeze" }
-        }
+            onHitStatuses = {
+                "freeze",
+            },
+        },
     },
 
     ["shock_sword"] = {
@@ -68,8 +72,10 @@ return {
         skillModifiers = {
             damageType = "shock",
             baseDamage = 12,
-            onHitStatuses = { "paralyze" }
-        }
+            onHitStatuses = {
+                "paralyze",
+            },
+        },
     },
 
     ["spear"] = {
@@ -86,8 +92,8 @@ return {
         skillModifiers = {
             damageType = "piercing",
             baseDamage = 8,
-            range = 0.6
-        }
+            range = 0.6,
+        },
     },
 
     ["dagger"] = {
@@ -97,20 +103,23 @@ return {
         description = "A short blade suited for close, precise strikes",
         weight = 0.9,
         value = 140,
-        slots = {"mainHand", "offHand"},
+        slots = {
+            "mainHand",
+            "offHand",
+        },
         grantsSkill = "attack",
         durability = 10,
         maxDurability = 10,
         skillModifiers = {
             damageType = "piercing",
             baseDamage = 7,
-            range = 0.2
+            range = 0.2,
         },
         requires = {
             attributes = {
-                shadowcraft = 1
-            }
-        }
+                shadowcraft = 1,
+            },
+        },
     },
 
     ["poison_dagger"] = {
@@ -120,20 +129,25 @@ return {
         description = "A dagger coated with deadly toxin",
         weight = 0.9,
         value = 220,
-        slots = {"mainHand", "offHand"},
+        slots = {
+            "mainHand",
+            "offHand",
+        },
         grantsSkill = "attack",
         durability = 10,
         maxDurability = 10,
         skillModifiers = {
             damageType = "poison",
             baseDamage = 9,
-            onHitStatuses = { "poison" }
+            onHitStatuses = {
+                "poison",
+            },
         },
         requires = {
             attributes = {
-                shadowcraft = 2
-            }
-        }
+                shadowcraft = 2,
+            },
+        },
     },
 
     ["club"] = {
@@ -143,15 +157,17 @@ return {
         description = "A simple wooden club",
         weight = 2.0,
         value = 50,
-        stats = {attack = 2},
+        stats = {
+            attack = 2,
+        },
         slot = "mainHand",
         grantsSkill = "attack",
         durability = 12,
         maxDurability = 12,
         skillModifiers = {
             damageType = "blunt",
-            baseDamage = 8
-        }
+            baseDamage = 8,
+        },
     },
 
     ["quarterstaff"] = {
@@ -169,8 +185,8 @@ return {
             damageType = "blunt",
             baseDamage = 7,
             range = 0.5,
-            windup = 20
-        }
+            windup = 20,
+        },
     },
 
     ["short_sword"] = {
@@ -186,8 +202,8 @@ return {
         maxDurability = 20,
         skillModifiers = {
             damageType = "slashing",
-            baseDamage = 7
-        }
+            baseDamage = 7,
+        },
     },
 
     ["battle_axe"] = {
@@ -203,8 +219,8 @@ return {
         maxDurability = 30,
         skillModifiers = {
             damageType = "slashing",
-            baseDamage = 9
-        }
+            baseDamage = 9,
+        },
     },
 
     ["warhammer"] = {
@@ -220,8 +236,8 @@ return {
         maxDurability = 35,
         skillModifiers = {
             damageType = "blunt",
-            baseDamage = 10
-        }
+            baseDamage = 10,
+        },
     },
 
     ["greatsword"] = {
@@ -237,7 +253,7 @@ return {
         maxDurability = 40,
         skillModifiers = {
             damageType = "slashing",
-            baseDamage = 12
-        }
-    }
+            baseDamage = 12,
+        },
+    },
 }

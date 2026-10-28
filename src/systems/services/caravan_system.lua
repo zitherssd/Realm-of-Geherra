@@ -39,9 +39,11 @@ local function onMap(party, map)
 end
 
 -- Estimate the actual navigation route, sampling terrain at movement-sized steps.
-function Caravans.estimateTravel(map, ax, ay, bx, by)
+function Caravans.estimateTravel(map, ax, ay, bx, by, party)
     local path, reason = Navigation.findPath(map, ax, ay, bx, by)
     if not path then return nil, reason end
+    local speed = Parties.getPartySpeed(party, Travel.speed)
+    if speed <= 0 then return nil, "party_cannot_move" end
     local duration = 0
     for _, point in ipairs(path) do
         local dx, dy = point.x - ax, point.y - ay
@@ -49,7 +51,7 @@ function Caravans.estimateTravel(map, ax, ay, bx, by)
         local steps = math.max(1, math.ceil(length / 4))
         for i = 0, steps - 1 do
             local modifier = map:getTravelSpeedMod(ax + dx * i / steps, ay + dy * i / steps)
-            duration = duration + length / steps / (Travel.speed * math.max(0.01, modifier))
+            duration = duration + length / steps / (speed * math.max(0.01, modifier))
         end
         ax, ay = point.x, point.y
     end
@@ -151,9 +153,10 @@ local function preflight(sponsor, worker, context, volunteer)
     end
     local destination = Ecs.findLocationById(preparation.destinationLocationId, context.world)
     if not destination then return nil, "destination_missing" end
-    local outbound, reason = Caravans.estimateTravel(context.map, origin.x, origin.y, destination.x, destination.y)
+    local travelingParty = party or {actors = {worker}}
+    local outbound, reason = Caravans.estimateTravel(context.map, origin.x, origin.y, destination.x, destination.y, travelingParty)
     if not outbound then return nil, reason end
-    local inbound = Caravans.estimateTravel(context.map, destination.x, destination.y, origin.x, origin.y)
+    local inbound = Caravans.estimateTravel(context.map, destination.x, destination.y, origin.x, origin.y, travelingParty)
     if not inbound then return nil, "return_route_missing" end
     return {preparation = preparation, request = request, origin = origin, party = party,
         expectedReturnAt = Caravans.now() + (outbound + inbound) * 1.20 + Time.worldHoursToSeconds(Caravans.tradingHours)}

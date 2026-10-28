@@ -13,7 +13,7 @@ return {
         states = {
             active = "elder_quest_active",
             ready_to_turn_in = "elder_quest_ready_to_turn_in",
-            completed = "elder_quest_completed"
+            completed = "elder_quest_completed",
         },
         -- When no quests are available, show the quiet dialogue
         noOfferDialogue = "elder_no_offers",
@@ -21,12 +21,24 @@ return {
             {
                 text = "Welcome, traveler. Speak what you seek.",
                 options = {
-                    { text = "What task stands before this village?", next = "elder_ask_about_quest", requiresQuestPool = true, requiresQuestOffer = true, allowBeforeIntroduction = true },
-                    { text = "What word runs along the roads?", next = "elder_rumors" },
-                    { text = "I take my leave.", next = "end" }
-                }
-            }
-        }
+                    {
+                        text = "What task stands before this village?",
+                        next = "elder_ask_about_quest",
+                        requiresQuestPool = true,
+                        requiresQuestOffer = true,
+                        allowBeforeIntroduction = true,
+                    },
+                    {
+                        text = "What word runs along the roads?",
+                        next = "elder_rumors",
+                    },
+                    {
+                        text = "I take my leave.",
+                        next = "end",
+                    },
+                },
+            },
+        },
     },
 
     -- First meeting: elder introduces himself, player picks humble or boastful response
@@ -37,11 +49,25 @@ return {
             {
                 text = "I am the elder of this hearth. Name yourself.",
                 options = {
-                    { text = "A plain traveler, seeking fair coin and worthy labor.", action = "meet_npc", set = { "introduced_humble" }, next = "elder_greeting" },
-                    { text = "A proven spear. My name will stand in these hills.", action = "meet_npc", set = { "introduced_boastful" }, next = "elder_greeting" }
-                }
-            }
-        }
+                    {
+                        text = "A plain traveler, seeking fair coin and worthy labor.",
+                        action = "meet_npc",
+                        set = {
+                            "introduced_humble",
+                        },
+                        next = "elder_greeting",
+                    },
+                    {
+                        text = "A proven spear. My name will stand in these hills.",
+                        action = "meet_npc",
+                        set = {
+                            "introduced_boastful",
+                        },
+                        next = "elder_greeting",
+                    },
+                },
+            },
+        },
     },
 
     -- No quests available
@@ -52,10 +78,13 @@ return {
             {
                 text = "No burden calls today. If the gods will, need will rise again.",
                 options = {
-                    { text = "Then I will return in due time.", next = "end" }
-                }
-            }
-        }
+                    {
+                        text = "Then I will return in due time.",
+                        next = "end",
+                    },
+                },
+            },
+        },
     },
 
     -- Player asked about quests — route to quest-specific offer via checkOffer
@@ -67,16 +96,19 @@ return {
             pilgrimage = "elder_offer_pilgrimage",
             deliver_message = "elder_offer_deliver_message",
             deliver_item = "elder_offer_deliver_item",
-            rescue_daughter = "elder_offer_rescue_daughter"
+            rescue_daughter = "elder_offer_rescue_daughter",
         },
         lines = {
             {
                 text = "Let us weigh what must be done.",
                 options = {
-                    { text = "Speak.", next = "end" }
-                }
-            }
-        }
+                    {
+                        text = "Speak.",
+                        next = "end",
+                    },
+                },
+            },
+        },
     },
 
     -- Rumours
@@ -87,10 +119,13 @@ return {
             {
                 text = "These are lean days. Men speak of raiders in the hills and beasts driven from deep timber by a darker thing. Keep edge on your blade, and measure in your mind.",
                 options = {
-                    { text = "Your counsel is sound.", next = "elder_greeting" }
-                }
-            }
-        }
+                    {
+                        text = "Your counsel is sound.",
+                        next = "elder_greeting",
+                    },
+                },
+            },
+        },
     },
 
     -- Quest-specific offer texts (routed by checkOffer on elder_ask_about_quest)
@@ -102,11 +137,20 @@ return {
             {
                 text = "Three nights past, wild dogs came out of the eastern wood. Marek's sheep are gone, and children no longer cross the fence. Drive the pack off before they learn to hunt closer to our hearths.",
                 options = {
-                    { text = "I will track them.", action = "accept_available_quest", next = "elder_quest_accepted", requiresQuestPool = true, requiresQuestOffer = true },
-                    { text = "This burden is not mine.", next = "elder_greeting" }
-                }
-            }
-        }
+                    {
+                        text = "I will track them.",
+                        action = "accept_available_quest",
+                        next = "elder_quest_accepted",
+                        requiresQuestPool = true,
+                        requiresQuestOffer = true,
+                    },
+                    {
+                        text = "This burden is not mine.",
+                        next = "elder_greeting",
+                    },
+                },
+            },
+        },
     },
 
     ["elder_offer_pilgrimage"] = {
@@ -116,11 +160,20 @@ return {
             {
                 text = "The shrine at {target} has stood without tribute since before first frost. If we forget the goddess, she may forget our fields. Herbs, oil, and a carved token are prepared. Set them on the altar before new moon.",
                 options = {
-                    { text = "I will carry the offerings.", action = "accept_available_quest", next = "elder_quest_accepted", requiresQuestPool = true, requiresQuestOffer = true },
-                    { text = "I cannot bear this errand now.", next = "elder_greeting" }
-                }
-            }
-        }
+                    {
+                        text = "I will carry the offerings.",
+                        action = "accept_available_quest",
+                        next = "elder_quest_accepted",
+                        requiresQuestPool = true,
+                        requiresQuestOffer = true,
+                    },
+                    {
+                        text = "I cannot bear this errand now.",
+                        next = "elder_greeting",
+                    },
+                },
+            },
+        },
     },
 
     ["elder_offer_deliver_message"] = {
@@ -130,11 +183,20 @@ return {
             {
                 text = "A sealed dispatch must reach the elders of {target}. I have written of hill-lights, torn flocks, and trembling earth beneath old barrows. If they suffer the same, we must share counsel before snow closes the passes.",
                 options = {
-                    { text = "I will carry your dispatch.", action = "accept_available_quest", next = "elder_quest_accepted", requiresQuestPool = true, requiresQuestOffer = true },
-                    { text = "Find another courier.", next = "elder_greeting" }
-                }
-            }
-        }
+                    {
+                        text = "I will carry your dispatch.",
+                        action = "accept_available_quest",
+                        next = "elder_quest_accepted",
+                        requiresQuestPool = true,
+                        requiresQuestOffer = true,
+                    },
+                    {
+                        text = "Find another courier.",
+                        next = "elder_greeting",
+                    },
+                },
+            },
+        },
     },
 
     ["elder_offer_deliver_item"] = {
@@ -144,11 +206,20 @@ return {
             {
                 text = "We have finished bronze axe-heads, ploughshares, knife blanks, and a pouch of gem-dust for {target}. Their forge has been cold since winter took their smith. Without these goods, fields fail and children shiver. The bundle must travel under trustworthy hands.",
                 options = {
-                    { text = "I will carry the goods.", action = "accept_available_quest", next = "elder_quest_accepted", requiresQuestPool = true, requiresQuestOffer = true },
-                    { text = "The risk is too great for me.", next = "elder_greeting" }
-                }
-            }
-        }
+                    {
+                        text = "I will carry the goods.",
+                        action = "accept_available_quest",
+                        next = "elder_quest_accepted",
+                        requiresQuestPool = true,
+                        requiresQuestOffer = true,
+                    },
+                    {
+                        text = "The risk is too great for me.",
+                        next = "elder_greeting",
+                    },
+                },
+            },
+        },
     },
 
     ["elder_offer_rescue_daughter"] = {
@@ -158,11 +229,20 @@ return {
             {
                 text = "At dawn, raiders took my daughter. Seven or eight, iron-armed, out of the mist. They drove her toward {target}. She is twelve summers only. I have no stronger hand to call. Bring her back before their trail is lost.",
                 options = {
-                    { text = "I swear by hearth and steel: I will find her.", action = "accept_available_quest", next = "elder_quest_accepted", requiresQuestPool = true, requiresQuestOffer = true },
-                    { text = "Forgive me. I cannot take this vow.", next = "elder_greeting" }
-                }
-            }
-        }
+                    {
+                        text = "I swear by hearth and steel: I will find her.",
+                        action = "accept_available_quest",
+                        next = "elder_quest_accepted",
+                        requiresQuestPool = true,
+                        requiresQuestOffer = true,
+                    },
+                    {
+                        text = "Forgive me. I cannot take this vow.",
+                        next = "elder_greeting",
+                    },
+                },
+            },
+        },
     },
 
     -- Generic fallback offer (used if templateId doesn't match a specific offer)
@@ -173,11 +253,20 @@ return {
             {
                 text = "A burden stands before us, and this village needs a steady hand.",
                 options = {
-                    { text = "I will do what I can.", action = "accept_available_quest", next = "elder_quest_accepted", requiresQuestPool = true, requiresQuestOffer = true },
-                    { text = "This matter is not mine.", next = "elder_greeting" }
-                }
-            }
-        }
+                    {
+                        text = "I will do what I can.",
+                        action = "accept_available_quest",
+                        next = "elder_quest_accepted",
+                        requiresQuestPool = true,
+                        requiresQuestOffer = true,
+                    },
+                    {
+                        text = "This matter is not mine.",
+                        next = "elder_greeting",
+                    },
+                },
+            },
+        },
     },
 
     -- Shared quest state nodes (used by all quest types)
@@ -189,10 +278,13 @@ return {
             {
                 text = "You have our thanks. Return when the deed is complete.",
                 options = {
-                    { text = "I will return when it is done.", next = "end" }
-                }
-            }
-        }
+                    {
+                        text = "I will return when it is done.",
+                        next = "end",
+                    },
+                },
+            },
+        },
     },
 
     ["elder_quest_active"] = {
@@ -202,10 +294,13 @@ return {
             {
                 text = "What word do you bring? This village still leans on your labor.",
                 options = {
-                    { text = "The work is still in motion.", next = "end" }
-                }
-            }
-        }
+                    {
+                        text = "The work is still in motion.",
+                        next = "end",
+                    },
+                },
+            },
+        },
     },
 
     ["elder_quest_ready_to_turn_in"] = {
@@ -215,11 +310,20 @@ return {
             {
                 text = "You have returned. Did the work hold true?",
                 options = {
-                    { text = "Yes. It is done.", action = "turn_in_available_quest", next = "elder_quest_completed", requiresQuestPool = true, requiresReadyToTurnIn = true },
-                    { text = "Not yet.", next = "end" }
-                }
-            }
-        }
+                    {
+                        text = "Yes. It is done.",
+                        action = "turn_in_available_quest",
+                        next = "elder_quest_completed",
+                        requiresQuestPool = true,
+                        requiresReadyToTurnIn = true,
+                    },
+                    {
+                        text = "Not yet.",
+                        next = "end",
+                    },
+                },
+            },
+        },
     },
 
     ["elder_quest_completed"] = {
@@ -229,10 +333,13 @@ return {
             {
                 text = "You have our deep thanks. This village will remember your deed.",
                 options = {
-                    { text = "May your hearth stand secure.", next = "end" }
-                }
-            }
-        }
+                    {
+                        text = "May your hearth stand secure.",
+                        next = "end",
+                    },
+                },
+            },
+        },
     },
 
     ["village_recruit"] = {
@@ -242,10 +349,16 @@ return {
             {
                 text = "A few strong villagers ask to bind their lot to yours.",
                 options = {
-                    { text = "Take them into the warband (10 favor).", action = "recruit_volunteers" },
-                    { text = "Leave them to their homes.", next = "end" }
-                }
-            }
-        }
-    }
+                    {
+                        text = "Take them into the warband (10 favor).",
+                        action = "recruit_volunteers",
+                    },
+                    {
+                        text = "Leave them to their homes.",
+                        next = "end",
+                    },
+                },
+            },
+        },
+    },
 }

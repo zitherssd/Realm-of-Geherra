@@ -8,11 +8,11 @@ local Map = {}
 Map.__index = Map
 
 Map.biomeSpeedModifiers = {
-    desert = 0.6,
+    desert = 0.7,
     mountain = 0.4,
-    hills = 0.7,
+    hills = 0.9,
     plains = 1.0,
-    forest = 0.75,
+    forest = 0.7,
     marsh = 0.4,
     cliff = 0.65
 }

@@ -14,16 +14,21 @@ return {
             attack = 9,
             defense = 8,
             speed = 9,
-            battle_speed = 8
+            battle_speed = 8,
         },
         size = 3,
         equipment = {
             mainHand = "club",
-            body = "furs_armor"
+            body = "furs_armor",
         },
         loot = {
-            {currency = "gold", chance = 0.3, min = 1, max = 8}
-        }
+            {
+                currency = "gold",
+                chance = 0.3,
+                min = 1,
+                max = 8,
+            },
+        },
     },
 
     ["pelas_tribesman"] = {
@@ -36,18 +41,26 @@ return {
             attack = 10,
             defense = 10,
             speed = 9,
-            battle_speed = 9
+            battle_speed = 9,
         },
         size = 3,
         equipment = {
-            mainHand = {"spear", "club"},
+            mainHand = {
+                "spear",
+                "club",
+            },
             body = "furs_armor",
             feet = "fur_shoes",
-            head = "bronze_cap"
+            head = "bronze_cap",
         },
         loot = {
-            {currency = "gold", chance = 0.35, min = 3, max = 12}
-        }
+            {
+                currency = "gold",
+                chance = 0.35,
+                min = 3,
+                max = 12,
+            },
+        },
     },
 
     ["pelas_skirmisher"] = {
@@ -60,18 +73,23 @@ return {
             attack = 11,
             defense = 9,
             speed = 9,
-            battle_speed = 12
+            battle_speed = 12,
         },
         size = 3,
         equipment = {
             mainHand = "spear",
             offHand = "wooden_shield",
             rangedWeapon = "single_throw_javelin",
-            feet = "fur_shoes"
+            feet = "fur_shoes",
         },
         loot = {
-            {currency = "gold", chance = 0.4, min = 4, max = 14}
-        }
+            {
+                currency = "gold",
+                chance = 0.4,
+                min = 4,
+                max = 14,
+            },
+        },
     },
 
     -- Pealasgia monster 5893; see README.md for import mappings.
@@ -90,7 +108,7 @@ return {
         },
         size = 3,
         equipment = {
-            rangedWeapon = "sling"
+            rangedWeapon = "sling",
         },
     },
 

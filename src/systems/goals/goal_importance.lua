@@ -2,7 +2,34 @@
 local Recovery = require("src.systems.actors.recovery")
 local Parties = require("src.systems.parties.party_system")
 local Knowledge = require("src.systems.knowledge.knowledge_system")
-local Importance = {criticalWeight = 0.5, responsibilityDefault = 0.5}
+local Personality = require("src.data.types.personality")
+local Ecs = require("src.ecs.world")
+local Importance = {criticalWeight = 0.5, wealthExponentBase = 2, wealthExponentGreed = 1.75,
+    homeAwayPerDay = 5, homeRecoveryPerDay = 12}
+
+function Importance.home(actor, map)
+    local home = actor.homeLocationId and Ecs.findLocationById(actor.homeLocationId, actor.__world)
+    for _, location in ipairs(map and map:getLocations() or {}) do
+        if location == home then
+            local Services = require("src.systems.services.service_system")
+            return home, Services.getLocation(actor, {world = actor.__world, map = map}) == home
+        end
+    end
+    return nil, false
+end
+
+-- Rates are points per game day, converted using the existing world clock.
+function Importance.homeRate(actor, map)
+    local home, atHome = Importance.home(actor, map)
+    if not home then return 0 end
+    local daySeconds = require("src.systems.campaign.time_system").worldHoursToSeconds(24)
+    return (atHome and -Importance.homeRecoveryPerDay
+        or Importance.homeAwayPerDay * Personality.get(actor, "homesickness")) / daySeconds
+end
+
+function Importance.advanceHome(goal, actor, _, dt, map)
+    goal.accumulatedImportance = Importance.clamp((goal.accumulatedImportance or 0) + Importance.homeRate(actor, map) * dt)
+end
 
 function Importance.clamp(value)
     if type(value) ~= "number" or value ~= value then return 0 end
@@ -44,8 +71,11 @@ function Importance.recovery(goal, actor, party)
 end
 function Importance.wealth(goal, actor, party)
     local target = goal.amount or 10000
-    if type(target) ~= "number" or target <= 0 then return 0 end
-    return 100 * (1 - (party and Parties.getTreasury(party) or actor.treasury or 0) / target)
+    if type(target) ~= "number" or target ~= target or math.abs(target) == math.huge or target <= 0 then return 0 end
+    local treasury = party and Parties.getLeader(party) == actor and Parties.getTreasury(party) or actor.treasury or 0
+    local remaining = math.max(0, 1 - treasury / target)
+    return Importance.clamp(100 * remaining ^ (Importance.wealthExponentBase
+        - Importance.wealthExponentGreed * Personality.get(actor, "greed")))
 end
 function Importance.knowledge(goal, actor)
     if Knowledge.findKnownInformation(actor, goal) then return 0 end
@@ -55,8 +85,6 @@ function Importance.obligation(goal, actor)
     local request = actor.__world and actor.__world.serviceRequests and actor.__world.serviceRequests[goal.serviceId]
     if goal.resolvedStatus or not request or request.status ~= "assigned"
         or request.assignedActorId ~= actor.id then return 0 end
-    local responsibility = actor.responsibility
-    if type(responsibility) ~= "number" or responsibility ~= responsibility then responsibility = Importance.responsibilityDefault end
-    return 50 + 40 * math.max(0, math.min(1, responsibility))
+    return 50 + 40 * Personality.get(actor, "responsibility")
 end
 return Importance

@@ -9,7 +9,15 @@ local Member = require("src.data.types.party_member")
 ---@field hostile boolean
 ---@field members PartyMember[]
 ---@type {new: fun(value: PartyDefinition): PartyDefinition, validate: fun(value: PartyDefinition), is: fun(value: any): boolean}
-local Definition = S.define("PartyDefinition", {nameSuffix = S.string,
-    placement = S.enum({"stationed", "world"}), treasury = S.optional(C.count), supplies = S.optional(C.count),
-    hostile = S.boolean, members = S.array(Member.validate)})
+local Definition = S.define("PartyDefinition", {
+    nameSuffix = S.string,
+    placement = S.enum({
+        "stationed",
+        "world",
+    }),
+    treasury = S.optional(C.count),
+    supplies = S.optional(C.count),
+    hostile = S.boolean,
+    members = S.array(Member.validate),
+})
 return Definition

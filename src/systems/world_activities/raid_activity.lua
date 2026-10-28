@@ -1,3 +1,4 @@
+local PartySystem = require("src.systems.parties.party_system")
 -- Raid activity: a hostile party selects and pursues an eligible target.
 local PartyInteractionSystem = require("src.systems.parties.party_interaction_system")
 local VisibilitySystem = require("src.systems.parties.visibility_system")
@@ -5,7 +6,7 @@ local Pursuit = require("src.systems.world_activities.pursuit")
 
 local RaidActivity = {}
 
-RaidActivity.speed = 40
+RaidActivity.speed = PartySystem.worldSpeed
 RaidActivity.maxStallSeconds = 8
 RaidActivity.maxLostSightSeconds = 5
 

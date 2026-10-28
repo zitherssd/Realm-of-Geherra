@@ -12,8 +12,13 @@ local Rule = require("src.data.types.population_rule")
 ---@field enabled? boolean
 ---@type {new: fun(value: PartyMember): PartyMember, validate: fun(value: PartyMember), is: fun(value: any): boolean}
 local Member = S.define("PartyMember", {
-    id = S.string, troopType = S.optional(S.string), archetype = S.optional(S.string), role = S.optional(S.string),
-    count = S.optional(C.count), chance = S.optional(S.probability), when = S.optional(Rule.Conditions.validate),
+    id = S.string,
+    troopType = S.optional(S.string),
+    archetype = S.optional(S.string),
+    role = S.optional(S.string),
+    count = S.optional(C.count),
+    chance = S.optional(S.probability),
+    when = S.optional(Rule.Conditions.validate),
     enabled = S.optional(S.boolean),
 })
 local validateShape = Member.validate

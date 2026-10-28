@@ -5,7 +5,7 @@
 local PartyAiSystem = {}
 local PartySystem = require("src.systems.parties.party_system")
 
-PartyAiSystem.wanderSpeed = 20
+PartyAiSystem.wanderSpeed = PartySystem.worldSpeed / 2
 PartyAiSystem.wanderRadiusDefault = 220
 PartyAiSystem.wanderPauseMin = 2
 PartyAiSystem.wanderPauseMax = 6
@@ -16,11 +16,7 @@ local function moveToward(party, tx, ty, speed, dt, map)
     local dist = math.sqrt(dx * dx + dy * dy)
     if dist <= 0.000001 then return end
 
-    local effectiveSpeed = speed
-    if map and map.getTravelSpeedMod then
-        local speedMod = map:getTravelSpeedMod(party.x, party.y)
-        effectiveSpeed = speed * speedMod
-    end
+    local effectiveSpeed = PartySystem.getPartySpeed(party, speed, map)
 
     local step = math.min(dist, effectiveSpeed * dt)
     local newX = party.x + (dx / dist) * step
@@ -65,8 +61,7 @@ function PartyAiSystem.followWaypoints(party, waypoints, index, speed, dt, map)
             index = index + 1
         else
             if remaining <= 0 then break end
-            local modifier = map and map.getTravelSpeedMod and map:getTravelSpeedMod(party.x, party.y) or 1
-            local effectiveSpeed = speed * modifier
+            local effectiveSpeed = PartySystem.getPartySpeed(party, speed, map)
             if effectiveSpeed <= 0 then break end
             local stepTime = math.min(remaining, math.min(distance, maxStep) / effectiveSpeed)
             local oldX, oldY = party.x, party.y

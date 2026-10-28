@@ -70,6 +70,7 @@ function Fixture.populate(map, profile)
         enlil = "caravan_leader", ur_salim = "traveler", zakur = "bandit_leader"}
     local function actor(key, name, location, definitions, capabilities, gold)
         local a = NpcFactory.create(world, archetypes[key], {rng = Random.new(Fixture.seed, key),
+            homeLocationId = location and location.id,
             culture = location and location.culture or "generic",
             faction = key == "zakur" and "bandits" or (location and location.faction or "neutral")},
             {id = "debug_" .. key, name = name, stats = {health = 100}, treasury = gold or 0,

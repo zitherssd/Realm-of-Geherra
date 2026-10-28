@@ -51,7 +51,7 @@ Gameplay modules now live in domain folders under `src/systems/`; campaign and b
 
 ## F. Activities and goals
 
-Milestone 8A below defines the current motivation/selection contract. Older milestone
+Milestones 8A and 8B below define the current motivation/selection contract. Older milestone
 sections retain their implementation history; their fixed priorities, recovery override,
 60%/90% gates and selected-only local service rules are superseded by 8A.
 
@@ -1843,3 +1843,133 @@ goal even when a non-dominant ProvideService offers local healing. F2/F3 meaning
 See [Milestone 8A report](MILESTONE_8A_REPORT.md) for files, validation, limitations and manual
 playtest steps. `dynamic_importance_scenario` extends the existing scenario runner; the entire
 navigation/campaign/combat/debug regression suite remains required.
+
+## Milestone 8B: Fixed personality and ReturnHome
+
+This extends the 8A registry, importance hooks, selection threshold and physical service
+mechanics. The following personality and wealth rules supersede their 8A versions.
+
+### Actor creation and home
+
+Important actors own `actor.personality = {homesickness, responsibility, greed}`. Each value
+is a fixed number in 0–1. Archetypes may author any subset as inclusive min/max pairs,
+for example `personality = {homesickness = {0.2, 0.6}, greed = {0.4, 0.9}}`, or as explicit
+numbers for named actors. Factory overrides use the same validated representation.
+Missing traits are exactly 0.5 and consume no random draws. Trait names, finite bounds,
+pair length/order and 0–1 limits are validated by the existing schema boundary.
+
+NpcFactory rolls configured ranges only while constructing a new important actor, in fixed
+trait order using that actor's existing seeded RNG. Generic troops receive no personality.
+Goal configuration/evaluation, travel, party membership and service assignment never reroll.
+Old important actors normalize missing values once; legacy `actor.responsibility` migrates
+into personality and is removed. Already present personality values take precedence. Pure
+importance/debug reads also support unnormalized legacy actors without changing their state.
+
+Population passes the actual permanent location ID as creator context `homeLocationId`, for
+both residents and important initial party members. NpcFactory assigns it only on creation.
+Other creators may provide that context explicitly; the debug campaign supplies it for
+residents with known homes. Actor home is distinct from a party's origin and an investigator's
+assignment return destination. Travel, party changes and temporary residence never replace it.
+
+`goal_importance.home(actor, map)` resolves a live home on the current map and reuses
+ServiceSystem's physical location query. Roster membership overrides stale resident records;
+stationed leaders and passengers count as home. Independent residents use the authoritative
+resident list. Being listed at home while traveling in a party does not imply presence there.
+Missing/off-map homes block ReturnHome safely and have zero accumulation/decay rate.
+
+### ReturnHome importance and execution
+
+Archetypes opt in with `{type = "return_home"}`. No automatic attachment occurs. The
+wealthy merchant, healer and caravan leader explicitly opt in; bandit leaders receive a
+personality distribution without acquiring ReturnHome. Other archetypes remain valid.
+Existing movement capabilities are preserved: an independent healer/merchant can stay home
+or accumulate desire while accompanying others, but does not gain a party from this goal.
+
+ReturnHome's persistent `accumulatedImportance` normally starts at zero. An explicit
+`accumulatedImportance`, or its initial base importance in the existing editor, can seed it.
+It is clamped to 0–100. Balance constants live in `goal_importance.lua`:
+
+| Constant | Unit and initial value |
+|---|---|
+| `homeAwayPerDay` | Maximum **12 importance points per world day**, multiplied by Homesickness. |
+| `homeRecoveryPerDay` | **18 importance points per world day**, independent of Homesickness. |
+| Day conversion | `TimeSystem.worldHoursToSeconds(24)`: currently **16 simulation seconds per world day**. |
+
+Thus maximum buildup is 0.75 points per simulation second, neutral buildup 0.375, and
+at-home recovery 1.125. Homesickness zero gives no away buildup. Returning home never resets
+importance; time there is required. Zero importance retains the attached goal and yields to
+normal idle/selection rules. Home recovery continues after another goal becomes dominant.
+
+GoalSystem advances the existing hook once for every live non-player actor with goals per
+positive simulation interval, including moving passengers and non-dominant goals. It iterates
+the ECS actor query, not population/party references, so duplicates in those collections do
+not multiply advancement. The optional hook's fifth argument is now `map`; existing four-argument
+hooks still work. Paused/zero-scale world time supplies zero elapsed time and does not advance.
+Large updates apply the elapsed duration with clamping, without per-day loops.
+
+A dominant ReturnHome requests ordinary TravelActivity to the actor's home only when the
+actor commands a live party and has Travel capability. Existing route planning, encounter
+reservations, external ownership, interruption/retry and fresh route origins apply. At home
+it stays eligible while positive and creates no Rest/Wait or other activity. Compatible local
+services remain available. The ordinary five-point challenger threshold controls departure
+for another motivation as homesickness dissipates. Passengers accumulate personal importance
+but cannot redirect the leader, create parties, split membership or leave caravans.
+
+### Greed and Responsibility
+
+AcquireWealth keeps the authored target `amount` and existing treasury sources. Party leaders
+read party gold; independent actors and passengers read their personal source. Its score is:
+
+```lua
+remaining = math.max(0, 1 - treasury / target)
+exponent = wealthExponentBase - wealthExponentGreed * greed
+importance = clamp(100 * remaining ^ exponent)
+```
+
+`wealthExponentBase = 2`, `wealthExponentGreed = 1.75`, and missing Greed is 0.5. With 9000
+gold against a 10000 target, Greed 0/0.5/1 yields approximately 1/7.50/56.23. Medium Greed
+follows the specified exponent exactly (rather than rounding its result to 10). At or above
+target the score is zero; lost wealth raises it again. Zero/invalid targets safely score zero,
+with malformed authored goals still rejected by the existing definition validation. Raid,
+caravan investment/profit and cooldown calculations are unchanged.
+
+FulfillObligation reads fixed personality Responsibility through the shared trait reader:
+`50 + 40 * responsibility`, giving 50–90 with default 70. Accepted assignments, interruption,
+terminal resolution and absence of deadline escalation retain their existing semantics.
+
+### Local work before departure
+
+Before evaluating any actor's primary movement, GoalSystem checks the still-known service
+already recorded as a ProvideService goal's `pursuedServiceId`. This applies even if another
+goal is dominant and runs before the passenger's leader can depart. It cannot discover or
+accept arbitrary unrelated offers, start non-dominant opportunity travel, stop a moving party
+or bypass an encounter. Arrival is checked on the next goal update after physical stationing;
+no departure decision intervenes. An earlier failed-activity retry does not suppress this check.
+
+The existing known-offer/closure checks and profession assignment handlers are reused.
+ServiceSystem still validates the actual open request, local/available customer and worker,
+capabilities, conflicting obligations, health and payment. `heal` commissions now use the
+same instantaneous healing/payment implementation as direct purchases, with normal accepted
+obligation creation and immediate completion. Closed requests cannot heal/pay again; filled
+and completed history each occur once. Non-healing commission execution remains with its
+existing handler. ReturnHome importance is never changed to force service selection.
+
+### Debugging, verification and deferrals
+
+F1's existing actor inspector shows all final trait values, home ID/name/validity, physical
+home state, ReturnHome accumulated score and signed rate in world seconds and days, wealth
+target/Greed, obligation/Responsibility, and existing dominance/score/switch information.
+The existing definition-driven NPC editor automatically lists ReturnHome. It does not offer
+personality evolution or home relocation controls. F2/F3 keep their existing views.
+
+`personality_return_home_scenario` covers generation/defaults/validation/seeds, persistent
+home, home/away rates and pause, resumed physical routes, passenger authority, encounter
+reservations, Greed, legacy Responsibility, and successful/rejected arrival healing. It also
+verifies a passenger heals before a leader created earlier in ECS iteration departs. Population
+snapshots now include personality and home assertions. 8A linear wealth assertions were
+updated to the specified curve; obligation fixtures now author the canonical personality trait.
+
+No committed/timed activity locks, multi-day treatment, persistent injuries, SeekSafety,
+fleeing, relocation, new caravan routes, passenger departure, personality evolution or full
+save/load are introduced. See [Milestone 8B report](MILESTONE_8B_REPORT.md) for the file list,
+validation results, decisions and manual playtest steps.

@@ -5,6 +5,9 @@ local InventorySystem = require("src.systems.items.inventory_system")
 
 local PartySystem = {}
 
+-- Pixels/second for a party whose average world-map speed stat is 10.
+PartySystem.worldSpeed = 80
+
 -- Add an actor to a party (first member added becomes leader by default)
 function PartySystem.addActor(party, actor)
     if not party or not actor then return false end
@@ -168,26 +171,20 @@ function PartySystem.getActors(party)
     return party.actors
 end
 
--- Calculate party's average movement speed
-function PartySystem.getPartySpeed(party)
-    if not party or #party.actors == 0 then return 100 end
-    
+-- Composition, party bonuses, and terrain share one calculation for all movement.
+function PartySystem.getPartySpeed(party, baseSpeed, map)
+    local actors = party and party.actors or {}
     local totalSpeed = 0
-    local count = 0
-    
-    -- This is a simplified calculation
-    -- In a full implementation, you'd aggregate from actual actor stats
-    for _, actor in ipairs(party.actors) do
-        -- Base speed per member (would come from actor stats in real implementation)
-        totalSpeed = totalSpeed + 100
-        count = count + 1
+    for _, actor in ipairs(actors) do
+        totalSpeed = totalSpeed + (actor.stats and actor.stats.speed or 10)
     end
-    
-    -- Apply modifiers
-    local avgSpeed = totalSpeed / count
-    avgSpeed = avgSpeed * (party.speedModifier or 1.0)
-    
-    return avgSpeed
+    local average = #actors > 0 and totalSpeed / #actors or 10
+    local speed = (baseSpeed or PartySystem.worldSpeed) * average / 16
+        * (party and party.speedModifier or 1)
+    if map and map.getTravelSpeedMod then
+        speed = speed * map:getTravelSpeedMod(party.x, party.y)
+    end
+    return speed
 end
 
 -- Calculate party's detection visibility (how easily they're spotted)

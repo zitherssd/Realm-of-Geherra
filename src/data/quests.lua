@@ -9,29 +9,54 @@ local quests = {
         giver = "elder",
         description = "The elder requests you find the amulet lost in the cave",
         objectives = {
-            {type = "travel", target = "mountain_cave"},
-            {type = "collect", item = "ancient_amulet", required = 1},
-            {type = "deliver", npc = "elder"}
+            {
+                type = "travel",
+                target = "mountain_cave",
+            },
+            {
+                type = "collect",
+                item = "ancient_amulet",
+                required = 1,
+            },
+            {
+                type = "deliver",
+                npc = "elder",
+            },
         },
-        rewards = {gold = 200, reputation = {kingdom = 25}}
+        rewards = {
+            gold = 200,
+            reputation = {
+                kingdom = 25,
+            },
+        },
     },
-    
+
     ["join_army"] = {
         id = "join_army",
         title = "Join the Army",
         giver = "commander",
         description = "The commander needs soldiers for the upcoming battle",
         objectives = {
-            {type = "talk", npc = "recruiter"},
-            {type = "reach", location = "barracks"}
+            {
+                type = "talk",
+                npc = "recruiter",
+            },
+            {
+                type = "reach",
+                location = "barracks",
+            },
         },
-        rewards = {gold = 100, unlock = "join_army"}
+        rewards = {
+            gold = 100,
+            unlock = "join_army",
+        },
     },
 
     ["pilgrimage"] = {
         id = "pilgrimage",
         title = "A Sacred Pilgrimage",
-        giver = nil, -- assigned dynamically
+        giver = nil,
+        -- assigned dynamically
         procedural = true,
         repeatable = false,
         description = "Carry the sacred offerings to a nearby shrine on behalf of the village.",
@@ -39,39 +64,72 @@ local quests = {
             {
                 type = "travel",
                 -- target is resolved at activation time by pickTarget
-                pickTarget = { locationType = "shrine" },
+                pickTarget = {
+                    locationType = "shrine",
+                },
                 required = 1,
-                description = "Deliver the offerings to a shrine"
+                description = "Deliver the offerings to a shrine",
             },
             {
                 type = "report_to_giver",
                 required = 1,
-                description = "Return to the Village Elder"
-            }
+                description = "Return to the Village Elder",
+            },
         },
-        rewards = { gold = 30, favor = 60, reputation = { menari = 10 } }
+        rewards = {
+            gold = 30,
+            favor = 60,
+            reputation = {
+                menari = 10,
+            },
+        },
     },
 
     ["hunt_dogs"] = {
         id = "hunt_dogs",
         title = "The Wild Pack",
-        giver = nil, -- Assigned dynamically by the NPC
+        giver = nil,
+        -- Assigned dynamically by the NPC
         procedural = true,
         repeatable = true,
         description = "Hunt down the pack of wild dogs terrorizing the village.",
         objectives = {
-            {type = "kill_party", target = "wild_dog_pack", required = 1, description = "Defeat the Wild Dog Pack"},
-            {type = "report_to_giver", required = 1, description = "Report back to the Village Elder"}
+            {
+                type = "kill_party",
+                target = "wild_dog_pack",
+                required = 1,
+                description = "Defeat the Wild Dog Pack",
+            },
+            {
+                type = "report_to_giver",
+                required = 1,
+                description = "Report back to the Village Elder",
+            },
         },
-        rewards = {gold = 50, favor = 40, reputation = {menari = 5}},
+        rewards = {
+            gold = 50,
+            favor = 40,
+            reputation = {
+                menari = 5,
+            },
+        },
         onStart = {
             type = "spawn_party",
             partyId = "wild_dog_pack",
             name = "Wild Dog Pack",
             faction = "bandits",
-            troops = {"war_dog", "war_dog", "war_dog", "war_dog", "war_dog"},
-            offset = {x = 100, y = 0}
-        }
+            troops = {
+                "war_dog",
+                "war_dog",
+                "war_dog",
+                "war_dog",
+                "war_dog",
+            },
+            offset = {
+                x = 100,
+                y = 0,
+            },
+        },
     },
 
     ["deliver_message"] = {
@@ -84,22 +142,30 @@ local quests = {
         objectives = {
             {
                 type = "travel",
-                pickTarget = { locationType = "village" },
+                pickTarget = {
+                    locationType = "village",
+                },
                 required = 1,
-                description = "Deliver the message to a nearby village"
+                description = "Deliver the message to a nearby village",
             },
             {
                 type = "report_to_giver",
                 required = 1,
-                description = "Return to the elder"
-            }
+                description = "Return to the elder",
+            },
         },
-        rewards = {gold = 25, favor = 25, reputation = {menari = 3}},
+        rewards = {
+            gold = 25,
+            favor = 25,
+            reputation = {
+                menari = 3,
+            },
+        },
         onStart = {
             type = "give_item",
             itemId = "sealed_message",
-            quantity = 1
-        }
+            quantity = 1,
+        },
     },
 
     ["deliver_item"] = {
@@ -112,22 +178,30 @@ local quests = {
         objectives = {
             {
                 type = "travel",
-                pickTarget = { locationType = "village" },
+                pickTarget = {
+                    locationType = "village",
+                },
                 required = 1,
-                description = "Deliver the trade goods to a nearby village"
+                description = "Deliver the trade goods to a nearby village",
             },
             {
                 type = "report_to_giver",
                 required = 1,
-                description = "Return to the elder"
-            }
+                description = "Return to the elder",
+            },
         },
-        rewards = {gold = 40, favor = 35, reputation = {menari = 5}},
+        rewards = {
+            gold = 40,
+            favor = 35,
+            reputation = {
+                menari = 5,
+            },
+        },
         onStart = {
             type = "give_item",
             itemId = "bundled_goods",
-            quantity = 1
-        }
+            quantity = 1,
+        },
     },
 
     ["rescue_daughter"] = {
@@ -140,33 +214,52 @@ local quests = {
         objectives = {
             {
                 type = "travel",
-                pickTarget = { locationType = "bandit_camp" },
+                pickTarget = {
+                    locationType = "bandit_camp",
+                },
                 required = 1,
-                description = "Track the bandits to their camp"
+                description = "Track the bandits to their camp",
             },
             {
                 type = "kill_party",
                 target = "bandit_raiders",
                 required = 1,
-                description = "Defeat the bandit raiders"
+                description = "Defeat the bandit raiders",
             },
             {
                 type = "report_to_giver",
                 required = 1,
-                description = "Return the girl to the elder"
-            }
+                description = "Return the girl to the elder",
+            },
         },
-        rewards = {gold = 80, favor = 80, reputation = {menari = 15}},
+        rewards = {
+            gold = 80,
+            favor = 80,
+            reputation = {
+                menari = 15,
+            },
+        },
         onStart = {
             type = "spawn_party",
             partyId = "bandit_raiders",
             name = "Bandit Raiders",
             faction = "bandits",
-            troops = {"bandit", "bandit", "bandit", "bandit", "bandit"},
-            offset = {x = 120, y = 40}
-        }
-    }
+            troops = {
+                "bandit",
+                "bandit",
+                "bandit",
+                "bandit",
+                "bandit",
+            },
+            offset = {
+                x = 120,
+                y = 40,
+            },
+        },
+    },
 }
 
-for id, quest in pairs(quests) do Registry.checkId("quest", id, quest) end
+for id, quest in pairs(quests) do
+    Registry.checkId("quest", id, quest)
+end
 return quests

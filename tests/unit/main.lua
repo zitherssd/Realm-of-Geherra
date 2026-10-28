@@ -28,6 +28,7 @@ function love.load(args)
             return
         end
         require("navigation_tests").run()
+        require("party_speed_scenario").run()
         require("data_definitions_scenario").run()
         require("faction_identity_scenario").run()
         require("combat_regression_scenario").run()
@@ -45,6 +46,7 @@ function love.load(args)
         require("world_activity_scenario").run()
         require("npc_goals_scenario").run()
         require("dynamic_importance_scenario").run()
+        require("personality_return_home_scenario").run()
         require("recovery_scenario").run()
         require("raid_visibility_scenario").run()
         require("battle_simulation_scenario").run()
@@ -74,6 +76,6 @@ function love.load(args)
     end
 
     print(args and args[1] and (args[1] .. " passed")
-        or "All 37 scenarios and navigation tests passed, including campaign runtime ordering and lifecycle")
+        or "All 39 scenarios and navigation tests passed, including personality and ReturnHome")
     love.event.quit(0)
 end

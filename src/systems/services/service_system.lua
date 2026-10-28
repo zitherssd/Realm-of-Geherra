@@ -135,9 +135,7 @@ function Services.canPerform(provider, customer, serviceType, context)
     return true
 end
 
-function Services.perform(provider, customer, serviceType, context)
-    local ok, reason = Services.canPerform(provider, customer, serviceType, context)
-    if not ok then return false, reason end
+local function applyHealing(provider, customer, serviceType, context)
     local payer = Services.getParty(customer, worldFor(context)) or customer
     local payee = Services.getParty(provider, worldFor(context)) or provider
     if Services.healPrice > 0 and not Inventory.transferGold(payer, payee, Services.healPrice) then
@@ -148,6 +146,12 @@ function Services.perform(provider, customer, serviceType, context)
     local result = {serviceType = serviceType, providerId = provider.id, healed = amount, price = Services.healPrice}
     customer.lastServiceResult = copy(result)
     return true, result
+end
+
+function Services.perform(provider, customer, serviceType, context)
+    local ok, reason = Services.canPerform(provider, customer, serviceType, context)
+    if not ok then return false, reason end
+    return applyHealing(provider, customer, serviceType, context)
 end
 
 function Services.findLocalProviders(customer, serviceType, context)
@@ -274,7 +278,17 @@ function Services.assign(id, worker, context)
     if not worker.npc_goals.capabilities[request.requiredCapability] then return false, "capability_missing" end
     if Services.getLocation(worker, context).id ~= request.locationId then return false, "not_local" end
     if Services.hasObligation(worker, context) then return false, "conflicting_obligation" end
-    return Services.accept(id, worker, context)
+    if request.type ~= "heal" then return Services.accept(id, worker, context) end
+    local customer = EcsWorld.findActorById(request.employerId, worldFor(context))
+    local canHeal, why = Services.canPerform(worker, customer, "heal", context)
+    if not canHeal then return false, why end
+    local accepted, result = Services.accept(id, worker, context)
+    if not accepted then return false, result end
+    -- Availability/payment were checked before accepting this instantaneous job.
+    local healed, healing = applyHealing(worker, customer, "heal", context)
+    if not healed then Services.cancel(id, context, healing); return false, healing end
+    Services.complete(id, context)
+    return true, healing
 end
 
 -- Execution may outlive the employer's presence at the commissioning location.

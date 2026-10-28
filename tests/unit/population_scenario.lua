@@ -41,18 +41,30 @@ local function snapshot(map)
         assert(not seen[a.id], "duplicate membership: " .. a.id)
         seen[a.id] = true
         assert(Ecs.findActorById(a.id) == a)
+        if a.memory then
+            assert(a.homeLocationId and a.personality, "important population actor lacks home/personality")
+            for _, trait in ipairs({"homesickness", "responsibility", "greed"}) do
+                values[#values + 1] = trait .. "=" .. a.personality[trait]
+            end
+        else assert(not a.personality and not a.homeLocationId) end
         values[#values + 1] = table.concat({a.id, a.archetypeId, a.name, a.hp, a.treasury, a.sprite, a.culture, a.faction}, "|")
         for _, slot in ipairs(Registry.keys(a.equipment)) do values[#values + 1] = slot .. "=" .. a.equipment[slot] end
     end
     for _, location in ipairs(map:getLocations()) do
         values[#values + 1] = table.concat({location.id, location.name, location.definitionId,
             location.faction, location.culture, location.population, location.prosperity}, "|")
-        for _, a in ipairs(location.npcs) do actor(a) end
+        for _, a in ipairs(location.npcs) do
+            if a.memory then assert(a.homeLocationId == location.id) end
+            actor(a)
+        end
         for _, party in ipairs(location.stationedParties) do
             values[#values + 1] = party.id .. ":" .. party.treasury
             assert(Parties.getLeader(party) and party.x == location.x and party.y == location.y)
             assert(#party.actors >= 9 and #party.actors <= 17)
-            for _, a in ipairs(party.actors) do actor(a) end
+            for _, a in ipairs(party.actors) do
+                if a.memory then assert(a.homeLocationId == location.id) end
+                actor(a)
+            end
         end
     end
     return table.concat(values, "\n")

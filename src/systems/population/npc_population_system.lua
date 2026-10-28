@@ -42,7 +42,7 @@ function Population.populate(map, location, seed)
             for index = 1, Registry.roll(rule.count or 1, rng) do
                 if rng() < (rule.chance or 1) then
                     local npc = Factory.create(location.__world, archetypeId,
-                        {rng = rng, culture = location.culture, faction = location.faction})
+                        {rng = rng, culture = location.culture, faction = location.faction, homeLocationId = location.id})
                     npc.populationSlot = rule.id
                     npc.x, npc.y = location.x, location.y
                     assert(Locations.addNPC(location, npc))

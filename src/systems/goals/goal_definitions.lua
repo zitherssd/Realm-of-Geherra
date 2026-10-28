@@ -104,6 +104,14 @@ Registry.registerGoal("reach_location", {
         assert(type(id) == "string" or finiteNumber(id), "Location goal requires a stable ID")
     end
 })
+Registry.registerGoal("return_home", {
+    label = "Return Home", priority = 0, fields = {},
+    advanceImportance = Importance.advanceHome,
+    description = "Travel home, then remain there while homesickness gradually fades. Only leaders command travel.",
+    validate = function(goal, definition)
+        goal.accumulatedImportance = Importance.clamp(definition.accumulatedImportance or goal.priority)
+    end
+})
 local knowledgeCategories = {"time", "location", "participants", "outcome", "party", "destination",
     "sponsorship", "trade", "employer", "service"}
 local knowledgeFields = {

@@ -76,10 +76,10 @@ local function scoresAndPartyHealth()
     for _, member in ipairs(members) do member.hp = 0 end
     assert(score(rest, actor, party) == 0, "dead members contributed urgency")
     party.treasury = 0; assert(score(wealth, actor, party) == 100)
-    party.treasury = 800; assert(math.abs(score(wealth, actor, party) - 20) < 0.001)
+    party.treasury = 800; assert(math.abs(score(wealth, actor, party) - 100 * 0.2 ^ 1.125) < 0.001)
     party.treasury = 1000; assert(score(wealth, actor, party) == 0)
     party.treasury = 2000; assert(score(wealth, actor, party) == 0)
-    party.treasury = 100; assert(score(wealth, actor, party) == 90)
+    party.treasury = 100; assert(math.abs(score(wealth, actor, party) - 100 * 0.9 ^ 1.125) < 0.001)
     for _, value in ipairs({-100, 0, 50, 100, 10000, math.huge, -math.huge, 0/0}) do
         local n = Importance.clamp(value); assert(n >= 0 and n <= 100)
     end
@@ -268,10 +268,10 @@ local function responsibilityAndLocalServices()
     local request = assert(Services.createRequest(customer, {type = "fixture", requiredCapability = "heal", data = {}}, context))
     assert(Services.assign(request.id, actor, context))
     local obligation = state.goals[#state.goals]
-    actor.responsibility = 0; assert(score(obligation, actor) == 50)
-    actor.responsibility = 0.5; assert(score(obligation, actor) == 70)
-    actor.responsibility = 1; assert(score(obligation, actor) == 90)
-    actor.responsibility = nil; assert(score(obligation, actor) == 70)
+    actor.personality.responsibility = 0; assert(score(obligation, actor) == 50)
+    actor.personality.responsibility = 0.5; assert(score(obligation, actor) == 70)
+    actor.personality.responsibility = 1; assert(score(obligation, actor) == 90)
+    actor.personality.responsibility = nil; assert(score(obligation, actor) == 70)
     tick(map, 1)
     assert(Services.hasObligation(actor, context) == request.id and state.selectedGoalIndex == 2)
     actor.hp = 100

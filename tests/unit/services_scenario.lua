@@ -249,7 +249,7 @@ local function travelAndKnowledge()
     assert(party.world_activity.type == "travel" and party.world_activity.params.destinationLocationId == home.id)
     assert(not customer.npc_goals.goals[1].healingRetrySeconds or customer.npc_goals.goals[1].healingRetrySeconds == 0)
     assert(customer.hp == 40 and party.treasury == 100)
-    for _ = 1, 15 do CampaignRuntime.updateGoals(1, map); Activities.update(1, map) end
+    for _ = 1, 30 do CampaignRuntime.updateGoals(1, map); Activities.update(1, map) end
     assert(Services.getLocation(customer, context) == home and party.treasury == 100)
     assert(party.world_activity.type == "rest" and party.world_activity.status == "active")
     -- Return a healer locally and retry only after elapsed world time.

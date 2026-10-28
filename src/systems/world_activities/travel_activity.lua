@@ -1,3 +1,4 @@
+local PartySystem = require("src.systems.parties.party_system")
 -- Generic party travel over the map's walkable terrain.
 local EcsWorld = require("src.ecs.world")
 local PartyAiSystem = require("src.systems.parties.party_ai_system")
@@ -9,7 +10,7 @@ local TravelKnowledge = require("src.systems.knowledge.travel_knowledge_system")
 local TravelActivity = {}
 
 TravelActivity.initialPhase = "travel"
-TravelActivity.speed = 70
+TravelActivity.speed = PartySystem.worldSpeed
 TravelActivity.maxStallSeconds = 15
 
 local function findParty(map, partyId)

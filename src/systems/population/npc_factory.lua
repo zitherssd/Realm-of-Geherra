@@ -7,6 +7,7 @@ local Inventory = require("src.systems.items.inventory_system")
 local Trader = require("src.systems.items.trader_system")
 local Goals = require("src.systems.goals.goal_system")
 local Random = require("src.core.seeded_random")
+local Personality = require("src.data.types.personality")
 local Factory = {}
 
 local function choice(value, rng)
@@ -45,9 +46,11 @@ local function hydrate(world, archetypeId, definition, context, overrides)
     npc.treasury = Registry.roll(definition.treasury or 0, rng)
     if definition.important then
         npc:ensure("npc"); npc:ensure("memory")
+        npc.homeLocationId = context.homeLocationId
         local pools = Catalog.names[definition.namePool or culture.namePool].pools
         local names = pools[archetypeId] or pools[definition.troopType] or pools.default
         npc.name = overrides.name or (names[rng(1, #names)] .. " the " .. definition.title)
+        npc.personality = Personality.roll(definition.personality, rng)
         Goals.configure(npc, Inventory.deepClone(definition.goals or {}), Inventory.deepClone(definition.capabilities or {}))
     else
         if npc.memory then npc:remove("memory") end

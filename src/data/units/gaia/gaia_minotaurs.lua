@@ -124,9 +124,9 @@ return {
             battle_speed = 15,
         },
         innateProtections = {
-        slashing = -2,
-        piercing = 1,
-        blunt = 3,
+            slashing = -2,
+            piercing = 1,
+            blunt = 3,
         },
         size = 4,
         equipment = {},

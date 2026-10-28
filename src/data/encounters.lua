@@ -44,8 +44,8 @@ return {
             lake = 0,
             tundra = 25,
             ice = 30,
-            oasis = 10
-        }
+            oasis = 10,
+        },
     },
 
     -- Ascending threat bands. The first band whose [minThreat, maxThreat] range
@@ -63,8 +63,12 @@ return {
                     hostile = true,
                     dialogueId = "encounter_ambush",
                     enemies = {
-                        { type = "wolf", min = 1, max = 3 }
-                    }
+                        {
+                            type = "wolf",
+                            min = 1,
+                            max = 3,
+                        },
+                    },
                 },
                 {
                     weight = 30,
@@ -73,8 +77,12 @@ return {
                     hostile = true,
                     dialogueId = "encounter_ambush",
                     enemies = {
-                        { type = "war_dog", min = 2, max = 4 }
-                    }
+                        {
+                            type = "war_dog",
+                            min = 2,
+                            max = 4,
+                        },
+                    },
                 },
                 {
                     weight = 20,
@@ -83,10 +91,14 @@ return {
                     hostile = true,
                     dialogueId = "encounter_ambush",
                     enemies = {
-                        { type = "wolf", min = 1, max = 1 }
-                    }
-                }
-            }
+                        {
+                            type = "wolf",
+                            min = 1,
+                            max = 1,
+                        },
+                    },
+                },
+            },
         },
         {
             minThreat = 13,
@@ -99,8 +111,12 @@ return {
                     hostile = true,
                     dialogueId = "encounter_ambush",
                     enemies = {
-                        { type = "bear", min = 1, max = 1 }
-                    }
+                        {
+                            type = "bear",
+                            min = 1,
+                            max = 1,
+                        },
+                    },
                 },
                 {
                     weight = 25,
@@ -109,9 +125,17 @@ return {
                     hostile = true,
                     dialogueId = "encounter_ambush",
                     enemies = {
-                        { type = "bear", min = 1, max = 1 },
-                        { type = "wolf", min = 1, max = 2 }
-                    }
+                        {
+                            type = "bear",
+                            min = 1,
+                            max = 1,
+                        },
+                        {
+                            type = "wolf",
+                            min = 1,
+                            max = 2,
+                        },
+                    },
                 },
                 {
                     weight = 25,
@@ -120,8 +144,12 @@ return {
                     hostile = true,
                     dialogueId = "bandit_start",
                     enemies = {
-                        { type = "bandit", min = 2, max = 2 }
-                    }
+                        {
+                            type = "bandit",
+                            min = 2,
+                            max = 2,
+                        },
+                    },
                 },
                 {
                     weight = 15,
@@ -130,11 +158,19 @@ return {
                     hostile = true,
                     dialogueId = "encounter_ambush",
                     enemies = {
-                        { type = "skeleton_sword", min = 1, max = 2 },
-                        { type = "skeleton_spear", min = 1, max = 1 }
-                    }
-                }
-            }
+                        {
+                            type = "skeleton_sword",
+                            min = 1,
+                            max = 2,
+                        },
+                        {
+                            type = "skeleton_spear",
+                            min = 1,
+                            max = 1,
+                        },
+                    },
+                },
+            },
         },
         {
             minThreat = 31,
@@ -147,8 +183,12 @@ return {
                     hostile = true,
                     dialogueId = "bandit_start",
                     enemies = {
-                        { type = "bandit", min = 3, max = 5 }
-                    }
+                        {
+                            type = "bandit",
+                            min = 3,
+                            max = 5,
+                        },
+                    },
                 },
                 {
                     weight = 25,
@@ -157,9 +197,17 @@ return {
                     hostile = true,
                     dialogueId = "encounter_ambush",
                     enemies = {
-                        { type = "skeleton_sword", min = 2, max = 3 },
-                        { type = "skeleton_spear", min = 1, max = 3 }
-                    }
+                        {
+                            type = "skeleton_sword",
+                            min = 2,
+                            max = 3,
+                        },
+                        {
+                            type = "skeleton_spear",
+                            min = 1,
+                            max = 3,
+                        },
+                    },
                 },
                 {
                     weight = 20,
@@ -168,8 +216,12 @@ return {
                     hostile = true,
                     dialogueId = "encounter_ambush",
                     enemies = {
-                        { type = "ogre", min = 1, max = 1 }
-                    }
+                        {
+                            type = "ogre",
+                            min = 1,
+                            max = 1,
+                        },
+                    },
                 },
                 {
                     weight = 20,
@@ -178,10 +230,14 @@ return {
                     hostile = true,
                     dialogueId = "bandit_start",
                     enemies = {
-                        { type = "soldier", min = 2, max = 3 }
-                    }
-                }
-            }
+                        {
+                            type = "soldier",
+                            min = 2,
+                            max = 3,
+                        },
+                    },
+                },
+            },
         },
         {
             minThreat = 51,
@@ -194,9 +250,17 @@ return {
                     hostile = true,
                     dialogueId = "bandit_start",
                     enemies = {
-                        { type = "bandit", min = 4, max = 6 },
-                        { type = "knight", min = 1, max = 1 }
-                    }
+                        {
+                            type = "bandit",
+                            min = 4,
+                            max = 6,
+                        },
+                        {
+                            type = "knight",
+                            min = 1,
+                            max = 1,
+                        },
+                    },
                 },
                 {
                     weight = 30,
@@ -205,9 +269,17 @@ return {
                     hostile = true,
                     dialogueId = "encounter_ambush",
                     enemies = {
-                        { type = "ogre", min = 1, max = 2 },
-                        { type = "war_dog", min = 1, max = 2 }
-                    }
+                        {
+                            type = "ogre",
+                            min = 1,
+                            max = 2,
+                        },
+                        {
+                            type = "war_dog",
+                            min = 1,
+                            max = 2,
+                        },
+                    },
                 },
                 {
                     weight = 20,
@@ -216,10 +288,22 @@ return {
                     hostile = true,
                     dialogueId = "encounter_ambush",
                     enemies = {
-                        { type = "skeleton_sword", min = 3, max = 5 },
-                        { type = "skeleton_spear", min = 2, max = 3 },
-                        { type = "knight", min = 1, max = 1 }
-                    }
+                        {
+                            type = "skeleton_sword",
+                            min = 3,
+                            max = 5,
+                        },
+                        {
+                            type = "skeleton_spear",
+                            min = 2,
+                            max = 3,
+                        },
+                        {
+                            type = "knight",
+                            min = 1,
+                            max = 1,
+                        },
+                    },
                 },
                 {
                     weight = 15,
@@ -228,11 +312,19 @@ return {
                     hostile = true,
                     dialogueId = "bandit_start",
                     enemies = {
-                        { type = "soldier", min = 2, max = 3 },
-                        { type = "knight", min = 1, max = 2 }
-                    }
-                }
-            }
+                        {
+                            type = "soldier",
+                            min = 2,
+                            max = 3,
+                        },
+                        {
+                            type = "knight",
+                            min = 1,
+                            max = 2,
+                        },
+                    },
+                },
+            },
         },
         {
             minThreat = 76,
@@ -245,9 +337,17 @@ return {
                     hostile = true,
                     dialogueId = "bandit_start",
                     enemies = {
-                        { type = "bandit", min = 5, max = 7 },
-                        { type = "knight", min = 1, max = 2 }
-                    }
+                        {
+                            type = "bandit",
+                            min = 5,
+                            max = 7,
+                        },
+                        {
+                            type = "knight",
+                            min = 1,
+                            max = 2,
+                        },
+                    },
                 },
                 {
                     weight = 30,
@@ -256,8 +356,12 @@ return {
                     hostile = true,
                     dialogueId = "encounter_ambush",
                     enemies = {
-                        { type = "dragon", min = 1, max = 1 }
-                    }
+                        {
+                            type = "dragon",
+                            min = 1,
+                            max = 1,
+                        },
+                    },
                 },
                 {
                     weight = 20,
@@ -266,11 +370,19 @@ return {
                     hostile = true,
                     dialogueId = "encounter_ambush",
                     enemies = {
-                        { type = "ogre", min = 2, max = 2 },
-                        { type = "war_dog", min = 2, max = 3 }
-                    }
-                }
-            }
-        }
-    }
+                        {
+                            type = "ogre",
+                            min = 2,
+                            max = 2,
+                        },
+                        {
+                            type = "war_dog",
+                            min = 2,
+                            max = 3,
+                        },
+                    },
+                },
+            },
+        },
+    },
 }

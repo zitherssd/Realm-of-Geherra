@@ -11,7 +11,7 @@ return {
         slot = "mainHand",
         grantsSkill = "fireball",
         durability = 15,
-        maxDurability = 15
+        maxDurability = 15,
     },
 
     ["ice_wand"] = {
@@ -24,7 +24,7 @@ return {
         slot = "mainHand",
         grantsSkill = "frostbolt",
         durability = 15,
-        maxDurability = 15
+        maxDurability = 15,
     },
 
     ["storm_wand"] = {
@@ -37,7 +37,7 @@ return {
         slot = "mainHand",
         grantsSkill = "lightning",
         durability = 15,
-        maxDurability = 15
+        maxDurability = 15,
     },
 
     ["javelin"] = {
@@ -54,8 +54,8 @@ return {
         maxDurability = 8,
         skillModifiers = {
             damageType = "piercing",
-            baseDamage = 15
-        }
+            baseDamage = 15,
+        },
     },
 
     ["single_throw_javelin"] = {
@@ -71,8 +71,8 @@ return {
         maxDurability = 1,
         skillModifiers = {
             damageType = "piercing",
-            baseDamage = 15
-        }
+            baseDamage = 15,
+        },
     },
 
     ["sling"] = {
@@ -88,7 +88,7 @@ return {
         maxDurability = 20,
         skillModifiers = {
             damageType = "blunt",
-            baseDamage = 9
-        }
-    }
+            baseDamage = 9,
+        },
+    },
 }

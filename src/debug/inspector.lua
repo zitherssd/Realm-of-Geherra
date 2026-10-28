@@ -6,9 +6,19 @@ local Tools = require("src.debug.campaign_tools")
 local Knowledge = require("src.systems.knowledge.knowledge_system")
 local KnowledgeText = require("src.ui.knowledge_text")
 local Services = require("src.systems.services.service_system")
+local Personality = require("src.data.types.personality")
+local Importance = require("src.systems.goals.goal_importance")
 local Inspector = {}
 
 local function actorGoalLines(actor, add, map)
+    if actor.memory then
+        for _, trait in ipairs(Personality.traits) do
+            add(string.format("Personality %s: %.3f", trait, Personality.get(actor, trait)))
+        end
+        local home, atHome = Importance.home(actor, map)
+        add("Home: " .. tostring(actor.homeLocationId or "unknown") .. (home and (" / " .. home.name) or " (unavailable)"))
+        add("At home: " .. tostring(atHome))
+    end
     local state = actor.npc_goals
     add("Goal evaluation: " .. (state and state.evaluationMode or "unconfigured"))
     local selected = Services.selectedGoal(actor)
@@ -98,12 +108,17 @@ local function actorGoalLines(actor, add, map)
         add(goal.type .. string.format(" | importance %.1f | ", Goals.getImportance(goal, actor, party)) .. goal.status
             .. (goal == selected and " | dominant" or " | non-dominant")
             .. (goal.reason and (" | " .. goal.reason) or ""))
-        if goal.amount then add("Wealth target: " .. tostring(goal.amount)) end
+        if goal.amount then add("Wealth target: " .. tostring(goal.amount) .. " | Greed: " .. Personality.get(actor, "greed")) end
+        if goal.type == "return_home" then
+            add(string.format("ReturnHome rate: %+.3f points/world second (%+.1f points/world day)",
+                Importance.homeRate(actor, map), Importance.homeRate(actor, map)
+                    * require("src.systems.campaign.time_system").worldHoursToSeconds(24)))
+        end
         if goal.destinationLocationId then add("Destination: " .. tostring(goal.destinationLocationId)) end
         if goal.accumulatedImportance ~= nil then add("Accumulated importance: " .. tostring(goal.accumulatedImportance)) end
         if goal.activity then add("Owned activity: " .. goal.activity.partyId .. " #" .. goal.activity.sequence) end
         if goal.serviceId then
-            add("Obligation service ID: " .. goal.serviceId .. " | Responsibility: " .. tostring(actor.responsibility or 0.5))
+            add("Obligation service ID: " .. goal.serviceId .. " | Responsibility: " .. Personality.get(actor, "responsibility"))
         end
         if goal.type == "acquire_knowledge" then
             add("Knowledge subject: " .. (goal.subject and (goal.subject.type .. " / " .. tostring(goal.subject.id)) or "event only"))

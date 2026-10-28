@@ -7,7 +7,7 @@ return {
         type = "food",
         description = "Plain, filling bread",
         weight = 0.5,
-        value = 5
+        value = 5,
     },
 
     ["dried_meat"] = {
@@ -16,7 +16,7 @@ return {
         type = "food",
         description = "Salted strips of preserved meat",
         weight = 0.4,
-        value = 8
+        value = 8,
     },
 
     ["cheese_wedge"] = {
@@ -25,7 +25,7 @@ return {
         type = "food",
         description = "A wedge of hard, aged cheese",
         weight = 0.3,
-        value = 6
+        value = 6,
     },
 
     ["health_potion"] = {
@@ -35,6 +35,8 @@ return {
         description = "Restores 50 health",
         weight = 0.5,
         value = 50,
-        effect = {healing = 50}
-    }
+        effect = {
+            healing = 50,
+        },
+    },
 }

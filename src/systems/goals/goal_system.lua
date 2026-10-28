@@ -52,6 +52,7 @@ function GoalSystem.configure(actor, definitions, capabilities)
             "Capabilities must be named boolean flags")
         methods[method] = allowed
     end
+    if actor.memory then require("src.data.types.personality").normalize(actor) end
     actor:ensure("npc_goals")
     actor.npc_goals.selectedGoalIndex = nil
     actor.npc_goals.goals = goals
@@ -85,6 +86,14 @@ local function destinationFor(goal, actor, map)
 end
 
 local function condition(goal, actor, party, map, traveling)
+    if goal.type == "return_home" then
+        local home, atHome = Importance.home(actor, map)
+        if not home then return false, "home_missing" end
+        if atHome then return false end
+        if not party then return false, "no_commanded_party" end
+        if not actor.npc_goals.capabilities.travel then return false, "travel_not_allowed" end
+        return false
+    end
     if goal.type == "acquire_knowledge" then
         local eventId = Knowledge.findKnownInformation(actor, goal)
         if eventId then goal.knownEventId = eventId; return true end
@@ -201,7 +210,7 @@ local function requestActivity(goal, actor, party, map, playerParty, traveling)
     else
         if not capabilities.travel then return false, "travel_not_allowed" end
         activityType = "travel"
-        params = {destinationLocationId = goal.destinationLocationId}
+        params = {destinationLocationId = goal.type == "return_home" and actor.homeLocationId or goal.destinationLocationId}
     end
     local started, reason = WorldActivitySystem.start(party, activityType, params, map)
     if not started then return false, reason end
@@ -236,25 +245,26 @@ function GoalSystem.cancelActivities(actor, reason)
     return true
 end
 
-local function provideService(goal, actor, party, map, playerParty, traveling)
+local function provideService(goal, actor, party, map, playerParty, traveling, localOnly)
     local context = {world = actor.__world, map = map}
     if Services.hasObligation(actor, context) then return false, "conflicting_obligation" end
     if actor.activeEncounterId or (party and party.activeEncounterId) then return false, "in_encounter" end
-    goal.status = "active"
+    if not localOnly then goal.status = "active" end
     local closed = {}
     for _, known in ipairs(Knowledge.getKnownEvents(actor)) do
         if known.serviceId and known.status and known.status ~= "open" then closed[known.serviceId] = true end
     end
     for _, offer in ipairs(Knowledge.getKnownEvents(actor, nil, "service_offered")) do
         if offer.serviceId and offer.locationId and offer.employerId and offer.requiredCapability
-            and actor.npc_goals.capabilities[offer.requiredCapability] and not closed[offer.serviceId] then
+            and actor.npc_goals.capabilities[offer.requiredCapability] and not closed[offer.serviceId]
+            and (not localOnly or goal.pursuedServiceId == offer.serviceId) then
             local here = Services.getLocation(actor, context)
             if here and here.id == offer.locationId then
                 local request = Services.getRequest(offer.serviceId, context)
                 local assign = request and request.type == "lead_caravan" and Caravans.assign or Services.assign
                 if request and request.type == "investigate" then assign = Investigations.assign end
                 local ok, result = assign(offer.serviceId, actor, context)
-                if ok then
+                if ok and not localOnly then
                     local state = actor.npc_goals
                     local obligation = state.goals[#state.goals]
                     if GoalSystem.getImportance(obligation, actor, party) >= GoalSystem.getImportance(goal, actor, party) + 5 then
@@ -267,6 +277,7 @@ local function provideService(goal, actor, party, map, playerParty, traveling)
                 goal.retrySeconds = GoalSystem.retrySeconds
                 return true
             end
+            if localOnly then return false end
             if not party then
                 goal.reason = "independent_resident_cannot_travel"
                 return true -- Still offers its local capabilities.
@@ -311,10 +322,6 @@ local function updateActor(actor, party, dt, map, playerParty, traveling)
         goal.retrySeconds = math.max(0, (goal.retrySeconds or 0) - dt)
         goal.healingRetrySeconds = math.max(0, (goal.healingRetrySeconds or 0) - dt)
         observeActivity(goal, actor, party)
-        local spec = Definitions.goals[goal.type]
-        -- Advance once per simulation interval, including non-dominant goals.
-        if spec and spec.advanceImportance then spec.advanceImportance(goal, actor, party, dt) end
-        if goal.accumulatedImportance ~= nil then goal.accumulatedImportance = Importance.clamp(goal.accumulatedImportance) end
         local satisfied, reason = condition(goal, actor, party, map, traveling)
         local score = GoalSystem.getImportance(goal, actor, party)
         if satisfied or score == 0 then
@@ -368,6 +375,10 @@ local function updateActor(actor, party, dt, map, playerParty, traveling)
         local activity = party and party.world_activity
         if actor.activeEncounterId or (party and party.activeEncounterId) or (party and party == playerParty) then
             selected.status, selected.reason = "blocked", "party_unavailable"; return
+        end
+        if selected.type == "return_home" then
+            local _, atHome = Importance.home(actor, map)
+            if atHome then selected.status = "active"; return end
         end
         if selected.type == "rest_and_recover" then
             selected.recovering = true
@@ -456,7 +467,26 @@ function GoalSystem.evaluate(dt, map, playerParty)
             commanded[leader.id] = party
         end
     end
-    for _, actor in ipairs(world:query({"unit", "npc_goals"})) do
+    local actors = world:query({"unit", "npc_goals"})
+    -- Arrival work precedes every leader's departure, including a passenger's leader.
+    for _, actor in ipairs(actors) do
+        if not actor.player and (actor.hp or 0) > 0 and EcsWorld.findActorById(actor.id, world) == actor then
+            if actor.memory and (not actor.personality or actor.responsibility ~= nil) then
+                require("src.data.types.personality").normalize(actor)
+            end
+            for _, goal in ipairs(actor.npc_goals.goals) do
+                local spec = Definitions.goals[goal.type]
+                if spec and spec.advanceImportance then spec.advanceImportance(goal, actor, commanded[actor.id], dt, map) end
+                if goal.accumulatedImportance ~= nil then goal.accumulatedImportance = Importance.clamp(goal.accumulatedImportance) end
+                if goal.type == "provide_service" and goal.pursuedServiceId
+                    and goal.status ~= "cancelled" and goal.status ~= "invalid" and goal.status ~= "completed"
+                    and Services.isProviding(actor, {world = world, map = map}) then
+                    provideService(goal, actor, commanded[actor.id], map, playerParty, traveling, true)
+                end
+            end
+        end
+    end
+    for _, actor in ipairs(actors) do
         actor.npc_goals.evaluationMode = "inactive"
         local eligible = not actor.player and (actor.hp or 0) > 0
         if not eligible then actor.npc_goals.selectedGoalIndex = nil end

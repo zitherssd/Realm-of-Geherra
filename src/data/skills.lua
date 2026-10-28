@@ -16,7 +16,6 @@ local skills = {
         range = 0.3,
     },
 
-    
     ["bite"] = {
         id = "bite",
         name = "Bite",
@@ -56,14 +55,16 @@ local skills = {
         windup = 40,
         cooldown = 60,
         cost = 30,
-        onHitStatuses = { "burn" },
+        onHitStatuses = {
+            "burn",
+        },
         projectile = {
             speed = 24,
             arc = 0,
-            style = "fireball"
-        }
+            style = "fireball",
+        },
     },
-    
+
     ["heal"] = {
         id = "heal",
         name = "Heal",
@@ -72,9 +73,9 @@ local skills = {
         healing = 50,
         windup = 60,
         cooldown = 60,
-        cost = 20
+        cost = 20,
     },
-    
+
     ["shield_bash"] = {
         id = "shield_bash",
         name = "Shield Bash",
@@ -85,7 +86,9 @@ local skills = {
         windup = 16,
         cooldown = 40,
         cost = 0,
-        onHitStatuses = { "stun" }
+        onHitStatuses = {
+            "stun",
+        },
     },
 
     ["javelin_throw"] = {
@@ -98,12 +101,13 @@ local skills = {
         range = 8.5,
         windup = 20,
         cooldown = 30,
-        maxCharges = 2, -- Only usable 2 times per battle
+        maxCharges = 2,
+        -- Only usable 2 times per battle
         projectile = {
             sprite = "src/assets/sprites/projectiles/spear.png",
             speed = 32,
-            arc = 30
-        }
+            arc = 30,
+        },
     },
 
     ["javelin_throw_single"] = {
@@ -120,8 +124,8 @@ local skills = {
         projectile = {
             sprite = "src/assets/sprites/projectiles/spear.png",
             speed = 32,
-            arc = 30
-        }
+            arc = 30,
+        },
     },
 
     ["sling_stone"] = {
@@ -137,8 +141,8 @@ local skills = {
         projectile = {
             style = "sling_stone",
             speed = 36,
-            arc = 25
-        }
+            arc = 25,
+        },
     },
 
     ["frostbolt"] = {
@@ -152,12 +156,14 @@ local skills = {
         windup = 30,
         cooldown = 45,
         cost = 20,
-        onHitStatuses = { "freeze" },
+        onHitStatuses = {
+            "freeze",
+        },
         projectile = {
             style = "frostbolt",
             speed = 26,
-            arc = 0
-        }
+            arc = 0,
+        },
     },
 
     ["lightning"] = {
@@ -171,14 +177,18 @@ local skills = {
         windup = 20,
         cooldown = 50,
         cost = 25,
-        onHitStatuses = { "paralyze" },
+        onHitStatuses = {
+            "paralyze",
+        },
         projectile = {
             style = "lightning",
             speed = 36,
-            arc = 0
-        }
-    }
+            arc = 0,
+        },
+    },
 }
 
-for id, skill in pairs(skills) do Registry.checkId("skill", id, skill) end
+for id, skill in pairs(skills) do
+    Registry.checkId("skill", id, skill)
+end
 return skills

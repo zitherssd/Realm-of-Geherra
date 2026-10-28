@@ -79,7 +79,7 @@ local function prepare()
     assert(#departures == 1 and departures[1].sponsorId == sponsor.id)
     local event = departures[1]
     assert(event.originLocationId == home.id and event.destinationLocationId == far.id and event.partyId == party.id)
-    local expected = Caravans.estimateTravel(map, home.x, home.y, far.x, far.y) * 2 * 1.2
+    local expected = Caravans.estimateTravel(map, home.x, home.y, far.x, far.y, party) * 2 * 1.2
         + Time.worldHoursToSeconds(Caravans.tradingHours)
     assert(math.abs(event.expectedReturnAt - event.departureAt - expected) < 1e-6)
     assert(Knowledge.getKnownEvent(sponsor, event.id).expectedReturnAt == event.expectedReturnAt)
