@@ -13,5 +13,6 @@ require("src.ecs.components.npc_goals")
 require("src.ecs.components.memory")
 require("src.ecs.components.caravan_formation")
 require("src.ecs.components.caravan_work")
+require("src.ecs.components.investigation_work")
 
 return true

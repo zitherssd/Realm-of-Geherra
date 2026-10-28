@@ -105,6 +105,10 @@ function Overlay:rows(map)
             end, "inspect_npc:" .. tostring(id))
         end
         if target and self.target.kind == "party" then
+            local partyId = target.id
+            button("Search here (radius 150 / six world hours)", function()
+                local _, message = Tools.searchHere(map, partyId); self.message = message
+            end, "search_here")
             for _, actor in ipairs(target.actors) do npcButton(actor, target) end
         elseif target and self.target.kind == "location" then
             for _, actor in ipairs(target.npcs or {}) do npcButton(actor) end
@@ -220,7 +224,7 @@ function Overlay:rows(map)
                         end
                     end
                 end
-                field("Priority (higher is preferred)", "priority")
+                field("Base importance (state rules may override)", "priority")
             end
             button(spec.managed and "Remove resolved obligation from goal list" or "Remove selected goal", function()
                 for index, form in ipairs(self.goalForms) do

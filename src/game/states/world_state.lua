@@ -339,7 +339,7 @@ function WorldState.update(dt)
     -- Handle player movement and time progression
     local moveX, moveY = 0, 0
     local playerActivity = playerParty.world_activity
-    local playerMovementActivityActive = playerActivity and (playerActivity.type == "travel" or playerActivity.type == "roam")
+    local playerMovementActivityActive = playerActivity and (playerActivity.type == "travel" or playerActivity.type == "roam" or playerActivity.type == "search")
         and playerActivity.status == "active"
     
     if not WorldState.isResting and not playerMovementActivityActive

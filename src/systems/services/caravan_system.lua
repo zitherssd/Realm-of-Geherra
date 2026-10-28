@@ -4,7 +4,6 @@ local Ecs = require("src.ecs.world")
 local Services = require("src.systems.services.service_system")
 local Locations = require("src.systems.locations.location_system")
 local Parties = require("src.systems.parties.party_system")
-local Party = require("src.ecs.assemblages.party")
 local Inventory = require("src.systems.items.inventory_system")
 local Activities = require("src.systems.world_activities.world_activity_system")
 local Navigation = require("src.world.world_navigation")
@@ -15,6 +14,7 @@ local Events = require("src.systems.campaign.world_events")
 local Knowledge = require("src.systems.knowledge.knowledge_system")
 local LocationRules = require("src.systems.locations.location_rules")
 local Ids = require("src.core.id_allocator")
+local ResidentTravel = require("src.systems.parties.resident_travel")
 local Caravans = {investment = 500, profitRate = 0.25, preparationDays = 3,
     cooldownDays = 30, tradingHours = 6, recruitmentIntervalSeconds = 2}
 
@@ -172,14 +172,9 @@ function Caravans.dispatch(sponsor, worker, context, volunteer)
     local created = not party
     local playerWasTraveling = party and not stationed(party, plan.origin)
     if created then
-        party = Party.create(context.world, sponsor.name .. "'s caravan", worker.id)
-        party.x, party.y, party.faction = plan.origin.x, plan.origin.y, sponsor.faction
-        Locations.removeNPC(plan.origin, worker)
-        Parties.addActor(party, worker)
-        if not Locations.addStationedParty(context.map, plan.origin, party) then
-            Parties.removeActor(party, worker); Locations.addNPC(plan.origin, worker); context.world:removeEntity(party)
-            return false, "stationing_failed"
-        end
+        party, reason = ResidentTravel.create(worker, plan.origin, sponsor.name .. "'s caravan", context)
+        if not party then return false, reason end
+        party.faction = sponsor.faction
     elseif playerWasTraveling and not context.map:stationParty(plan.origin, party) then
         return false, "player_stationing_failed"
     end
@@ -311,6 +306,13 @@ function Caravans.fulfill(worker, goal, context)
         local amount = party.treasury
         if amount > 0 and not Inventory.transferGold(party, payee, amount) then return end
         work.delivered, work.phase, work.reason = amount, "completed", nil
+        local returned = Events.record(context.world, "caravan_returned", {
+            time = {day = Time.getDay(), hour = Time.getHour()}, partyId = party.id, partyName = party.name,
+            locationId = origin.id, sponsorId = sponsor.id, outcome = "returned",
+            subjectIds = {party.id, sponsor.id}}, work.serviceId .. ":returned")
+        for _, participant in ipairs({sponsor, worker, party}) do
+            Knowledge.learn(participant, returned.id, Knowledge.getDetailCategories(returned.id, context.world))
+        end
         worker.lastCaravanWork = Inventory.deepClone(work:serialize())
         Services.complete(work.serviceId, context)
         goal.activity = nil
@@ -376,8 +378,12 @@ function Caravans.update(context)
                 end
             elseif request.status == "assigned" and now >= prep.readyAt then
                 local worker = Ecs.findActorById(request.assignedActorId, context.world)
-                local ok, reason = Caravans.dispatch(sponsor, worker, context)
-                prep.reason = not ok and reason or nil
+                local selected = Services.selectedGoal(worker)
+                if worker and (worker.player or (selected and selected.type == "fulfill_obligation"
+                    and selected.serviceId == request.id)) then
+                    local ok, reason = Caravans.dispatch(sponsor, worker, context)
+                    prep.reason = not ok and reason or nil
+                else prep.reason = "worker_pursuing_other_goal" end
             end
         end
     end

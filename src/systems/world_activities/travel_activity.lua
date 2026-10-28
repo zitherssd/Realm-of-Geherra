@@ -37,7 +37,8 @@ function TravelActivity.prepare(party, params, map)
     if EcsWorld.findPartyById(party.id, party.__world) ~= party then
         return nil, "party_missing"
     end
-    if type(params.destinationLocationId) ~= "string"
+    local coordinates = params.destinationLocationId == nil
+    if not coordinates and type(params.destinationLocationId) ~= "string"
         and type(params.destinationLocationId) ~= "number" then
         return nil, "invalid_destination_id"
     end
@@ -46,7 +47,16 @@ function TravelActivity.prepare(party, params, map)
         return nil, "map_unavailable"
     end
 
-    local destination = findMapLocation(map, params.destinationLocationId)
+    local destination = not coordinates and findMapLocation(map, params.destinationLocationId)
+    if coordinates then
+        for _, key in ipairs({"destinationX", "destinationY"}) do
+            local value = params[key]
+            if type(value) ~= "number" or value ~= value or math.abs(value) == math.huge then
+                return nil, "invalid_destination_coordinates"
+            end
+        end
+        destination = {x = params.destinationX, y = params.destinationY, __world = party.__world}
+    end
     if not destination then
         return nil, "destination_missing"
     end
@@ -58,7 +68,7 @@ function TravelActivity.prepare(party, params, map)
 
     return {
         destinationLocationId = destination.id,
-        journey = TravelKnowledge.captureJourney(party, destination, map),
+        journey = not coordinates and TravelKnowledge.captureJourney(party, destination, map) or nil,
         waypoints = waypoints
     }
 end
@@ -75,14 +85,16 @@ function TravelActivity.onStart(party, activity, prepared, map)
     activity.previousPartyState = party.state
     activity.travelJourney = prepared.journey
     party.state = "travel"
-    TravelKnowledge.depart(party, activity.travelJourney, map)
+    if activity.travelJourney then TravelKnowledge.depart(party, activity.travelJourney, map) end
     return true
 end
 
 function TravelActivity.update(party, activity, dt, map)
     if activity.status ~= "active" or dt <= 0 then return nil end
     if activity.travelJourney and activity.travelJourney.arrivalEventId then return "completed", "arrived" end
-    local destination = findMapLocation(map, activity.params.destinationLocationId)
+    local coordinates = activity.params.destinationLocationId == nil
+    local destination = coordinates and {x = activity.params.destinationX, y = activity.params.destinationY}
+        or findMapLocation(map, activity.params.destinationLocationId)
     if not destination then
         return "failed", "destination_missing"
     end
@@ -101,6 +113,7 @@ function TravelActivity.update(party, activity, dt, map)
     local distance = distanceBetween(party.x, party.y, destination.x, destination.y)
     if activity.waypointIndex >= #activity.waypoints
         and distance <= PartyInteractionSystem.interactionRadius then
+        if coordinates then return "completed", "arrived" end
         if not map:stationParty(destination, party) then
             return "failed", "arrival_stationing_failed"
         end

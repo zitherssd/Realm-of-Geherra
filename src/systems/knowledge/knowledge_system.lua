@@ -1,6 +1,7 @@
 -- Explicit historical knowledge only. Never observes events or current resources.
 local Events = require("src.systems.campaign.world_events")
 local EcsWorld = require("src.ecs.world")
+local Time = require("src.systems.campaign.time_system")
 local Knowledge = {}
 
 local function historicalId(value)
@@ -98,6 +99,17 @@ projections.party_arrived = {
         travelDestination(view, event)
     end
 }
+projections.caravan_returned = {
+    time = travelTime, party = travelParty,
+    location = function(view, event) view.locationId = historicalId(event.locationId) end,
+    outcome = function(view, event) view.outcome = event.outcome end
+}
+projections.party_encounter = {
+    time = travelTime, party = travelParty,
+    location = function(view, event) view.x, view.y = event.x, event.y end,
+    participants = function(view, event) view.observerPartyId = historicalId(event.observerPartyId) end,
+    outcome = function(view, event) view.outcome = event.outcome end
+}
 
 -- Each category discloses only its own fields; existence alone cannot reveal a job.
 for _, eventType in ipairs({"service_offered", "service_filled", "service_cancelled", "service_completed"}) do
@@ -115,6 +127,7 @@ for _, eventType in ipairs({"service_offered", "service_filled", "service_cancel
             view.serviceId = historicalId(event.serviceId)
             view.serviceType = type(event.serviceType) == "string" and event.serviceType or nil
             view.requiredCapability = type(event.requiredCapability) == "string" and event.requiredCapability or nil
+            view.targetPartyId = historicalId(event.targetPartyId)
         end,
         outcome = function(view, event)
             view.status = type(event.status) == "string" and event.status or nil
@@ -207,6 +220,62 @@ function Knowledge.getKnownEvents(owner, world, eventType)
         if view and (not eventType or view.type == eventType) then result[#result + 1] = view end
     end
     return result
+end
+
+-- Match only disclosed historical references, never hidden subjectIds or live entities.
+local function about(view, subject)
+    local id = subject.id
+    if subject.type == "party" then
+        if view.partyId == id or view.winnerPartyId == id or view.observerPartyId == id then return true end
+        for _, key in ipairs({"defeatedPartyIds", "eliminatedPartyIds"}) do
+            for _, knownId in ipairs(view[key] or {}) do if knownId == id then return true end end
+        end
+        for _, participant in ipairs(view.participants or {}) do
+            if participant.partyId == id then return true end
+        end
+    elseif subject.type == "actor" then
+        if view.employerId == id or view.assignedActorId == id or view.sponsorId == id then return true end
+        for _, participant in ipairs(view.participants or {}) do
+            for _, actorId in ipairs(participant.actorIds or {}) do if actorId == id then return true end end
+        end
+    elseif subject.type == "location" then
+        return view.locationId == id or view.originLocationId == id or view.destinationLocationId == id
+    elseif subject.type == "battlefield" then
+        return view.battlefieldId == id
+    elseif subject.type == "service" then
+        return view.serviceId == id
+    end
+    return false
+end
+Knowledge.isAbout = about
+
+local function establishesFate(view, subject)
+    if not subject or subject.type ~= "party" then return false end
+    if (view.type == "caravan_returned" and view.outcome == "returned")
+        or (view.type == "party_encounter" and view.outcome == "alive") then return view.partyId == subject.id end
+    if view.type == "battle_ended" then
+        for _, id in ipairs(view.eliminatedPartyIds or {}) do if id == subject.id then return true end end
+    end
+    return false
+end
+
+-- All requested categories must be known on the same relevant event.
+-- A location category describes a historical position, never current whereabouts.
+function Knowledge.findKnownInformation(owner, query, world)
+    local events = query.eventId and {Knowledge.getKnownEvent(owner, query.eventId, world)}
+        or Knowledge.getKnownEvents(owner, world, query.eventType)
+    for _, view in ipairs(events) do
+        if (not query.eventType or view.type == query.eventType)
+            and (not query.subject or about(view, query.subject)) then
+            local details, sufficient = Knowledge.getKnownDetails(owner, view.id, world), true
+            for category in pairs(query.requiredDetails or {}) do
+                if not details[category] then sufficient = false; break end
+            end
+            local recent = not query.caravanDepartureAt or (view.time
+                and Time.worldHoursToSeconds((view.time.day - 1) * 24 + view.time.hour) >= query.caravanDepartureAt - 1e-6)
+            if sufficient and recent and (not query.caravanFate or establishesFate(view, query.subject)) then return view.id end
+        end
+    end
 end
 
 function Knowledge.share(source, target, eventId, world)

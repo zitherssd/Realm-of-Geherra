@@ -51,6 +51,10 @@ Gameplay modules now live in domain folders under `src/systems/`; campaign and b
 
 ## F. Activities and goals
 
+Milestone 8A below defines the current motivation/selection contract. Older milestone
+sections retain their implementation history; their fixed priorities, recovery override,
+60%/90% gates and selected-only local service rules are superseded by 8A.
+
 - Activities describe how a party acts.
 - Goals describe why a character or faction wants something.
 - Actor goal evaluation selects existing World Activities through `GoalSystem`.
@@ -1496,3 +1500,346 @@ investigations, rescue/fleeing, faction, economy or planner framework.
 
 See [WORKFLOW_CYCLES_A3.md](WORKFLOW_CYCLES_A3.md) for the previous cycles, current
 dependency direction, goal-state authority, workflow APIs, and regression coverage.
+
+## Milestone 7D: AcquireKnowledge and SearchActivity
+
+`acquire_knowledge` is an actor-owned goal (default priority 30). It accepts a historical
+`subject = {type, id}` and/or a known `eventId`, optional `eventType`, and a nonempty
+`requiredDetails` flag table using existing KnowledgeSystem categories. Supported subject
+types are `party`, `actor`, `location`, `battlefield`, and `service`. Definitions copy nested
+tables, preserving plain serializable goal state. For example:
+
+```lua
+GoalSystem.addGoal(actor, {
+    type = "acquire_knowledge",
+    subject = {type = "party", id = "party_42"},
+    eventType = "battle_ended",
+    requiredDetails = {outcome = true}
+})
+```
+
+`Knowledge.findKnownInformation(owner, query, world)` returns the ID of a known event
+meeting the query, or nil. It only iterates that owner's memory IDs and reads filtered
+known-event views; it never discovers history through `WorldEvents.getAll/getBySubject`.
+Subject matching uses disclosed references: battle participants/outcome party IDs, learned
+actor IDs, and learned journey/service/location references. Hidden `subjectIds` cannot
+reveal the relationship of an existence-only event to the requested subject. All required
+categories must be known on the same matching event. An optional event-type restriction
+distinguishes, for example, a battle outcome from other historical outcomes.
+
+The example is satisfied by a learned relevant battle outcome, including historical
+elimination of a party that no longer exists. Departures, unrelated battles and partial
+knowledge without outcome do not satisfy it. `location` means a learned historical
+location; **current whereabouts are unsupported**, and `current_location` is rejected as
+a required category. The query adds no inference, current-state lookup, confidence or decay.
+
+Evaluation uses the existing one-world-simulation-second goal interval. Unsatisfied goals
+show `blocked / awaiting_knowledge`, allow feasible lower-priority goals to proceed, and
+never request movement or services. Existing arrival exchange remains the legitimate
+automatic sharing opportunity; direct sharing and normal visibility acquisition also
+become visible on the next goal evaluation. There is no additional stationary conversation
+loop or information planner. Satisfaction records `knownEventId` and stops memory scans
+for that goal because learned historical knowledge is permanent. Recovery and other
+priority selections retain the goal. Independent important residents and party leaders
+use their own memory, never substitute party memory.
+
+`SearchActivity` is registered as `search` and shares Roam's navigation, finite candidate
+selection, bounded paths, movement, duration accounting, stall handling and terminal cleanup:
+
+```lua
+WorldActivitySystem.start(party, "search", {
+    originX = 1200, originY = 800, radius = 250,
+    durationSeconds = TimeSystem.worldHoursToSeconds(4)
+}, map)
+```
+
+Coordinates can instead be replaced by `originLocationId`. Duration is mandatory and
+positive; radius and origin must be valid, and the party must already be inside the circle.
+Use existing Travel separately to approach an area. Roam retains its optional unlimited
+duration. Search uses the normal random candidates and existing navigation; every waypoint
+must remain in the circle, so terrain detours outside it are rejected. The initial candidate
+search or later destination selection can fail after the existing 12 attempts. This is
+bounded randomized exploration, not exhaustive coverage or a guarantee of discovery.
+
+Search owns the ordinary single party activity slot. It supports NPCs and explicit player
+assignment, suppresses manual/legacy movement, pauses movement and elapsed duration during
+encounter reservations, and consumes only positive campaign simulation time. Completion is
+`completed / duration_elapsed`; cancellation, party removal and navigation failures retain
+the existing activity outcomes and retry behavior. It neither reads history nor performs
+discovery. VisibilitySystem and BattleKnowledge remain responsible for learning physically
+visible remains; empty searches produce no knowledge. No caravan investigation or service
+executor has been added.
+
+F1's existing goal editor lists Acquire Knowledge with subject/event fields and category
+checkboxes. Its live inspector shows the query, learned event, Search area/progress and
+current waypoint. The party inspector adds **Search here (radius 150 / six world hours)**
+at the party's actual position. It rejects player parties, encounters, accepted services,
+active movement and cooldowns, and preserves goals. It assigns external activity ownership;
+existing recovery respects that ownership. Future obligation-owned searches can use the
+normal actor ID and activity sequence convention for recovery interruption.
+The debug campaign roster and existing F1 knowledge grants remain unchanged. See
+`docs/MILESTONE_7D_REPORT.md` for verification and manual inspection steps.
+
+The 7D boundary above describes that milestone; 7E adds the workflow below.
+
+## Milestone 7E: missing-caravan investigations
+
+### Recognition and motivation
+
+`InvestigationSystem.recognize` runs during actor goal evaluation, including before recovery
+selection. It reads only the sponsor's filtered `party_departed` memory: sponsor, caravan,
+known origin/destination, departure and expected-return time. Once overdue, it appends an
+`acquire_knowledge` goal for that caravan, retaining Acquire Gold and other goals. No live
+remote caravan lookup, battle-log scan, or inference from a cancelled expedition is used.
+
+Generated goals use `caravanFate = true`, `caravanDepartureAt`, and required `outcome`/`time`
+categories. The existing `Knowledge.findKnownInformation` still evaluates only known views.
+For this query, sufficient evidence is known elimination in `battle_ended`, a genuine
+`party_encounter` establishing that the caravan is alive, or `caravan_returned` confirming
+physical delivery to the sponsor. Departure, destination arrival, an unrelated battle,
+and a battle the caravan survived cannot answer it. Known timestamps must be at or after
+the departure, so an earlier journey's return cannot answer a subsequent expedition.
+Ordinary 7D knowledge queries keep their existing behavior.
+
+Attempt records live in `caravan_formation.investigations[targetPartyId]`, outside selected
+goals, and are reattached after goal reconfiguration. They store departure/route metadata,
+service ID, last attempt, deadline and retry time. Separate caravans retain separate goals.
+Permanent satisfaction is handled by the existing goal evaluator. Recovery has priority 1000,
+obligation 80, knowledge 30, and Provide Service 20; waiting commissions let other work proceed.
+
+### Commissioning and hiring
+
+Only the selected AcquireKnowledge behavior calls `InvestigationSystem.commission`.
+`ServiceSystem.createRequest` creates an ordinary unpaid `investigate` commission requiring
+the registered `investigate` capability. Plain request data includes target, known route,
+departure-event ID, expected return, search radius/duration and assignment allowance.
+Generic service history owns offer, assignment and closure events; no job board or second
+registry exists. Historical service records include the target party ID.
+
+The employer learns its own offer. Workers learn through existing sharing and travel
+exchange; commissions do not broadcast to investigators. Selected ProvideService follows
+known offer information, physically visits the employer, and uses `InvestigationSystem.assign`
+to check disclosed opportunity fields, capability, availability, local contact, no conflicting
+obligation, and independent residency or command of its own party. Followers and player actors
+are not hired for this NPC workflow. The generic assignment API creates FulfillObligation.
+The service registry stores `assignedAt` when an offer is accepted.
+
+One request per current target attempt is retained while open or assigned. Open offers do
+not expire or get recreated every update. A completed/cancelled attempt known locally permits
+a retry after `retryHours` (24 world hours by default). An assigned worker's absent report
+permits expiry after `assignmentHours` (480 world hours from acceptance), then the retry
+interval. A remote death/cancellation does not shorten that wait or teach its hidden reason.
+Timeout is an employer decision based on an agreed report deadline, never proof of death.
+Only one current open/assigned service is retained per target.
+
+### Executing the obligation
+
+CampaignRuntime calls `InvestigationSystem.updateWork` after goal selection and caravan work.
+`investigation_work` is a small actor-owned operational component; assigned worker/status remain
+authoritative in ServiceSystem. A selected accepted obligation creates work and, for an
+independent resident, calls the shared `ResidentTravel.create` extracted from caravan dispatch.
+It moves the same actor from residence into a real party, preserving identity, HP, equipment,
+inventory, goals, capabilities and memory. A suitable existing commanded party is reused.
+
+The phases are `traveling -> searching -> ... -> returning -> reporting -> completed`.
+`InvestigationSystem.route` derives an ordinary Navigation path from known origin/destination.
+It samples evenly along the path, approximately every 120 units with a cap of 12 centers.
+It never consults actual caravan travel, current target position, battle history or remains.
+The cap and simple route hypothesis can miss evidence or an off-route caravan.
+
+TravelActivity now also accepts finite `destinationX`/`destinationY` coordinates, using the
+same navigation, movement, stall, ownership, reservation and cleanup machinery. Coordinate
+arrival leaves a real traveling party at the point and creates no settlement arrival/history
+or ambient exchange. Location-ID travel retains its original callbacks and stationing.
+SearchActivity itself is unchanged. Each center gets an ordinary radius-80, three-world-hour
+search, followed by another Travel. Normal five-second activity cooldowns and goal retries
+still apply. The finite center list and agreed deadline bound planned searching.
+
+VisibilitySystem/BattleKnowledge alone teach physically observed real remains and important
+living party members. A completed search awards no knowledge. If the target real traveling
+party is visible within the existing interaction radius (10 units), and neither party is
+reserved, the investigator makes a significant close observation. One immutable
+`party_encounter` per commission records the live target and is learned by the participating
+parties and important living members. Distant spotting records nothing. No remote target
+lookup or dialogue system is added.
+
+### Reporting, interruption and loss
+
+Sufficient personal memory, completed planned searching, deadline or a failed activity sends
+the investigator back by Travel to the employer's original location. Reporting requires real
+stationing there, a living local employer and no encounter reservations. Missing/moved employers
+leave the investigator waiting with its information; no remote employer tracking occurs.
+
+The report deliberately calls `Knowledge.share` for personally known events whose disclosed
+references identify the target. Only the worker's known detail categories transfer. It does
+not fill details from global history, and is independent of the ordinary 50% arrival exchange.
+The sponsor's knowledge goals are immediately reevaluated through the same satisfaction API.
+Reporting then completes the service and resolves FulfillObligation. An empty/partial report
+completes the work while leaving the fate question unsatisfied and eligible for a later retry.
+
+The surviving investigator retains personal memory. A newly created sole-actor party with
+no cargo or treasury returns to residency via `ResidentTravel.restore`; unexpected resources
+or companions retain a valid stationed party. Existing parties are retained. Last work data
+is copied to `lastInvestigationWork` for inspection.
+
+Recovery cancels only the worker's owned activity and retains phase, service and search progress.
+Work resumes after recovery, traveling back to the current center if recovery moved it. Search
+elapsed time is sampled from its owned activity, and the remaining duration is used on resumption.
+Encounters and paused time suspend execution. Dead/removed workers or lost party ownership end
+work through normal cancellation without teaching a remote sponsor the hidden outcome. Loot,
+casualties and real party destruction remain authoritative in encounter processing.
+
+The worker knows its own deadline and returns when it expires. Employer expiry does not send
+a remote cancellation instruction to active work: the worker retains its obligation/report
+process until physical reporting. A late report can still transfer knowledge; an already
+cancelled contract stays cancelled. If the caravan returns during an investigation, actual
+delivery records `caravan_returned` for sponsor, worker and party, satisfying local uncertainty.
+It does not remotely cancel or inform the investigator.
+
+### Debugging, fixture and limits
+
+F1 shows overdue targets, expected return, goal queries, relevant learned IDs, active requests,
+assigned workers, attempt/retry/deadline data; investigators show route centers, phase, owned
+Travel/Search, findings, returned/reported flags and last work. F2 uses ordinary service,
+departure and battle history plus descriptions for physical encounter/return events. F3 remains
+the existing generic registry; details now explicitly label target caravan IDs alongside the
+existing employer, capability, assignment and historical event references.
+
+`tests/unit/investigation_scenario.lua` supplies deterministic unit scenarios and an ordinary
+WorldState preview, following the existing caravan preview convention. Its dispatched caravan
+is defeated through real encounter finalization with controlled battle HP; real remains and
+linked history result. A visiting party brings an offer through ordinary arrival gossip.
+No evidence knowledge or satisfied goal is injected. `--empty` sends the caravan on a real
+off-route detour before destruction, so the investigator's planned route finds nothing.
+See `MILESTONE_7E_REPORT.md` for exact commands, validation and manual steps.
+
+Known limits: unpaid commissions (commission wages are not implemented); bounded randomized
+search, fixed home/report location, and single investigator/commanded-party participation.
+An unreachable or removed reporting location retains the party/information awaiting resolution.
+There is no rescue, remote tracking, guaranteed discovery, new Search implementation, generic
+planner, quest framework, economy, decay, rumor network or full save/load.
+
+
+## Milestone 8A: Dynamic goal importance
+
+This evolves the existing GoalSystem, definition registry and selectedGoalIndex. Activities
+still own movement, navigation and encounters; services own requests; CaravanFormation and
+investigation_work retain their operational state. No planner, NeedsSystem, ReturnHome,
+SeekSafety, personality framework, injuries or save/load was added.
+
+### Evaluation and compatibility
+
+`GoalSystem.getImportance(goal, actor, commandedParty)` is the common pure runtime/F1 read
+API. All scores are clamped to 0–100, with malformed/NaN scores treated as zero. Goal types
+register an optional `importance(goal, actor, party)` calculator on their existing definition.
+Those reads never start activities, change knowledge, commission work or transfer money.
+State-dependent rules read authoritative HP, gold, personal knowledge and assignment state;
+no HP/treasury shadow values or calculated-score cache are stored.
+
+The serialized `priority` field is retained as **base importance configuration only**, for
+existing data, custom definitions and debug forms. `definition.importance` is an input alias
+for that same field, not a second runtime score. State-dependent rules explicitly override
+it. A type without an importance callback uses `accumulatedImportance`, if present, otherwise
+its legacy priority, clamped to the common scale. Existing registered custom goals continue
+through the same execution path. Zero is honored, including explicitly configured zero.
+
+A type may additionally register `advanceImportance(goal, actor, party, dt)`. GoalSystem
+invokes it once per positive elapsed simulation interval, before selection, even when the
+goal is not dominant. The goal owns its formula and persistent accumulated state; the common
+mechanism clamps `accumulatedImportance` afterward. Hooks must only advance motivation data,
+not execute gameplay. No production accumulated goal is introduced in 8A. A synthetic test
+covers accumulation, interruptions by other motivations, duplicate resident references,
+large steps and pause. `dt` uses existing simulation seconds: 1 second represents 1.5 world
+hours; convert desired world-hour/day rates with TimeSystem conventions. Runtime supplies
+zero elapsed time while paused and performs no goal advancement then. Draw/F1 reads never
+advance hooks. There is no elapsed-time replay after interruption.
+
+Scores/eligibility are checked every positive campaign simulation update for prompt state
+response. Existing attempt/healing retry timers still use simulation seconds. The old
+one-second evaluation cooldown field remains inert for compatibility; it does not postpone
+state-dependent recalculation. Actor ownership remains one ECS pass: party leaders command
+parties; independent important residents and local important followers evaluate locally;
+traveling followers do not gain party command. Duplicate location/party references never
+produce a second actor interval.
+
+### Dominance, interruptions and idle
+
+Choose the eligible positive-scoring goal with the greatest importance; insertion order
+breaks ties. An eligible incumbent keeps control unless a challenger is **at least five
+points higher**. Thus 70 retains control against 74, and yields against 75. Zero importance,
+satisfaction, invalid/cancelled/completed state, missing destinations, lost capabilities or
+other ineligibility release control immediately. Failed attempts retain the existing retry
+and feasible fallback behavior; a goal unable to execute can yield to another candidate.
+Only the currently selected goal may start mutually exclusive primary actions.
+
+Switches cancel only the former goal's exact owned party/activity sequence, checked against
+`goalActorId`. They retain the goal object, accepted service ID, destination, caravan phase,
+preparation/cooldown, knowledge and investigation center/search progress. Interrupted Search
+keeps elapsed search time and returns to its retained center with fresh Travel when resumed.
+Fresh activities plan from the actual position, never restored waypoints. Encounter reservations
+remain authoritative and defer cancellation. Manual/external activities are neither claimed nor
+cancelled. Activity cleanup/retry remains with WorldActivitySystem.
+
+When every score is zero, selectedGoalIndex is nil. All goals stay attached, ordinary idle
+behavior remains, and no artificial Wander/Explore activity is created. A formerly dominant
+zero goal releases its own activity. Zero does not delete a goal or cancel someone else's work.
+Terminal obligations remain attached as resolved records with zero importance.
+
+### Rules and balancing configuration
+
+| Goal | Current importance and configuration |
+|---|---|
+| RestAndRecover | Piecewise HP curve in goal_importance.healthCurve: remaining HP 100/80/50/40/20/0% maps to 0/15/60/80/95/100. |
+| AcquireWealth (`acquire_gold`) | Clamp `100 * (1 - actualGold / amount)`. Existing configured amount is preserved; omitted target defaults to 10000; zero target means satisfied. Leaders read shared party treasury; independent actors read personal gold. Loss of wealth reactivates the same goal. |
+| FulfillObligation | `50 + 40 * responsibility`; optional actor.responsibility is clamped to 0–1, default 0.5, giving 50/70/90 at low/average/high. No age/deadline escalation. Terminal/missing/wrong-owner requests score zero. |
+| ProvideService | Configurable base importance, default 20. Primary opportunity travel requires dominance. A conflicting accepted obligation makes this primary goal ineligible. |
+| AcquireKnowledge | Zero when KnowledgeSystem's personal-memory satisfaction query succeeds; otherwise configurable base, default 90. This raises the old 30 default so missing-caravan questions can compete with target-based wealth. Unknown uncommissionable questions stay blocked/awaiting_knowledge. |
+| ReachLocation | Zero only when the actual commanded party is stationed at its live destination. Otherwise configurable base, default 40. Missing destinations/capabilities block execution. |
+| Registered extensions | Optional rule/hook above; otherwise existing base priority, clamped to 0–100. |
+
+For a party leader, recovery combines personal urgency with the mean **living-member HP
+fraction**, transformed through the same curve. A critical bonus applies only below 30% HP:
+`critical = max(0, (0.3 - worstFraction) / 0.3)` and
+`partyUrgency = averageUrgency + (100 - averageUrgency) * criticalWeight * critical`, with
+`criticalWeight = 0.5`. Final urgency is the maximum of personal and party urgency.
+Member count never multiplies urgency. One minor wound in a large party has little influence;
+several serious wounds or one critical member matter. Dead/removed members are ignored.
+Non-leaders use personal health only.
+
+The 60% activation and 90% completion gates and unconditional recovery override are removed.
+Full health yields exactly zero (including the curve endpoint). Healing immediately changes
+scores; a competing goal can take control before recovery reaches full health, subject to the
+same five-point threshold. With no competitor, Rest continues toward full party health.
+RestActivity completes at zero group recovery urgency. Shared regeneration remains solely in
+Recovery.update, including passive/rest rates and reservation snapshots. Settlement travel,
+local healing purchases, minimum useful heal and healing retry/payment rules are unchanged.
+Future injuries may extend the recovery calculator; no injury state exists yet.
+
+### Services, caravans and investigations
+
+Services.isProviding centrally requires an attached ProvideService goal plus compatible local
+physical availability, and no conflicting obligation. It no longer requires dominance. A safe
+independent resident resting locally can treat customers; traveling, active-party Rest, combat
+and other incompatible activities still block providers. Capability, proximity, HP and payment
+checks remain in the same Services.canPerform/perform path for player and NPC customers.
+Non-dominant ProvideService never executes opportunity travel.
+
+Preparation and the 30-day sponsorship cooldown stay actor-owned and continue independently
+of temporary motivation switches. Automated caravan dispatch waits for the assigned worker's
+FulfillObligation to be dominant; explicit/player dispatch keeps its existing API. Work updates
+still run after selection and advance only selected NPC obligations (or explicit player work).
+Investigation cancellation archives retained progress after encounter reservations clear, releases
+owned work and leaves the party at its actual position; it does not create a new return-home goal.
+Requests/events resolve through the existing service lifecycle without duplicate closure events.
+
+### F1 and verification
+
+F1 shows each goal's current calculated score, dominant/non-dominant status, satisfaction or
+block reason, target/destination, accumulated value, obligation ID/responsibility and exact
+owned activity. It also shows the current/previous dominant goal and last switch reason. The
+existing editor labels priority as base importance. Service viewer reports the actual selected
+goal even when a non-dominant ProvideService offers local healing. F2/F3 meanings are unchanged.
+
+See [Milestone 8A report](MILESTONE_8A_REPORT.md) for files, validation, limitations and manual
+playtest steps. `dynamic_importance_scenario` extends the existing scenario runner; the entire
+navigation/campaign/combat/debug regression suite remains required.

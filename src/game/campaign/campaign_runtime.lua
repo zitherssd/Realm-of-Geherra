@@ -10,6 +10,7 @@ local WorldActivitySystem = require("src.systems.world_activities.world_activity
 local GoalSystem = require("src.systems.goals.goal_system")
 local Services = require("src.systems.services.service_system")
 local Caravans = require("src.systems.services.caravan_system")
+local Investigations = require("src.systems.services.investigation_system")
 local Recovery = require("src.systems.actors.recovery")
 local PartyAiSystem = require("src.systems.parties.party_ai_system")
 
@@ -64,6 +65,7 @@ function CampaignRuntime.updateGoals(elapsedWorldSeconds, map, playerParty)
     Caravans.update({world = world, map = map})
     GoalSystem.evaluate(elapsedWorldSeconds, map, playerParty)
     Caravans.updateWork({world = world, map = map})
+    Investigations.updateWork({world = world, map = map})
 end
 
 function CampaignRuntime.update(elapsedWorldSeconds, map, playerParty, isResting, recoveryReservations)

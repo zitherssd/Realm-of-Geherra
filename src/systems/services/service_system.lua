@@ -100,9 +100,12 @@ local function accessible(actor, context, customer)
 end
 
 function Services.isProviding(actor, context)
-    local selected = Services.selectedGoal(actor)
-    return selected ~= nil and selected.type == "provide_service" and selected.status == "active"
-        and accessible(actor, context) == true and not Services.hasObligation(actor, context)
+    local offers = false
+    for _, goal in ipairs(actor.npc_goals and actor.npc_goals.goals or {}) do
+        if goal.type == "provide_service" and goal.status ~= "cancelled" and goal.status ~= "invalid"
+            and goal.status ~= "completed" then offers = true end
+    end
+    return offers and accessible(actor, context) == true and not Services.hasObligation(actor, context)
 end
 
 function Services.canPerform(provider, customer, serviceType, context)
@@ -180,6 +183,7 @@ local function record(request, eventType, world)
         locationId = request.locationId, locationName = location and location.name,
         serviceType = request.type, requiredCapability = request.requiredCapability,
         preparationId = request.data.preparationId,
+        targetPartyId = request.data.targetPartyId,
         status = request.status, reason = request.reason,
         subjectIds = {request.id, request.employerId, request.locationId, request.assignedActorId}
     }, request.id .. ":" .. eventType)
@@ -253,9 +257,10 @@ function Services.accept(id, worker, context)
     if worker.id == request.employerId then return false, "self_assignment" end
     if Services.hasObligation(worker, context) then return false, "conflicting_obligation" end
     request.status, request.assignedActorId = "assigned", worker.id
+    request.assignedAt = Time.worldHoursToSeconds((Time.getDay() - 1) * 24 + Time.getHour())
     request.filledEventId = record(request, "service_filled", worldFor(context))
     GoalState.add(worker,
-        {type = "fulfill_obligation", serviceId = request.id, priority = 80})
+        {type = "fulfill_obligation", serviceId = request.id})
     return true, copy(request)
 end
 
@@ -322,7 +327,7 @@ function Services.listProviders(context)
                 seen[actor.id] = true
                 local actual = Services.getLocation(actor, context)
                 result[#result + 1] = {id = actor.id, name = actor.name, locationId = actual.id,
-                    locationName = actual.name, selectedGoal = "provide_service", services = {"heal"},
+                    locationName = actual.name, selectedGoal = Services.selectedGoal(actor) and Services.selectedGoal(actor).type or "none", services = {"heal"},
                     capabilities = copy(actor.npc_goals.capabilities), price = Services.healPrice, amount = Services.healAmount}
             end
         end

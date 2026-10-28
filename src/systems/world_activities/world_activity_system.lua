@@ -16,6 +16,7 @@ local ACTIVITY_TYPES = {
     raid = RaidActivity,
     travel = TravelActivity,
     roam = RoamActivity,
+    search = require("src.systems.world_activities.search_activity"),
     rest = RestActivity
 }
 
@@ -281,7 +282,7 @@ function WorldActivitySystem.update(dt, map, playerParty)
 
     for _, party in ipairs(parties) do
         local activity = party.world_activity
-        if (party ~= playerParty or (activity and (activity.type == "travel" or activity.type == "roam")))
+        if (party ~= playerParty or (activity and (activity.type == "travel" or activity.type == "roam" or activity.type == "search")))
             and (traveling[party] or (activity and activity.type == "rest"))
             and not party.activeEncounterId and
             activity and activity.status == "active" then

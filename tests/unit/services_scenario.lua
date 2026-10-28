@@ -80,8 +80,9 @@ local function immediate()
     assert(customer.npc_goals.goals[1].healingRetrySeconds == Services.healingRetrySeconds - 1)
     healer.hp = 40
     CampaignRuntime.updateGoals(1, map)
-    assert(not Services.isProviding(healer, context) and healer.npc_goals.capabilities.heal)
-    assert(#Services.listProviders(context) == 0)
+    assert(Services.isProviding(healer, context) and healer.npc_goals.capabilities.heal,
+        "compatible local service should remain available during resident recovery")
+    assert(#Services.listProviders(context) == 1)
     healer.hp = 100
     CampaignRuntime.updateGoals(1, map)
     assert(Services.isProviding(healer, context))
@@ -305,7 +306,7 @@ local function viewer()
     healer.hp = 40
     CampaignRuntime.updateGoals(1, map)
     v:refresh()
-    assert(#v.rows == 0)
+    assert(#v.rows == 1 and v.rows[1].id == healer.id, "local provider disappeared when recovery became dominant")
     v:keypressed("tab"); v:keypressed("3")
     assert(#v.rows == 0)
     assert(Events.count(world) == count and Services.getRequest(request.id, context).status == "open")

@@ -203,7 +203,7 @@ function Scenario.run()
     assert(Tools.configureGoals(map, party.id, actor.id, overlay.goalForms, overlay.capabilities))
     overlay:edit(map, party.id)
     assert(#overlay.goalForms == 3 and overlay.capabilities.heal and overlay.capabilities.custom_service)
-    assert(overlay.goalForms[2].priority == "20" and overlay.goalForms[3].priority == "1000")
+    assert(overlay.goalForms[2].priority == "20" and overlay.goalForms[3].priority == "0")
     assert(not Tools.configureGoals(map, party.id, actor.id,
         {{type = "fulfill_obligation", serviceId = "invented", priority = "80"}}, {}))
     assert(#actor.npc_goals.goals == 3)

@@ -10,6 +10,18 @@ local Knowledge = require("src.systems.knowledge.knowledge_system")
 local Services = require("src.systems.services.service_system")
 local Tools = {}
 
+function Tools.searchHere(map, partyId)
+    local actor, reason = Tools.editableLeader(map, partyId, nil, true)
+    if not actor then return false, reason end
+    if Services.hasObligation(actor, {world = actor.__world, map = map}) then
+        return false, "Resolve the accepted service before assigning debug Search."
+    end
+    local party = Tools.resolve(map, "party", partyId)
+    local started, err = Activities.start(party, "search", {originX = party.x, originY = party.y,
+        radius = 150, durationSeconds = require("src.systems.campaign.time_system").worldHoursToSeconds(6)}, map)
+    return started, err or "Search started: radius 150, six world hours. Advance world time."
+end
+
 function Tools.enableCaravan(map, actorId, sponsorRole)
     if not Mode.enabled then return false, "Enable debug mode with F1 first." end
     local actor = Tools.resolve(map, "unit", actorId)

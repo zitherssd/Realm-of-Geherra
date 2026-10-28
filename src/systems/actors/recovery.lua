@@ -1,7 +1,6 @@
 -- One world recovery rule for party members and independent important residents.
 local EcsWorld = require("src.ecs.world")
-local Recovery = {injuredThreshold = 0.6, recoveredThreshold = 0.9,
-    passiveHealSecondsToFull = 300, restHealMultiplier = 10}
+local Recovery = {passiveHealSecondsToFull = 300, restHealMultiplier = 10}
 
 function Recovery.isLiving(actor)
     return actor and actor.__world and (actor.hp or 0) > 0
@@ -10,12 +9,6 @@ end
 
 function Recovery.maxHealth(actor)
     return actor.maxHp or (actor.stats and actor.stats.health) or 0
-end
-
-function Recovery.needsRest(actor, alreadyResting)
-    local maximum = Recovery.maxHealth(actor)
-    local threshold = alreadyResting and Recovery.recoveredThreshold or Recovery.injuredThreshold
-    return Recovery.isLiving(actor) and maximum > 0 and actor.hp < maximum * threshold
 end
 
 function Recovery.advance(actor, dt, multiplier)

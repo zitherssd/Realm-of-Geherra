@@ -63,10 +63,6 @@ function LocationActions.rest(location)
 
 end
 
-
-
-
-
 function LocationActions.tradeGoods(location)
 
     StateManager.push("dialogue", {
@@ -83,8 +79,6 @@ function LocationActions.tradeGoods(location)
 
 end
 
-
-
 function LocationActions.requestAudience(location)
 
     StateManager.push("dialogue", {
@@ -100,8 +94,6 @@ function LocationActions.requestAudience(location)
     })
 
 end
-
-
 
 function LocationActions.trainTroops(location)
 
@@ -151,8 +143,6 @@ function LocationActions.pray(location)
     location.lastPrayDay = TimeSystem.getDay()
 end
 
-
-
 function LocationActions.buySupplies(location)
 
     StateManager.push("dialogue", {
@@ -168,8 +158,6 @@ function LocationActions.buySupplies(location)
     })
 
 end
-
-
 
 function LocationActions.getCooldownRemaining(location, key, days)
     local currentDay = TimeSystem.getDay()

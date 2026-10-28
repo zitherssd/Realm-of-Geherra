@@ -1,6 +1,7 @@
 local EcsWorld = require("src.ecs.world")
 local PartySystem = require("src.systems.parties.party_system")
 local Recovery = require("src.systems.actors.recovery")
+local Importance = require("src.systems.goals.goal_importance")
 local Rest = {initialPhase = "rest"}
 
 function Rest.prepare(party, params)
@@ -24,7 +25,7 @@ function Rest.update(party, activity, dt)
         return "failed", "rest_actor_unavailable"
     end
     if actor.activeEncounterId then return end
-    if not Recovery.needsRest(actor, true) then return "completed", "recovered" end
+    if Importance.recovery(nil, actor, party) == 0 then return "completed", "recovered" end
     -- Recovery.update heals the entire party once, using the shared rest bonus.
 end
 

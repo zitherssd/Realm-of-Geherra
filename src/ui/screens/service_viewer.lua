@@ -147,6 +147,7 @@ function Viewer:draw()
                 .. "\nOffer event: " .. tostring(selected.offerEventId)
                 .. "\nFilled event: " .. tostring(selected.filledEventId or "none")
                 .. "\nClosure event: " .. tostring(selected.closureEventId or "none")
+                .. (selected.data.targetPartyId and ("\nTarget caravan: " .. selected.data.targetPartyId) or "")
         end
         text = self:describe(selected) .. identity .. "\n\n" .. Text.details(selected, true)
     end

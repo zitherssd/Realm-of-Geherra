@@ -60,9 +60,9 @@ local function travelSelectionAndArrival()
     tick(map, 0.1)
     assert(party.world_activity.type == "travel", "unavailable high-priority goal blocked travel")
     local sequence = party.world_activity.sequence
-    GoalSystem.addGoal(actor, {type = "reach_location", destinationLocationId = origin.id, priority = 200})
+    GoalSystem.addGoal(actor, {type = "reach_location", destinationLocationId = origin.id, priority = 24})
     tick(map, 1)
-    assert(party.world_activity.sequence == sequence, "new priority preempted an active goal")
+    assert(party.world_activity.sequence == sequence, "challenger below five points preempted an active goal")
     -- Remove the extra pending condition so this scenario observes a single journey.
     table.remove(state.goals)
     for _ = 1, 100 do
@@ -94,7 +94,7 @@ local function travelSelectionAndArrival()
     tick(map, 1)
     assert(returnGoal.status == "blocked" and returnGoal.reason == "destination_missing",
         "removed destination did not block the in-flight goal")
-    assert(returnGoal.lastOutcome.reason == "destination_missing")
+    assert(returnGoal.lastOutcome.reason == "destination_missing", tostring(returnGoal.lastOutcome.reason))
     local returnAttempts = returnGoal.attempts
     for _ = 1, 12 do tick(map, 1) end
     assert(returnGoal.attempts == returnAttempts, "removed destination caused a restart loop")

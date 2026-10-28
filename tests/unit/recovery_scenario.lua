@@ -57,13 +57,13 @@ local function residents()
     assert(actor.hp == hp)
     tick(map, 64)
     tick(map, 1) -- Goal satisfaction observes health from the previous healing pass.
-    assert(actor.hp <= 100 and rest.status == "satisfied")
+    assert(actor.hp <= 100 and rest.status == "satisfied", tostring(actor.hp) .. ": " .. rest.status .. ": " .. tostring(rest.reason))
     tick(map, 1)
     assert(state.goals[1].reason == "no_commanded_party")
     actor.hp = 70
     tick(map, 1)
-    assert(actor.hp > 70 and rest.status == "satisfied" and not rest.recovering,
-        "passive healing should continue without choosing Rest above the injury threshold")
+    assert(actor.hp > 70 and rest.status == "active" and rest.recovering,
+        "state-dependent recovery must react above the former injury threshold")
     actor.hp = 59
     tick(map, 1)
     assert(actor.hp > 59)
@@ -159,7 +159,7 @@ local function interruptionAndResume()
     actor.hp = 40
     local x = party.x
     tick(map, 1)
-    assert(party.world_activity.lastActivity.reason == "recovery_required" and party.x == x)
+    assert(party.world_activity.lastActivity.reason == "goal_interrupted" and party.x == x)
     assert(travel.status ~= "satisfied")
     for _ = 1, 60 do tick(map, 1) end
     assert(rest.status == "satisfied" and travel.attempts >= 2, "ordinary goal did not resume")
@@ -170,7 +170,7 @@ local function interruptionAndResume()
     actor.hp = 40
     Goals.update(1, map)
     assert(not rest.activity and party.world_activity.type == "roam" and party.world_activity.status == "active")
-    assert(rest.reason == "party_already_active")
+    assert(rest.reason == "party_already_active", tostring(rest.reason) .. ": " .. tostring(actor.npc_goals.selectedGoalIndex))
 end
 
 local function invalidRestOwners()
@@ -315,7 +315,12 @@ local function singleResidentPassAndMembership()
     tick(map, 0.3)
     assert(actor.hp == 90)
     tick(map, 1)
-    assert(actor.npc_goals.goals[2].status == "satisfied" and not actor.npc_goals.goals[2].recovering)
+    assert(actor.npc_goals.goals[2].status == "active" and actor.npc_goals.goals[2].recovering,
+        "90% health must not silently disable positive recovery importance")
+    tick(map, 3)
+    tick(map, 1)
+    assert(actor.hp == 100 and actor.npc_goals.goals[2].status == "satisfied")
+    actor.hp = 90 -- Verify the ordinary passive rate without reevaluating motivation.
     assert(actor.npc_goals.goals[1].reason == "no_commanded_party")
     assert(actor.npc_goals == originalGoals, "recovery replaced unrelated goal data")
     local hp = actor.hp

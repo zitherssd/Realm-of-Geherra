@@ -6,6 +6,13 @@ package.path = repositoryRoot .. "/?.lua;" ..
     package.path
 
 function love.load(args)
+    if args and args[1] == "investigation_scenario" and args[2] and args[2]:match("^%-%-preview") then
+        if args[2] == "--preview-smoke" then
+            love.errorhandler = function(err) print(debug.traceback(err)); return function() return 1 end end
+        end
+        require("investigation_scenario").preview(args[3] == "--empty", args[2] == "--preview-smoke")
+        return
+    end
     if args and args[1] == "caravan_scenario" and (args[2] == "--preview" or args[2] == "--preview-smoke") then
         require("caravan_scenario").preview(args[2] == "--preview-smoke")
         return
@@ -37,6 +44,7 @@ function love.load(args)
         require("world_events_scenario").run()
         require("world_activity_scenario").run()
         require("npc_goals_scenario").run()
+        require("dynamic_importance_scenario").run()
         require("recovery_scenario").run()
         require("raid_visibility_scenario").run()
         require("battle_simulation_scenario").run()
@@ -55,6 +63,8 @@ function love.load(args)
         require("travel_activity_scenario").run()
         require("debug_mode_scenario").run()
         require("roam_activity_scenario").run()
+        require("knowledge_search_scenario").run()
+        require("investigation_scenario").run()
     end, debug.traceback)
 
     if not ok then
@@ -64,6 +74,6 @@ function love.load(args)
     end
 
     print(args and args[1] and (args[1] .. " passed")
-        or "All 34 scenarios and navigation tests passed, including campaign runtime ordering and lifecycle")
+        or "All 37 scenarios and navigation tests passed, including campaign runtime ordering and lifecycle")
     love.event.quit(0)
 end

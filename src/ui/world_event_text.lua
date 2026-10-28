@@ -7,6 +7,10 @@ function Text.time(time)
 end
 
 function Text.describe(event)
+    if event.type == "caravan_returned" then return (event.partyName or event.partyId) .. " returned to its sponsor" end
+    if event.type == "party_encounter" then
+        return tostring(event.observerPartyId) .. " encountered " .. (event.partyName or event.partyId) .. " alive"
+    end
     if event.type == "caravan_traded" then
         return (event.partyName or tostring(event.partyId)) .. " traded: +" .. tostring(event.profit) .. " gold"
     end

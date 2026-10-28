@@ -1,12 +1,12 @@
--- Small priority evaluator. Activities own movement/combat; goals only request them.
+-- Dynamic importance evaluator. Activities own movement/combat; goals only request them.
 local EcsWorld = require("src.ecs.world")
 local PartySystem = require("src.systems.parties.party_system")
 local WorldActivitySystem = require("src.systems.world_activities.world_activity_system")
 local RaidActivity = require("src.systems.world_activities.raid_activity")
-local Recovery = require("src.systems.actors.recovery")
 local Services = require("src.systems.services.service_system")
 local Knowledge = require("src.systems.knowledge.knowledge_system")
 local Caravans = require("src.systems.services.caravan_system")
+local Investigations = require("src.systems.services.investigation_system")
 local LocationRules = require("src.systems.locations.location_rules")
 
 local GoalSystem = {
@@ -16,6 +16,23 @@ local GoalSystem = {
 
 local Definitions = require("src.systems.goals.goal_definitions")
 local newGoal = Definitions.create
+local Importance = require("src.systems.goals.goal_importance")
+
+-- Shared pure read API, also used by F1. Custom definitions may supply their own rule.
+function GoalSystem.getImportance(goal, actor, party)
+    if type(goal) ~= "table" or not actor then return 0 end
+    if goal.status == "cancelled" or goal.status == "completed" or goal.status == "invalid" then return 0 end
+    if goal.type == "reach_location" then
+        local destination = EcsWorld.findLocationById(goal.destinationLocationId, actor.__world)
+        for _, stationed in ipairs(destination and destination.stationedParties or {}) do
+            if stationed == party then return 0 end
+        end
+    end
+    local spec = Definitions.goals[goal.type]
+    local value = spec and spec.importance and spec.importance(goal, actor, party)
+        or goal.accumulatedImportance or goal.priority or 0
+    return Importance.clamp(value)
+end
 
 -- Configuration is opt-in, even for an empty goal list. Replace only when idle.
 function GoalSystem.configure(actor, definitions, capabilities)
@@ -67,12 +84,18 @@ local function destinationFor(goal, actor, map)
     return nil
 end
 
-local function condition(goal, actor, party, map)
+local function condition(goal, actor, party, map, traveling)
+    if goal.type == "acquire_knowledge" then
+        local eventId = Knowledge.findKnownInformation(actor, goal)
+        if eventId then goal.knownEventId = eventId; return true end
+        return false, not goal.investigation and "awaiting_knowledge" or nil
+    end
     if goal.type == "rest_and_recover" then
-        return not Recovery.needsRest(actor, goal.recovering)
+        return GoalSystem.getImportance(goal, actor, party) == 0, not actor.memory and "important_actor_required" or nil
     end
     if goal.type == "provide_service" then
         if not actor.memory then return false, "important_actor_required" end
+        if Services.hasObligation(actor, {world = actor.__world}) then return false, "conflicting_obligation" end
         return false
     elseif goal.type == "fulfill_obligation" then
         local request = Services.getRequest(goal.serviceId, {world = actor.__world})
@@ -84,9 +107,17 @@ local function condition(goal, actor, party, map)
         if not destination then return false, "destination_missing" end
     end
     if goal.type == "acquire_gold" then
-        return (party and PartySystem.getTreasury(party) or actor.treasury or 0) >= goal.amount
+        if not actor.npc_goals.capabilities.caravanFormation then
+            if not party then return false, "no_commanded_party" end
+            if not actor.npc_goals.capabilities.raid then return false, "raid_not_allowed" end
+            if not traveling[party.id] then return false, "raid_requires_traveling_party" end
+            if not (party.hostile == true or party.faction == "bandits") then return false, "raider_not_hostile" end
+        end
+        return GoalSystem.getImportance(goal, actor, party) == 0
     end
+    if goal.type ~= "reach_location" then return false end
     if not party then return false, "no_commanded_party" end
+    if not actor.npc_goals.capabilities.travel then return false, "travel_not_allowed" end
     for _, stationed in ipairs(destination.stationedParties or {}) do
         if stationed == party then return true end
     end
@@ -205,74 +236,6 @@ function GoalSystem.cancelActivities(actor, reason)
     return true
 end
 
--- Recovery is an opt-in safety interruption. Ordinary goals retain their data,
--- including future accepted assignments; only their current activity is cancelled.
-local function updateRecovery(actor, party, map, playerParty, traveling)
-    if not actor.memory then return false end
-    local selected
-    for _, goal in ipairs(actor.npc_goals.goals) do
-        if goal.type == "rest_and_recover" then
-            if Recovery.needsRest(actor, goal.recovering) then
-                if not selected or goal.priority > selected.priority then selected = goal end
-            else
-                goal.recovering = nil
-            end
-        end
-    end
-    if not selected then return false end
-    for index, goal in ipairs(actor.npc_goals.goals) do
-        if goal == selected then actor.npc_goals.selectedGoalIndex = index end
-    end
-    selected.recovering = true
-    selected.status, selected.reason = "pending", nil
-    if actor.activeEncounterId or (party and party.activeEncounterId) then
-        selected.status, selected.reason = "blocked", "party_in_encounter"
-        return true
-    end
-    if party and party == playerParty then
-        selected.status, selected.reason = "blocked", "player_party"
-        return true
-    end
-    Services.tryRecoveryHealing(actor, selected, {world = actor.__world, map = map})
-    if not party then
-        if selected.activity then
-            selected.status, selected.reason = "blocked", "releasing_previous_activity"
-            return true
-        end
-        selected.status = "active"
-        return true
-    end
-    local activity = party.world_activity
-    if selected.activity then selected.status = "active"; return true end
-    if activity and activity.status == "active" then
-        for _, goal in ipairs(actor.npc_goals.goals) do
-            if goal ~= selected and goal.activity and goal.activity.partyId == party.id
-                and goal.activity.sequence == activity.sequence and activity.goalActorId == actor.id then
-                WorldActivitySystem.cancel(party, "recovery_required")
-                goal.status, goal.reason = "blocked", "recovery_required"
-                return true
-            end
-        end
-        selected.status, selected.reason = "blocked", "party_already_active"
-        return true
-    end
-    if party == playerParty or (activity and activity.status ~= "idle")
-        or (map.partyEncounterCooldowns and (map.partyEncounterCooldowns[party.id] or 0) > 0) then
-        selected.status, selected.reason = "blocked", "party_unavailable"
-        return true
-    end
-    if selected.retrySeconds > 0 then
-        selected.status, selected.reason = "blocked", "recovery_retry"
-        return true
-    end
-    local started, reason = requestActivity(selected, actor, party, map, playerParty, traveling)
-    if not started then
-        selected.status, selected.reason = "blocked", reason
-        selected.retrySeconds = GoalSystem.retrySeconds
-    end
-    return true
-end
-
 local function provideService(goal, actor, party, map, playerParty, traveling)
     local context = {world = actor.__world, map = map}
     if Services.hasObligation(actor, context) then return false, "conflicting_obligation" end
@@ -289,11 +252,12 @@ local function provideService(goal, actor, party, map, playerParty, traveling)
             if here and here.id == offer.locationId then
                 local request = Services.getRequest(offer.serviceId, context)
                 local assign = request and request.type == "lead_caravan" and Caravans.assign or Services.assign
+                if request and request.type == "investigate" then assign = Investigations.assign end
                 local ok, result = assign(offer.serviceId, actor, context)
                 if ok then
                     local state = actor.npc_goals
                     local obligation = state.goals[#state.goals]
-                    if obligation.priority > goal.priority then
+                    if GoalSystem.getImportance(obligation, actor, party) >= GoalSystem.getImportance(goal, actor, party) + 5 then
                         state.selectedGoalIndex = #state.goals
                         obligation.status = "active"
                     end
@@ -315,102 +279,139 @@ local function provideService(goal, actor, party, map, playerParty, traveling)
     return true -- Waiting for customers does not create a World Activity.
 end
 
+-- Relinquish only the exact owned attempt. Assignment/capability state stays intact.
+local function release(goal, actor, reason)
+    if not goal then return true end
+    local owned = goal.activity
+    local owner = owned and EcsWorld.findPartyById(owned.partyId, actor.__world)
+    if owner and owner.world_activity and owner.world_activity.sequence == owned.sequence
+        and owner.world_activity.goalActorId == actor.id and owner.world_activity.status == "active" then
+        if owner.activeEncounterId or actor.activeEncounterId then return false end
+        local work = actor.investigation_work
+        if work and work.serviceId == goal.serviceId and work.activitySequence == owned.sequence then
+            if work.phase == "searching" then
+                work.searchElapsed = (work.searchBase or 0) + (owner.world_activity.elapsedSeconds or 0)
+                work.phase = "traveling"
+            end
+            work.activitySequence, work.activityType = nil, nil
+        end
+        if not WorldActivitySystem.cancel(owner, reason) then return false end
+    end
+    observeActivity(goal, actor, owner)
+    if goal.type == "rest_and_recover" then goal.recovering = nil end
+    return true
+end
+
 local function updateActor(actor, party, dt, map, playerParty, traveling)
     local state = actor.npc_goals
-    state.evaluationCooldownSeconds = math.max(0, state.evaluationCooldownSeconds - dt)
-    local outcomeChanged = false
-    for _, goal in ipairs(state.goals) do
-        goal.retrySeconds = math.max(0, goal.retrySeconds - dt)
-        goal.healingRetrySeconds = math.max(0, (goal.healingRetrySeconds or 0) - dt)
-        outcomeChanged = observeActivity(goal, actor, party) or outcomeChanged
-    end
-    if updateRecovery(actor, party, map, playerParty, traveling) then return end
-    if state.evaluationCooldownSeconds > 0 and not outcomeChanged then return end
-    state.evaluationCooldownSeconds = GoalSystem.evaluationIntervalSeconds
-    state.selectedGoalIndex = nil
-
-    local candidates, ownsActivity = {}, false
+    local previous = state.goals[state.selectedGoalIndex]
+    Investigations.recognize(actor, {world = actor.__world, map = map})
+    local candidates, scores = {}, {}
     for index, goal in ipairs(state.goals) do
-        local satisfied, reason = condition(goal, actor, party, map)
-        if satisfied then
-            goal.status, goal.reason = "satisfied", nil
-            -- Let reserved encounters finish and apply their real outcomes first.
-            if goal.activity then
-                local owner = EcsWorld.findPartyById(goal.activity.partyId, actor.__world)
-                if owner and not owner.activeEncounterId and owner.world_activity
-                    and owner.world_activity.sequence == goal.activity.sequence then
-                    WorldActivitySystem.cancel(owner, "goal_satisfied")
-                end
-            end
-        elseif goal.activity then
-            goal.status, goal.reason = "active", reason
-            state.selectedGoalIndex = index
-            local activity = party and party.world_activity
-            if goal.type == "acquire_gold" and state.capabilities.raid and state.capabilities.roam
-                and party and not party.activeEncounterId and traveling[party.id]
-                and (party.hostile == true or party.faction == "bandits")
-                and goal.activity.partyId == party.id and activity
-                and activity.sequence == goal.activity.sequence and activity.goalActorId == actor.id
-                and activity.status == "active" and activity.type == "roam" then
-                local target = RaidActivity.selectTarget(party, map, playerParty)
-                if target and WorldActivitySystem.cancel(party, "opportunity_detected") then
-                    goal.detectedTargetId = target.id
-                end
+        goal.retrySeconds = math.max(0, (goal.retrySeconds or 0) - dt)
+        goal.healingRetrySeconds = math.max(0, (goal.healingRetrySeconds or 0) - dt)
+        observeActivity(goal, actor, party)
+        local spec = Definitions.goals[goal.type]
+        -- Advance once per simulation interval, including non-dominant goals.
+        if spec and spec.advanceImportance then spec.advanceImportance(goal, actor, party, dt) end
+        if goal.accumulatedImportance ~= nil then goal.accumulatedImportance = Importance.clamp(goal.accumulatedImportance) end
+        local satisfied, reason = condition(goal, actor, party, map, traveling)
+        local score = GoalSystem.getImportance(goal, actor, party)
+        if satisfied or score == 0 then
+            if goal.status ~= "cancelled" and goal.status ~= "completed" and goal.status ~= "invalid" then
+                goal.status, goal.reason = "satisfied", nil
             end
         elseif reason then
             goal.status, goal.reason = "blocked", reason
         else
-            if goal.type == "provide_service" and goal.retrySeconds > 0 then
-                candidates[#candidates + 1] = {goal = goal, index = index, waiting = true}
-                goal.status = "active"
-            elseif goal.retrySeconds > 0 then
-                goal.status = "blocked"
-                goal.reason = goal.reason or (goal.lastOutcome and goal.lastOutcome.reason)
-            else
-                goal.status, goal.reason = "pending", nil
-            end
-            if goal.retrySeconds <= 0 then
-                candidates[#candidates + 1] = {goal = goal, index = index}
+            goal.status, goal.reason = goal.activity and "active" or "pending", nil
+            if goal.retrySeconds <= 0 or goal.activity or goal == previous or goal.type == "provide_service"
+                or goal.type == "rest_and_recover" then
+                candidates[#candidates + 1] = {goal = goal, index = index, importance = score}
+                scores[goal] = score
             end
         end
-        ownsActivity = ownsActivity or goal.activity ~= nil
     end
-    -- Ordinary priorities never preempt active work. Recovery above is the
-    -- sole safety exception, and still cannot preempt explicit work or encounters.
-    local activity = party and party.world_activity
-    if ownsActivity or (party and party == playerParty) or actor.activeEncounterId or (party and party.activeEncounterId)
-        or (map.partyEncounterCooldowns and (map.partyEncounterCooldowns[party and party.id] or 0) > 0)
-        or (activity and (activity.status ~= "idle" or (activity.retryCooldownSeconds or 0) > 0)) then
-        return
-    end
-    table.sort(candidates, function(left, right)
-        if left.goal.priority == right.goal.priority then return left.index < right.index end
-        return left.goal.priority > right.goal.priority
+    table.sort(candidates, function(a, b)
+        if a.importance == b.importance then return a.index < b.index end
+        return a.importance > b.importance
     end)
+    local best = candidates[1]
+    if previous and scores[previous] and (not best or best.importance < scores[previous] + 5) then
+        best = {goal = previous, index = state.selectedGoalIndex, importance = scores[previous]}
+    end
+    local selected = best and best.goal
+    if previous ~= selected then
+        local reason = previous and (scores[previous] and "higher_importance" or "goal_ineligible") or "goal_available"
+        if not release(previous, actor, previous and previous.reason or (selected and "goal_interrupted" or "goal_satisfied")) then return end
+        state.previousDominantGoal = previous and previous.type
+        state.lastSwitchReason = reason
+    end
+    state.selectedGoalIndex = best and best.index
+    -- Clear any no-longer-eligible owned attempt, even after service resolution cleared selection.
+    for _, goal in ipairs(state.goals) do
+        if goal ~= selected and goal.activity then
+            if not release(goal, actor, "goal_interrupted") then return end
+        end
+    end
+    if not selected then return end
+    local ordered = {{goal = selected, index = state.selectedGoalIndex}}
     for _, candidate in ipairs(candidates) do
-        local goal = candidate.goal
+        if candidate.goal ~= selected then ordered[#ordered + 1] = candidate end
+    end
+    for _, candidate in ipairs(ordered) do
+        selected = candidate.goal
+        if candidate.goal ~= best.goal then
+            state.previousDominantGoal, state.lastSwitchReason = best.goal.type, "goal_unavailable"
+        end
         state.selectedGoalIndex = candidate.index
-        local started, reason
-        if goal.type == "provide_service" then
-            if candidate.waiting then goal.status = "active"; return end
-            started, reason = provideService(goal, actor, party, map, playerParty, traveling)
-        elseif goal.type == "fulfill_obligation" then
-            goal.status, goal.reason = "active", "awaiting_service_execution"
+        local activity = party and party.world_activity
+        if actor.activeEncounterId or (party and party.activeEncounterId) or (party and party == playerParty) then
+            selected.status, selected.reason = "blocked", "party_unavailable"; return
+        end
+        if selected.type == "rest_and_recover" then
+            selected.recovering = true
+            Services.tryRecoveryHealing(actor, selected, {world = actor.__world, map = map})
+            if GoalSystem.getImportance(selected, actor, party) == 0 then
+                release(selected, actor, "goal_satisfied")
+                selected.status, state.selectedGoalIndex = "satisfied", nil
+                return
+            end
+        end
+        if selected.activity then
+            selected.status = "active"
+            if selected.type == "acquire_gold" and activity and activity.type == "roam" and state.capabilities.raid then
+                local target = RaidActivity.selectTarget(party, map, playerParty)
+                if target and WorldActivitySystem.cancel(party, "opportunity_detected") then selected.detectedTargetId = target.id end
+            end
             return
-        elseif goal.type == "acquire_gold" and state.capabilities.caravanFormation then
+        end
+        if (activity and (activity.status ~= "idle" or (activity.retryCooldownSeconds or 0) > 0))
+            or (map.partyEncounterCooldowns and (map.partyEncounterCooldowns[party and party.id] or 0) > 0) then
+            selected.status, selected.reason = "blocked", "party_already_active"; return
+        end
+        if selected.retrySeconds > 0 and not (selected.type == "rest_and_recover" and not party) then return end
+        local started, reason
+        if selected.type == "rest_and_recover" and not party then
+            selected.status = "active"; return
+        elseif selected.type == "provide_service" then
+            started, reason = provideService(selected, actor, party, map, playerParty, traveling)
+        elseif selected.type == "acquire_knowledge" then
+            started, reason = Investigations.commission(actor, selected, {world = actor.__world, map = map})
+        elseif selected.type == "fulfill_obligation" then
+            selected.status, selected.reason = "active", "awaiting_service_execution"; return
+        elseif selected.type == "acquire_gold" and state.capabilities.caravanFormation then
             started, reason = Caravans.begin(actor, {world = actor.__world, map = map})
-            if started then goal.status = "active" end
             if not started and party and state.capabilities.raid then
-                started, reason = requestActivity(goal, actor, party, map, playerParty, traveling)
+                started, reason = requestActivity(selected, actor, party, map, playerParty, traveling)
             end
         elseif party then
-            started, reason = requestActivity(goal, actor, party, map, playerParty, traveling)
-        else
-            reason = "no_commanded_party"
-        end
-        if started then return end
-        goal.status, goal.reason = "blocked", reason
-        goal.retrySeconds = GoalSystem.retrySeconds
+            started, reason = requestActivity(selected, actor, party, map, playerParty, traveling)
+        else reason = "no_commanded_party" end
+        if started then selected.status = "active"; return end
+        selected.status, selected.reason = "blocked", reason
+        if selected.type == "rest_and_recover" then selected.recovering = nil end
+        selected.retrySeconds = GoalSystem.retrySeconds
         state.selectedGoalIndex = nil
     end
 end

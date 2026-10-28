@@ -310,7 +310,8 @@ function Map:removeParty(partyId)
         end
     end
     if removedParty and removedParty.world_activity
-        and (removedParty.world_activity.type == "travel" or removedParty.world_activity.type == "roam")
+        and (removedParty.world_activity.type == "travel" or removedParty.world_activity.type == "roam"
+            or removedParty.world_activity.type == "search")
         and removedParty.world_activity.status == "active" then
         local WorldActivitySystem = require("src.systems.world_activities.world_activity_system")
         WorldActivitySystem.cancel(removedParty, "party_removed")
