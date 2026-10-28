@@ -7,7 +7,7 @@
    substantial modified and untracked work; those changes were preserved. No agent delegation,
    world generation changes, commit or 7C work was performed.
 
-2. **ServiceSystem.** Added `src/systems/service_system.lua`. Its APIs cover local provider
+2. **ServiceSystem.** Added `src/systems/services/service_system.lua`. Its APIs cover local provider
    discovery, eligibility and immediate execution; create/get/list/isAvailable/assign/complete/
    cancel requests; participant cleanup and learning current status on contact. Context is
    `{world, map}`. Public request/list reads return detached plain-data snapshots.
@@ -84,9 +84,9 @@
 12. **Files changed for 7B.** These are this implementation's files, not the pre-existing dirty
     working tree's full file list:
 
-    - `src/systems/service_system.lua` (new)
-    - `src/systems/goal_system.lua`
-    - `src/systems/knowledge_system.lua`
+    - `src/systems/services/service_system.lua` (new)
+    - `src/systems/goals/goal_system.lua`
+    - `src/systems/knowledge/knowledge_system.lua`
     - `src/ecs/assemblages/unit.lua`
     - `src/game/states/dialogue_state.lua`
     - `src/game/states/world_state.lua`

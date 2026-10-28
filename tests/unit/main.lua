@@ -21,6 +21,8 @@ function love.load(args)
             return
         end
         require("navigation_tests").run()
+        require("data_definitions_scenario").run()
+        require("faction_identity_scenario").run()
         require("combat_regression_scenario").run()
         require("location_types_scenario").run()
         require("population_scenario").run()
@@ -62,6 +64,6 @@ function love.load(args)
     end
 
     print(args and args[1] and (args[1] .. " passed")
-        or "All 32 scenarios and navigation tests passed, including campaign runtime ordering and lifecycle")
+        or "All 34 scenarios and navigation tests passed, including campaign runtime ordering and lifecycle")
     love.event.quit(0)
 end

@@ -1,5 +1,6 @@
 -- data/recruitment.lua
--- Defines which units are available for recruitment based on Faction and Location Type
+-- Pools are keyed by canonical faction ID, then the location's recruitmentPool.
+-- Known factions without authored pools use neutral pools, independently of culture.
 
 return {
     -- The Menari (Common Stock)
@@ -34,8 +35,8 @@ return {
         ["default"] = {"knight"}
     },
 
-    -- The Pelasgians (Tribal)
-    ["pelasgians"] = {
+    -- The Pelasgian Clan (Tribal)
+    ["pelasgian_clan"] = {
         ["village"] = {"pelas_youth", "pelas_tribesman"},
         ["town"]    = {"pelas_tribesman", "pelas_skirmisher"},
         ["castle"]  = {"pelas_skirmisher"},

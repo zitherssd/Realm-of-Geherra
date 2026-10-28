@@ -1,10 +1,12 @@
 -- data/dialogue.lua
 -- Dialogue tree registry composed from role-based dialogue files.
 
+local Registry = require("src.data.definition_registry")
 local dialogueRegistry = {}
 
 local function mergeDialogueSet(target, source)
     for dialogueId, dialogueTree in pairs(source) do
+        Registry.checkId("dialogue", dialogueId, dialogueTree)
         if target[dialogueId] then
             error("Duplicate dialogue id in registry: " .. tostring(dialogueId))
         end

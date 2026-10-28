@@ -97,12 +97,12 @@
     - `src/ecs/components/caravan_formation.lua` (new)
     - `src/ecs/components/caravan_work.lua` (new)
     - `src/ecs/components/init.lua`
-    - `src/systems/caravan_system.lua` (new)
-    - `src/systems/goal_definitions.lua`
-    - `src/systems/goal_system.lua`
-    - `src/systems/service_system.lua`
-    - `src/systems/travel_knowledge_system.lua`
-    - `src/systems/knowledge_system.lua`
+    - `src/systems/services/caravan_system.lua` (new)
+    - `src/systems/goals/goal_definitions.lua`
+    - `src/systems/goals/goal_system.lua`
+    - `src/systems/services/service_system.lua`
+    - `src/systems/knowledge/travel_knowledge_system.lua`
+    - `src/systems/knowledge/knowledge_system.lua`
     - `src/game/states/dialogue_state.lua`
     - `src/game/states/world_state.lua`
     - `src/debug/campaign_tools.lua`

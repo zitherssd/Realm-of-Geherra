@@ -1,7 +1,7 @@
 -- world/map.lua
 -- Individual map or location
 
-local PartySystem = require("src.systems.party_system")
+local PartySystem = require("src.systems.parties.party_system")
 local DebugMode = require("src.debug.mode")
 
 local Map = {}
@@ -262,7 +262,7 @@ function Map:addParty(party)
         end
     end
 
-    local LocationSystem = require("src.systems.location_system")
+    local LocationSystem = require("src.systems.locations.location_system")
     for _, location in ipairs(self.locations) do
         LocationSystem.removeStationedParty(location, party)
     end
@@ -280,7 +280,7 @@ function Map:stationParty(location, party)
             break
         end
     end
-    local LocationSystem = require("src.systems.location_system")
+    local LocationSystem = require("src.systems.locations.location_system")
     if LocationSystem.addStationedParty(self, location, party) then
         return true
     end
@@ -303,7 +303,7 @@ function Map:removeParty(partyId)
         end
     end
 
-    local LocationSystem = require("src.systems.location_system")
+    local LocationSystem = require("src.systems.locations.location_system")
     for _, location in ipairs(self.locations) do
         if LocationSystem.removeStationedParty(location, { id = partyId }) then
             removed = true
@@ -312,7 +312,7 @@ function Map:removeParty(partyId)
     if removedParty and removedParty.world_activity
         and (removedParty.world_activity.type == "travel" or removedParty.world_activity.type == "roam")
         and removedParty.world_activity.status == "active" then
-        local WorldActivitySystem = require("src.systems.world_activity_system")
+        local WorldActivitySystem = require("src.systems.world_activities.world_activity_system")
         WorldActivitySystem.cancel(removedParty, "party_removed")
     end
     return removed

@@ -1,11 +1,15 @@
 -- Explicit manifests work in packaged LÖVE games as well as on disk.
 local Registry = {}
 
+function Registry.checkId(kind, id, definition)
+    assert(type(definition) == "table" and definition.id == id, "Invalid " .. kind .. " ID: " .. tostring(id))
+end
+
 function Registry.load(kind, prefix, names)
     local entries = {}
     for _, name in ipairs(names) do
         local definition = require(prefix .. name)
-        assert(type(definition) == "table" and definition.id == name, "Invalid " .. kind .. " ID: " .. name)
+        Registry.checkId(kind, name, definition)
         assert(not entries[name], "Duplicate " .. kind .. " ID: " .. name)
         entries[name] = definition
     end

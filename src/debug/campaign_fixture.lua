@@ -1,14 +1,14 @@
 -- Initial conditions only. Goals, services, navigation and encounters own all later behavior.
 local Ecs = require("src.ecs.world")
 local Unit = require("src.ecs.assemblages.unit")
-local NpcFactory = require("src.systems.npc_factory")
+local NpcFactory = require("src.systems.population.npc_factory")
 local Random = require("src.core.seeded_random")
 local Party = require("src.ecs.assemblages.party")
-local Parties = require("src.systems.party_system")
-local Locations = require("src.systems.location_system")
-local Navigation = require("src.systems.world_navigation")
+local Parties = require("src.systems.parties.party_system")
+local Locations = require("src.systems.locations.location_system")
+local Navigation = require("src.world.world_navigation")
 local Game = require("src.game.game_context")
-local LocationRules = require("src.systems.location_rules")
+local LocationRules = require("src.systems.locations.location_rules")
 local Fixture = {seed = 73421, profiles = {normal = true, no_leader = true, healing = true, bandit_risk = true}}
 
 function Fixture.validate(profile)
@@ -39,7 +39,7 @@ end
 
 -- Derive positions from the real route; never create coordinates or location IDs.
 local function outsidePosition(map, home, path)
-    local radius = require("src.systems.party_interaction_system").interactionRadius
+    local radius = require("src.systems.parties.party_interaction_system").interactionRadius
     for _, point in ipairs(path) do
         local nearest, distance
         for _, location in ipairs(map:getLocations()) do
@@ -114,7 +114,7 @@ function Fixture.populate(map, profile)
     print(string.format("Debug Campaign [%s]: A = %s [%s]; B = %s [%s]", profile, home.name, home.id, far.name, far.id))
     for _, id in ipairs(summary.actors) do
         local a = Ecs.findActorById(id)
-        local services = require("src.systems.service_system")
+        local services = require("src.systems.services.service_system")
         local location = services.getLocation(a, {world = world, map = map})
         local owner = services.getParty(a, world) or a
         print(string.format("%s [%s]: %s; HP %d/%d; gold %d", a.name, id,

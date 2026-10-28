@@ -165,8 +165,8 @@ Files changed for this task (other workspace changes predate this work):
 - `main.lua`, `src/game/states/menu_state.lua`: launch entry points.
 - `src/game/game_initializer.lua`: opt-in setup and one-time finalization.
 - `src/game/states/world_generation_state.lua`: forwards population options.
-- `src/systems/location_population_system.lua`: typed location and population initialization.
-- `src/systems/time_system.lua`: fresh debug clock reset.
+- `src/systems/population/location_population_system.lua`: typed location and population initialization.
+- `src/systems/campaign/time_system.lua`: fresh debug clock reset.
 - `src/game/states/world_state.lua`: startup F1 inspector and fit-to-board debug zoom.
 - `src/ui/screens/debug_overlay.lua`: existing inspector navigation links.
 - `src/ui/screens/location_screen.lua`: wraps residents and reads actions from the location definition.

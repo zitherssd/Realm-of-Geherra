@@ -1,10 +1,10 @@
 -- Generic party travel over the map's walkable terrain.
 local EcsWorld = require("src.ecs.world")
-local PartyAiSystem = require("src.systems.party_ai_system")
-local PartyInteractionSystem = require("src.systems.party_interaction_system")
+local PartyAiSystem = require("src.systems.parties.party_ai_system")
+local PartyInteractionSystem = require("src.systems.parties.party_interaction_system")
 
-local Navigation = require("src.systems.world_navigation")
-local TravelKnowledge = require("src.systems.travel_knowledge_system")
+local Navigation = require("src.world.world_navigation")
+local TravelKnowledge = require("src.systems.knowledge.travel_knowledge_system")
 
 local TravelActivity = {}
 

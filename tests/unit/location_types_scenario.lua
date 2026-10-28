@@ -3,21 +3,21 @@ local PopulationProfile = require("src.data.types.population_profile")
 local NpcArchetype = require("src.data.types.npc_archetype")
 local PartyTemplate = require("src.data.types.party_template")
 local Catalog = require("src.data.population.catalog")
-local Actions = require("src.systems.location_action_registry")
-local Rules = require("src.systems.location_rules")
-local Inventory = require("src.systems.inventory_system")
+local Actions = require("src.systems.locations.location_action_registry")
+local Rules = require("src.systems.locations.location_rules")
+local Inventory = require("src.systems.items.inventory_system")
 local Ecs = require("src.ecs.world")
 local Game = require("src.game.game_context")
 local Map = require("src.world.map")
-local Populate = require("src.systems.location_population_system")
-local Locations = require("src.systems.location_system")
-local Goals = require("src.systems.goal_system")
-local Factory = require("src.systems.npc_factory")
-local Services = require("src.systems.service_system")
+local Populate = require("src.systems.population.location_population_system")
+local Locations = require("src.systems.locations.location_system")
+local Goals = require("src.systems.goals.goal_system")
+local Factory = require("src.systems.population.npc_factory")
+local Services = require("src.systems.services.service_system")
 local Unit = require("src.ecs.assemblages.unit")
 local Party = require("src.ecs.assemblages.party")
-local Parties = require("src.systems.party_system")
-local Time = require("src.systems.time_system")
+local Parties = require("src.systems.parties.party_system")
+local Time = require("src.systems.campaign.time_system")
 local Scenario = {}
 
 local function fails(fn, fragment)
@@ -46,7 +46,7 @@ function Scenario.run()
     bad = Inventory.deepClone(Catalog.parties.warrior_retinue); bad.placement = "teleport"
     fails(function() PartyTemplate.new(bad) end, ".placement")
     assert(Actions.validateHandlers())
-    local handlerModule = require("src.systems.location_actions.examine_wizard_tower")
+    local handlerModule = require("src.systems.locations.examine_wizard_tower")
     local previousHandler = handlerModule.execute
     handlerModule.execute = false
     fails(function() Actions.validateHandlers() end, "Missing location action handler")
@@ -81,7 +81,7 @@ function Scenario.run()
     fort.faction = "neutral"
     local recruited
     local recruitmentOk, recruitmentError = pcall(function()
-        local _, _, choices = require("src.systems.recruitment_system").roll(fort)
+        local _, _, choices = require("src.systems.locations.recruitment_system").roll(fort)
         recruited = choices
     end)
     math.random, fort.faction = previousRandom, oldFaction
@@ -144,7 +144,7 @@ function Scenario.run()
     local playerParty = Party.create(Ecs.campaign, "Player", player.id)
     Parties.addActor(playerParty, player); playerParty.x, playerParty.y = tower.x, tower.y
     assert(map:addParty(playerParty))
-    require("src.systems.visibility_system").update(playerParty, map)
+    require("src.systems.parties.visibility_system").update(playerParty, map)
     assert(tower.discovered, "hidden typed location could not be discovered")
     assert(Catalog.validate())
 end

@@ -2,7 +2,7 @@
 -- Encounter/combat scenarios
 
 return {
-    -- Tunables for the random encounter system (systems/encounter_system.lua).
+    -- Tunables for the random encounter system (systems/campaign/encounter_system.lua).
     -- All content lives here so no system logic needs editing to retune.
     config = {
         -- Pixels of travel between encounter rolls while moving on the map.

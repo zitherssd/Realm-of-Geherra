@@ -1,6 +1,6 @@
 -- Raid activity: a hostile party selects and pursues an eligible target.
-local PartyInteractionSystem = require("src.systems.party_interaction_system")
-local VisibilitySystem = require("src.systems.visibility_system")
+local PartyInteractionSystem = require("src.systems.parties.party_interaction_system")
+local VisibilitySystem = require("src.systems.parties.visibility_system")
 local Pursuit = require("src.systems.world_activities.pursuit")
 
 local RaidActivity = {}

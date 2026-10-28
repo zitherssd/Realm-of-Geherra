@@ -6,8 +6,8 @@ local LocationState = {}
 local StateManager = require("src.core.state_manager")
 local UIManager = require("src.ui.ui_manager")
 local LocationScreen = require("src.ui.screens.location_screen")
-local QuestAvailabilitySystem = require("src.systems.quest_availability_system")
-local QuestSystem = require("src.systems.quest_system")
+local QuestAvailabilitySystem = require("src.systems.quests.quest_availability_system")
+local QuestSystem = require("src.systems.quests.quest_system")
 
 LocationState.location = nil
 

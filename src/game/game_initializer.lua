@@ -4,7 +4,7 @@
 --
 -- World setup is split into phases so a splash state can show live generation
 -- progress: beginNewGame() does the fast setup (player, party, inventory),
--- then the painted map is generated step-by-step (systems/painted_map_loader),
+-- then the painted map is generated step-by-step (world/generation/painted_map_loader),
 -- then finalizeNewGame() places the player and wires up the map.
 
 local GameInitializer = {}
@@ -13,15 +13,15 @@ local GameContext = require("src.game.game_context")
 local EcsWorld = require("src.ecs.world")
 local Party = require("src.ecs.assemblages.party")
 local Unit = require("src.ecs.assemblages.unit")
-local PartySystem = require("src.systems.party_system")
-local LocationSystem = require("src.systems.location_system")
+local PartySystem = require("src.systems.parties.party_system")
+local LocationSystem = require("src.systems.locations.location_system")
 local Items = require("src.data.items")
 local TroopsData = require("src.data.troops")
-local PaintedMapLoader = require("src.systems.painted_map_loader")
-local LocationPopulationSystem = require("src.systems.location_population_system")
-local PartyAiSystem = require("src.systems.party_ai_system")
-local TraderSystem = require("src.systems.trader_system")
-local InventorySystem = require("src.systems.inventory_system")
+local PaintedMapLoader = require("src.world.generation.painted_map_loader")
+local LocationPopulationSystem = require("src.systems.population.location_population_system")
+local PartyAiSystem = require("src.systems.parties.party_ai_system")
+local TraderSystem = require("src.systems.items.trader_system")
+local InventorySystem = require("src.systems.items.inventory_system")
 
 -- Debug trader: spawns in the starter location and sells every item (for testing)
 local DEBUG_TRADER_ENABLED = true
@@ -37,7 +37,7 @@ end
 -- can run afterwards without blocking.
 function GameInitializer.beginNewGame(options)
     options = options or {}
-    require("src.systems.location_action_registry").validateHandlers()
+    require("src.systems.locations.location_action_registry").validateHandlers()
     local profile = options.debugCampaign
     if profile then
         local fixture = require("src.debug.campaign_fixture")

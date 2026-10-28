@@ -1,4 +1,4 @@
-local Events = require("src.systems.world_events")
+local Events = require("src.systems.campaign.world_events")
 local Text = require("src.ui.world_event_text")
 local Viewer = {}
 Viewer.__index = Viewer

@@ -1,7 +1,7 @@
 -- Generic bounded wandering. All retained state is primitive data or waypoints.
 local EcsWorld = require("src.ecs.world")
-local Navigation = require("src.systems.world_navigation")
-local Movement = require("src.systems.party_ai_system")
+local Navigation = require("src.world.world_navigation")
+local Movement = require("src.systems.parties.party_ai_system")
 
 local Roam = {initialPhase = "roam", speed = 70, maxAttempts = 12, maxStallSeconds = 15}
 

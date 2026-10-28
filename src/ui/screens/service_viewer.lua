@@ -1,4 +1,4 @@
-local Services = require("src.systems.service_system")
+local Services = require("src.systems.services.service_system")
 local EcsWorld = require("src.ecs.world")
 local Text = require("src.ui.world_event_text")
 local Viewer = {}

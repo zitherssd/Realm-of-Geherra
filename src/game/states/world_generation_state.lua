@@ -2,13 +2,13 @@
 -- Splash shown while the painted world map is generated step-by-step.
 --
 -- The heavy generation work is broken into named pipeline stages by
--- systems/map_generator.lua; this state advances one stage per frame and draws
+-- world/generation/map_generator.lua; this state advances one stage per frame and draws
 -- a progress bar + current step so the player sees it working, then hands off
 -- to the world state.
 
 local StateManager = require("src.core.state_manager")
 local GameInitializer = require("src.game.game_initializer")
-local LocationPopulationSystem = require("src.systems.location_population_system")
+local LocationPopulationSystem = require("src.systems.population.location_population_system")
 
 local WorldGenerationState = {
     options = {},

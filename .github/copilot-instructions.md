@@ -13,6 +13,9 @@ LÖVE (Love2D) 11.x Lua RPG. See `PROJECT_DEFINITION.md` for the overall vision 
 
 ## Architecture
 - Layered: `core/` (game loop, state manager, input, save), `systems/` (logic), `data/` (declarative content), `entities/`, `ui/`, `game/states/`.
+- Gameplay logic is grouped under `src/systems/{actors,battle,battlefield,campaign,goals,items,knowledge,locations,parties,population,quests,services,social,world_activities}/`. Use direct imports from these domain folders; simulation orchestration remains in `src/game/campaign/` and `src/game/battle/`.
+- Map generation lives in `src/world/generation/`; navigation is `src/world/world_navigation.lua`. Assets and generated-map output paths stay under `src/assets/`.
+- See `docs/FILE_ORGANIZATION_PLAN.md` for the completed move manifest and feature-location guide. Detailed notes are `docs/units.md`, `docs/quest_procedural.md`, and `docs/EMERGENT_GAMEPLAY.md`.
 - Add NPCs/shops/quests via existing systems and the skills in `.github/skills/` (router, trader-npcs, dialogue-systems, etc.) rather than new ad-hoc wiring.
 
 ## Conventions
@@ -20,4 +23,4 @@ LÖVE (Love2D) 11.x Lua RPG. See `PROJECT_DEFINITION.md` for the overall vision 
 - Keep changes scoped to the request. No refactors of unrelated working code.
 - Ask clarifying questions during planning/design BEFORE implementing.
 - Do not wire test/debug scaffolding into `main.lua` or core files.
-- Design terminology in docs is canonical (follow the user's naming; check `docs/` and root design docs before coining terms).
+- Design terminology in docs is canonical (follow the user's naming; check `docs/` and `PROJECT_DEFINITION.md` before coining terms).

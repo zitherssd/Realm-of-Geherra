@@ -1,5 +1,5 @@
 local EcsWorld = require("src.ecs.world")
-local Navigation = require("src.systems.world_navigation")
+local Navigation = require("src.world.world_navigation")
 local Map = require("src.world.map")
 
 local Tests = {}

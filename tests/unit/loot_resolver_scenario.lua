@@ -1,8 +1,8 @@
 local EcsWorld = require("src.ecs.world")
 local Party = require("src.ecs.assemblages.party")
 local Unit = require("src.ecs.assemblages.unit")
-local PartySystem = require("src.systems.party_system")
-local LootResolver = require("src.systems.loot_resolver")
+local PartySystem = require("src.systems.parties.party_system")
+local LootResolver = require("src.systems.items.loot_resolver")
 
 local function copyTable(value)
     if type(value) ~= "table" then return value end

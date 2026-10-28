@@ -1,5 +1,5 @@
 -- Shared target pursuit for world activities.
-local PartyAiSystem = require("src.systems.party_ai_system")
+local PartyAiSystem = require("src.systems.parties.party_ai_system")
 
 local Pursuit = {}
 

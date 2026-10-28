@@ -1,4 +1,4 @@
-# Map Generator — `systems/map_generator.lua`
+# Map Generator — `world/generation/map_generator.lua`
 
 *Created: 2026-08-02*
 *Status: Current*
@@ -22,7 +22,7 @@ Geherra world, plus the settlement sites and roads that sit on top of it.
 
 Optionally it can export these to disk (see §2) — used by the standalone tool
 and by future asset pipelines — or it can feed them **in-memory** directly to
-the game's world loader (`systems/painted_map_loader.lua`).
+the game's world loader (`world/generation/painted_map_loader.lua`).
 
 ---
 
@@ -344,7 +344,7 @@ the debug view and the file-based stages.
 
 ## 13. Game integration
 
-- `systems/painted_map_loader.lua` calls `createGeneration`, builds the
+- `world/generation/painted_map_loader.lua` calls `createGeneration`, builds the
   playable `Map` from `result.world` (images + biome grid), and derives a
   navigation grid where `ocean` and `marsh_lake` are impassable.
 - `game/states/world_generation_state.lua` (the splash) advances one stage per

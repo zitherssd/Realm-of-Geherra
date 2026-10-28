@@ -7,7 +7,7 @@ StatsPanel.__index = StatsPanel
 local Items = require("src.data.items")
 
 -- Damage types with flat protection (innate + equipment). Mirrors
--- systems/combat_system.lua getTotalProtection.
+-- systems/battle/combat_system.lua getTotalProtection.
 local DAMAGE_TYPES = {
     "slashing", "piercing", "blunt", "fire", "ice", "shock", "poison"
 }
@@ -56,7 +56,7 @@ local function buildEffectiveStats(actor)
 end
 
 -- Total flat protection per damage type (innate + equipped items). Mirrors
--- systems/combat_system.lua getTotalProtection.
+-- systems/battle/combat_system.lua getTotalProtection.
 local function buildEffectiveProtections(actor)
     local protections = {}
     for _, damageType in ipairs(DAMAGE_TYPES) do

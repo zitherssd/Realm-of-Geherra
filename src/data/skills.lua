@@ -1,7 +1,8 @@
 -- data/skills.lua
 -- Skill definitions
 
-return {
+local Registry = require("src.data.definition_registry")
+local skills = {
     ["attack"] = {
         id = "attack",
         name = "Attack",
@@ -178,3 +179,6 @@ return {
         }
     }
 }
+
+for id, skill in pairs(skills) do Registry.checkId("skill", id, skill) end
+return skills

@@ -1,8 +1,8 @@
 local EcsWorld = require("src.ecs.world")
 local Party = require("src.ecs.assemblages.party")
 local RaidActivity = require("src.systems.world_activities.raid_activity")
-local VisibilitySystem = require("src.systems.visibility_system")
-local WorldActivitySystem = require("src.systems.world_activity_system")
+local VisibilitySystem = require("src.systems.parties.visibility_system")
+local WorldActivitySystem = require("src.systems.world_activities.world_activity_system")
 
 local function createParty(world, id, x, y, sight, profile)
     local party = Party.create(world, id, nil, id)

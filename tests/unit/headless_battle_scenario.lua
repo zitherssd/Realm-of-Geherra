@@ -1,8 +1,8 @@
 local EcsWorld = require("src.ecs.world")
 local Party = require("src.ecs.assemblages.party")
 local Unit = require("src.ecs.assemblages.unit")
-local PartySystem = require("src.systems.party_system")
-local HeadlessBattleRunner = require("src.systems.headless_battle_runner")
+local PartySystem = require("src.systems.parties.party_system")
+local HeadlessBattleRunner = require("src.game.battle.headless_battle_runner")
 
 local function copyTable(value)
     if type(value) ~= "table" then return value end

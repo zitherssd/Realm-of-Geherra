@@ -1,6 +1,7 @@
 -- data/troops.lua
 -- Aggregated troop/unit definitions
 
+local Registry = require("src.data.definition_registry")
 local groups = {
     require("src.data.units.neutral.neutral_units"),
     require("src.data.units.pelasgians.pelasgian_units"),
@@ -20,6 +21,7 @@ local troops = {}
 
 for _, group in ipairs(groups) do
     for unitId, unitDef in pairs(group) do
+        Registry.checkId("troop", unitId, unitDef)
         if troops[unitId] then
             error(string.format("Duplicate troop id '%s' found while loading data.troops", unitId))
         end

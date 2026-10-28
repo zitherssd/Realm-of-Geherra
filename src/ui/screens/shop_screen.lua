@@ -8,8 +8,8 @@ ShopScreen.__index = ShopScreen
 local Button = require("src.ui.widgets.button")
 local Tooltip = require("src.ui.widgets.tooltip")
 local InventoryGrid = require("src.ui.widgets.inventory_grid")
-local PartySystem = require("src.systems.party_system")
-local InventorySystem = require("src.systems.inventory_system")
+local PartySystem = require("src.systems.parties.party_system")
+local InventorySystem = require("src.systems.items.inventory_system")
 
 function ShopScreen.new(playerParty, merchant, onClose)
     local self = setmetatable({}, ShopScreen)

@@ -2,14 +2,14 @@ local EcsWorld = require("src.ecs.world")
 local Party = require("src.ecs.assemblages.party")
 local Location = require("src.ecs.assemblages.location")
 local Unit = require("src.ecs.assemblages.unit")
-local PartySystem = require("src.systems.party_system")
+local PartySystem = require("src.systems.parties.party_system")
 local Map = require("src.world.map")
 local GameContext = require("src.game.game_context")
 local Input = require("src.core.input")
-local TimeSystem = require("src.systems.time_system")
-local WorldActivitySystem = require("src.systems.world_activity_system")
+local TimeSystem = require("src.systems.campaign.time_system")
+local WorldActivitySystem = require("src.systems.world_activities.world_activity_system")
 local WorldState = require("src.game.states.world_state")
-local WorldEncounterSystem = require("src.systems.world_encounter_system")
+local WorldEncounterSystem = require("src.systems.campaign.world_encounter_system")
 
 local function addParty(world, map, id, x, y, config)
     config = config or {}
@@ -87,7 +87,7 @@ local function runScenario()
         isTraderParty = true
     })
     rememberedTarget.wanderTarget = {x = 700, y = 300}
-    local WorldActivitySystem = require("src.systems.world_activity_system")
+    local WorldActivitySystem = require("src.systems.world_activities.world_activity_system")
     assert(WorldActivitySystem.start(raider, "raid"))
     raider.world_activity.phase = "pursuit"
     raider.world_activity.targetId = rememberedTarget.id

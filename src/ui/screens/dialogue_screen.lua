@@ -6,8 +6,8 @@
 local DialogueScreen = {}
 local Input = require("src.core.input")
 local GameContext = require("src.game.game_context")
-local PartySystem = require("src.systems.party_system")
-local PlayerSystem = require("src.systems.player_system")
+local PartySystem = require("src.systems.parties.party_system")
+local PlayerSystem = require("src.systems.actors.player_system")
 
 DialogueScreen.__index = DialogueScreen
 

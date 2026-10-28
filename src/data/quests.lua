@@ -1,7 +1,8 @@
 -- data/quests.lua
 -- Quest definitions
 
-return {
+local Registry = require("src.data.definition_registry")
+local quests = {
     ["retrieve_amulet"] = {
         id = "retrieve_amulet",
         title = "Retrieve the Lost Amulet",
@@ -166,3 +167,6 @@ return {
         }
     }
 }
+
+for id, quest in pairs(quests) do Registry.checkId("quest", id, quest) end
+return quests

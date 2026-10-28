@@ -1,7 +1,7 @@
 local WorldGeneration = {
     defaultSeed = 1337,
-    -- Painted in-memory world map (systems/map_generator.lua).
-    -- These defaults feed systems/painted_map_loader.lua.
+    -- Painted in-memory world map (world/generation/map_generator.lua).
+    -- These defaults feed world/generation/painted_map_loader.lua.
     painted = {
         seed = 1336,
         sizeW = 3500,

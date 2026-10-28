@@ -2,8 +2,9 @@
 local Registry = require("src.data.definition_registry")
 local Troops = require("src.data.troops")
 local Items = require("src.data.items")
-local Goals = require("src.systems.goal_definitions")
-local Actions = require("src.systems.location_action_registry")
+local Goals = require("src.systems.goals.goal_definitions")
+local Actions = require("src.systems.locations.location_action_registry")
+local Schema = require("src.core.schema")
 local Types = {
     location = require("src.data.types.location_definition"), profile = require("src.data.types.population_profile"),
     rule = require("src.data.types.population_rule"), archetype = require("src.data.types.npc_archetype"),
@@ -14,7 +15,7 @@ local Types = {
 local Catalog = {
     locations = require("src.data.locations.index"), profiles = require("src.data.population.locations.index"),
     archetypes = require("src.data.npc_archetypes.index"), cultures = require("src.data.population.cultures.index"),
-    factions = require("src.data.population.factions.index"), names = require("src.data.names.index"),
+    factions = require("src.data.factions"), names = require("src.data.names.index"),
     parties = require("src.data.population.parties.index"),
 }
 
@@ -150,6 +151,29 @@ function Catalog.validate()
         end
     end
     local Recruitment = require("src.data.recruitment")
+    Schema.map(Schema.map(Schema.array(Schema.string)))(Recruitment, "Recruitment")
+    assert(Recruitment.neutral and Recruitment.neutral.default, "Missing neutral recruitment fallback")
+    for factionId, pools in pairs(Recruitment) do
+        assert(Catalog.factions[factionId], "Unknown recruitment faction " .. factionId)
+        assert(pools.default, "Missing default recruitment pool: " .. factionId)
+        for poolId, troops in pairs(pools) do
+            assert(#troops > 0, "Empty recruitment pool: " .. factionId .. "/" .. poolId)
+            for _, troopId in ipairs(troops) do assert(Troops[troopId], "Unknown recruitment troop " .. troopId) end
+        end
+    end
+    for _, factionId in ipairs(require("src.data.population.settings").defaultFactions) do
+        assert(Catalog.factions[factionId], "Unknown default faction " .. tostring(factionId))
+    end
+    for _, band in ipairs(require("src.data.encounters").bands) do
+        for _, pool in ipairs(band.pools) do
+            assert(Catalog.factions[pool.faction or "neutral"], "Unknown encounter faction " .. tostring(pool.faction))
+        end
+    end
+    for id, quest in pairs(require("src.data.quests")) do
+        if quest.onStart and quest.onStart.type == "spawn_party" then
+            assert(Catalog.factions[quest.onStart.faction or "bandits"], "Unknown quest party faction: " .. id)
+        end
+    end
     for id, definition in pairs(Catalog.locations) do
         Types.location.validate(definition)
         assert(Catalog.profiles[definition.populationProfile], "Unknown location population profile: " .. id)
@@ -165,6 +189,7 @@ function Catalog.validate()
         end
     end
     for id, faction in pairs(Catalog.factions) do
+        Registry.checkId("faction", id, faction)
         Types.faction.validate(faction)
         assert(Catalog.cultures[faction.defaultCulture], "Unknown faction culture: " .. id)
         for role, archetype in pairs(faction.garrisonRoles or {}) do

@@ -33,14 +33,14 @@ local function partyAssemblage(e, name, leaderId, id)
     -- Party modifiers
     e.speedModifier = 1.0       -- Multiplier on base movement speed
     e.visibilityModifier = 1.0  -- How easily spotted by enemies
-    e.visible = false           -- Recomputed every frame by systems/visibility_system.lua
+    e.visible = false           -- Recomputed every frame by systems/parties/visibility_system.lua
 
     -- Party condition flags
     e.isMoving = false
     e.currentObjective = nil  -- What the party is doing
     e.morale = 100
 
-    -- World-map AI state (see systems/party_ai_system.lua): "idle" | "wander" |
+    -- World-map AI state (see systems/parties/party_ai_system.lua): "idle" | "wander" |
     -- "chase" | "travel". TravelActivity owns movement while the latter is set.
     e.state = "idle"
     e.wanderOriginX, e.wanderOriginY = nil, nil

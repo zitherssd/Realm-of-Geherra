@@ -21,7 +21,7 @@ local function locationAssemblage(e, id, name)
     e.population = 100
     e.prosperity = 50
     e.profile = 50        -- discoverability; overridden by location_population_system
-    e.discovered = true   -- flips false for hidden types (see data/visibility.lua)
+    e.discovered = true   -- initialized from the location definition's hidden flag
     e.npcs = {}
     e.stationedParties = {}
     e.quests = {}

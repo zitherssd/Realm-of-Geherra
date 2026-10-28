@@ -186,14 +186,14 @@ World map generation is split into two systems and one data config:
     * Declares tunable parameters (seed, site count, spacing, biome definitions, biome colors, road options)
     * Declares location population ranges (type weights, population/prosperity ranges, faction pool)
 
-2.  **Generation Layer (`systems/world_generation_system.lua`)**
+2.  **Generation Layer (`world/generation/world_generation_system.lua`)**
     * Builds walkable navigation cells from map art mask (black = blocked, non-black = walkable)
     * Places major sites with spacing constraints
     * Assigns biomes to sites and computes Voronoi ownership for walkable cells
     * Computes road paths between sites over the walkable grid
     * Writes generation payload into `Map.worldGen`
 
-3.  **Population Layer (`systems/location_population_system.lua`)**
+3.  **Population Layer (`systems/population/location_population_system.lua`)**
     * Consumes generated site payloads from `Map.worldGen`
     * Creates runtime `Location` instances (village/town/castle) using weighted data rules
     * Assigns faction, biome tags, population, and prosperity to each location
@@ -296,7 +296,7 @@ This project uses a two-layer quest model:
     * May be marked as procedural/repeatable for generator-based NPC quest handouts
 
 2.  **Quest Instances (Runtime State):**
-    * Created by `systems/quest_system.lua` when accepted, as Concord entities
+    * Created by `systems/quests/quest_system.lua` when accepted, as Concord entities
       (tag `"quest"`) in `EcsWorld.campaign` via `ecs/assemblages/quest.lua`
     * Assigned unique instance IDs (for example `hunt_dogs#12`)
     * Active and completed quests are the **same** entity pool, distinguished
@@ -360,7 +360,7 @@ Procedural quest offers are owned by NPC runtime state, not UI state:
     * Tracks status and timing (`none`, `available`, `accepted`, `cooldown`)
     * Stores active linkage (`questInstanceId`) while accepted
 
-3.  **Availability System (`systems/quest_availability_system.lua`)**
+3.  **Availability System (`systems/quests/quest_availability_system.lua`)**
     * Rolls offers on location entry
     * Expires stale offers by day
     * Locks NPC while an accepted quest is active
@@ -473,7 +473,7 @@ See `ecs/assemblages/{unit,player,npc}.lua`.
 ### Party Structure
 
 A **party** (Concord entity tagged `"party"`, see `ecs/assemblages/party.lua`
-+ `systems/party_system.lua`) represents a **persistent group of actors**
++ `systems/parties/party_system.lua`) represents a **persistent group of actors**
 traveling and acting together on the world map.
 
 Parties are entities because they:
@@ -515,8 +515,8 @@ world/
 ```
 
 Locations are Concord entities (`ecs/assemblages/location.lua` +
-`systems/location_system.lua`), created at runtime by
-`systems/location_population_system.lua` and also registered on `map.locations`
+`systems/locations/location_system.lua`), created at runtime by
+`systems/population/location_population_system.lua` and also registered on `map.locations`
 for spatial lookup. `world/node.lua` and `world/encounter.lua` were deleted as
 confirmed dead code (never required anywhere).
 
@@ -570,8 +570,8 @@ quests/
 ```
 
 Quest instances themselves are Concord entities (tag `"quest"`), assembled by
-`ecs/assemblages/quest.lua` and managed by `systems/quest_system.lua` +
-`systems/quest_objective_system.lua` — see `ecs/` and the Quest Runtime Flow
+`ecs/assemblages/quest.lua` and managed by `systems/quests/quest_system.lua` +
+`systems/quests/quest_objective_system.lua` — see `ecs/` and the Quest Runtime Flow
 section above. `quest.lua`, `condition.lua`, `reward.lua`, and
 `quest_registry.lua` (the old OOP quest/condition/reward classes) were deleted
 once quests became Concord entities.
@@ -720,3 +720,5 @@ This architecture is designed to support:
 * Long-term expansion and maintainability
 
 This document is the **authoritative structural reference** for the project.
+
+Repository navigation and the approved file destinations are documented in [the file organization plan](docs/FILE_ORGANIZATION_PLAN.md).

@@ -4,10 +4,10 @@ local BattleContext = require("src.game.battle.battle_context")
 local BattleUnit = require("src.ecs.assemblages.battle_unit")
 local BattleUnitSystem = require("src.systems.battle.battle_unit_system")
 local EcsWorld = require("src.ecs.world")
-local DecisionSystem = require("src.ecs.systems.decision_system")
-local ExecutionSystem = require("src.ecs.systems.execution_system")
+local DecisionSystem = require("src.systems.battle.decision_system")
+local ExecutionSystem = require("src.systems.battle.execution_system")
 
-local InventorySystem = require("src.systems.inventory_system")
+local InventorySystem = require("src.systems.items.inventory_system")
 
 local BattleSimulation = {}
 

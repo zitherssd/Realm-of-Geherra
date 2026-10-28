@@ -6,9 +6,9 @@ local Input = require("src.core.input")
 local BattleSimulation = require("src.game.battle.battle_simulation")
 local BattleUnitSystem = require("src.systems.battle.battle_unit_system")
 local StateManager = require("src.core.state_manager")
-local CombatSystem = require("src.systems.combat_system")
+local CombatSystem = require("src.systems.battle.combat_system")
 local IdAllocator = require("src.core.id_allocator")
-local CampaignBattleResolution = require("src.systems.campaign_battle_resolution")
+local CampaignBattleResolution = require("src.systems.campaign.campaign_battle_resolution")
 local BattleState = {}
 
 local RenderSystem = require("src.systems.battle.render_system")

@@ -12,7 +12,7 @@ local WorldMapState = {debugOnly = true}
 
 local StateManager = require("src.core.state_manager")
 local GameContext = require("src.game.game_context")
-local MapGenerator = require("src.systems.map_generator")
+local MapGenerator = require("src.world.generation.map_generator")
 
 local map = nil          -- world/map.lua Map (the real in-game map, with settlements)
 local generated = nil    -- result of MapGenerator.generateWorld(...) (fallback only)
@@ -25,7 +25,7 @@ local zoom = 1
 local camX, camY = 0, 0
 local MIN_ZOOM, MAX_ZOOM = 0.2, 8
 
--- Readable names for the gameplay biome labels (see systems/map_generator.lua).
+-- Readable names for the gameplay biome labels (see world/generation/map_generator.lua).
 local BIOME_NAMES = {
     ocean   = "Ocean",
     beach   = "Beach",

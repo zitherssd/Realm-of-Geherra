@@ -1,14 +1,7 @@
 -- data/visibility.lua
--- Tunables for the spotting/scouting system (systems/visibility_system.lua).
+-- Tunables for the spotting/scouting system (systems/parties/visibility_system.lua).
 
 return {
     -- Divides (partySight + targetProfile) into a world-map detection radius (px).
-    radiusDivisor = 4,
-
-    -- Location types that start undiscovered and must be found via sight vs profile.
-    hiddenLocationTypes = {
-        ruins = true,
-        bandit_camp = true,
-        shrine = true
-    }
+    radiusDivisor = 4
 }

@@ -3,10 +3,10 @@ local Mode = require("src.debug.mode")
 local Tools = require("src.debug.campaign_tools")
 local Inspector = require("src.debug.inspector")
 local Button = require("src.ui.widgets.button")
-local Knowledge = require("src.systems.knowledge_system")
-local PartySystem = require("src.systems.party_system")
+local Knowledge = require("src.systems.knowledge.knowledge_system")
+local PartySystem = require("src.systems.parties.party_system")
 
-local Definitions = require("src.systems.goal_definitions")
+local Definitions = require("src.systems.goals.goal_definitions")
 
 local Overlay = {}
 Overlay.__index = Overlay
@@ -116,12 +116,12 @@ function Overlay:rows(map)
             end
         end
         if target and self.target.kind == "unit" and not target.player then
-            local party = require("src.systems.service_system").getParty(target, target.__world)
+            local party = require("src.systems.services.service_system").getParty(target, target.__world)
             if party and Tools.resolve(map, "party", party.id) then
                 local partyId = party.id
                 button("Inspect current party: " .. party.name, function() self:inspect("party", partyId) end)
             end
-            local location = require("src.systems.service_system").getLocation(target, {world = target.__world, map = map})
+            local location = require("src.systems.services.service_system").getLocation(target, {world = target.__world, map = map})
             if location then
                 local locationId = location.id
                 button("Inspect current settlement: " .. location.name, function() self:inspect("location", locationId) end)

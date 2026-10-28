@@ -76,7 +76,7 @@ requires a connected road route. Debug editing does not bypass these rules or su
 
 ### Adding goals and capabilities
 
-`src/systems/goal_definitions.lua` is the shared runtime/editor registry. Register a goal
+`src/systems/goals/goal_definitions.lua` is the shared runtime/editor registry. Register a goal
 with `registerGoal(id, spec)` and its label, default priority, description and `fields`.
 Fields support `number`, `string`, `boolean` and `location`; `default`, `optional` and `when`
 control initial values and conditional display. Runtime construction uses the same definition.

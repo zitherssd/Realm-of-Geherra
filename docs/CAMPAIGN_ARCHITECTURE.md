@@ -2,6 +2,8 @@
 
 This document records the agreed architecture for the campaign simulation and implemented milestones. Some later campaign systems remain future work.
 
+Gameplay modules now live in domain folders under `src/systems/`; campaign and battle orchestration remain under `src/game/`. Map generation lives in `src/world/generation/`, and navigation in `src/world/world_navigation.lua`. The [completed organization manifest](FILE_ORGANIZATION_PLAN.md) records all moves and extension points; this relocation preserves the architecture and simulation order described below.
+
 ## A. Actors / NPCs
 
 - Actors are persistent individuals with stable identities.
@@ -207,7 +209,7 @@ inventory, and location membership behavior.
 
 ### Representation and public API
 
-`src/systems/goal_system.lua` exposes:
+`src/systems/goals/goal_system.lua` exposes:
 
 - `GoalSystem.configure(actor, definitions, capabilities)`: opt an actor into goal control,
   replacing its goal list and capability flags. Replacement is rejected while a goal still owns
@@ -227,7 +229,7 @@ fields into plain data; there are no entity references, callbacks, or profession
 The component can be serialized with Concord, independently of the deferred full save/load work.
 
 ```lua
-local GoalSystem = require("src.systems.goal_system")
+local GoalSystem = require("src.systems.goals.goal_system")
 GoalSystem.configure(leader, {
     {type = "acquire_gold", amount = 200, priority = 20},
     {type = "reach_location", destinationLocationId = destination.id, priority = 10}
@@ -325,9 +327,9 @@ if the console accepts only one line). The blocks return the configured componen
 ```lua
 (function()
     local p = assert(require("src.ecs.world").findPartyById("RAIDER_PARTY_ID"))
-    require("src.systems.world_activity_system").cancel(p, "goal_demo_setup")
-    return require("src.systems.goal_system").configure(
-        assert(require("src.systems.party_system").getLeader(p)),
+    require("src.systems.world_activities.world_activity_system").cancel(p, "goal_demo_setup")
+    return require("src.systems.goals.goal_system").configure(
+        assert(require("src.systems.parties.party_system").getLeader(p)),
         {{type = "acquire_gold", amount = p.treasury + 100}}, {raid = true})
 end)()
 ```
@@ -335,9 +337,9 @@ end)()
 ```lua
 (function()
     local p = assert(require("src.ecs.world").findPartyById("TRAVELER_PARTY_ID"))
-    require("src.systems.world_activity_system").cancel(p, "goal_demo_setup")
-    return require("src.systems.goal_system").configure(
-        assert(require("src.systems.party_system").getLeader(p)),
+    require("src.systems.world_activities.world_activity_system").cancel(p, "goal_demo_setup")
+    return require("src.systems.goals.goal_system").configure(
+        assert(require("src.systems.parties.party_system").getLeader(p)),
         {{type = "reach_location", destinationLocationId = "DESTINATION_LOCATION_ID"}},
         {travel = true})
 end)()
@@ -350,7 +352,7 @@ existing `TimeSystem.setTimeScale` to compare pacing. Break again and inspect th
 for each selected party ID:
 
 ```lua
-require("src.systems.party_system").getLeader(require("src.ecs.world").findPartyById("PARTY_ID")).npc_goals
+require("src.systems.parties.party_system").getLeader(require("src.ecs.world").findPartyById("PARTY_ID")).npc_goals
 require("src.ecs.world").findPartyById("PARTY_ID").world_activity
 ```
 
@@ -429,7 +431,7 @@ debugger console with an idle party ID (no active encounter or retry cooldown):
 (function()
     local map = require("src.game.game_context").data.currentMap
     local party = assert(require("src.ecs.world").findPartyById("PARTY_ID"))
-    return require("src.systems.world_activity_system").start(party, "roam", {
+    return require("src.systems.world_activities.world_activity_system").start(party, "roam", {
         originX = party.x, originY = party.y, radius = 300, durationSeconds = 30
     }, map)
 end)()
@@ -530,7 +532,7 @@ in `headless_battle_scenario`, `world_encounter_scenario`, and
 
 ## Actual Milestone 6A: World Event Log and F2 viewer
 
-`src/systems/world_events.lua` owns private history keyed by the persistent campaign
+`src/systems/campaign/world_events.lua` owns private history keyed by the persistent campaign
 Concord world, not the transient exploration screen or a map. The weak-key store
 lives for the lifetime of that world; independent worlds have independent histories.
 Scene transitions retain history. EventBus remains transient notification only.
@@ -656,10 +658,10 @@ appointment as leader do not grant personal memory. In particular, the existing
 NPC creation sites must explicitly opt in when appropriate; names alone cannot
 distinguish template-named soldiers from important individuals.
 
-`src/systems/knowledge_system.lua` exposes plain functions:
+`src/systems/knowledge/knowledge_system.lua` exposes plain functions:
 
 ```lua
-local Knowledge = require("src.systems.knowledge_system")
+local Knowledge = require("src.systems.knowledge.knowledge_system")
 Knowledge.learn(actor, "event_1", {"location"}, world)
 Knowledge.learn(party, "event_1", {participants = true}, world)
 Knowledge.knows(actor, "event_1", world) -- existence, not complete knowledge
@@ -732,7 +734,7 @@ runs. Live manual gameplay inspection remains unverified.
 
 ## Actual Milestone 6C: battle participation and battlefield discovery
 
-`src/systems/battle_knowledge_system.lua` supplies two acquisition hooks that
+`src/systems/knowledge/battle_knowledge_system.lua` supplies two acquisition hooks that
 always call `KnowledgeSystem.learn`; it owns no memory or event store. Both grant
 the four supported battle categories (`time`, `location`, `participants`, `outcome`).
 F1 continues to read filtered owner knowledge; F2 continues to show full history.
@@ -822,7 +824,7 @@ completion/radius checks and successful `Map:stationParty`. Failed, cancelled,
 removed, or stalled travelers get no arrival or exchange. Encounter reservations
 continue to pause travel through the existing activity dispatcher.
 
-`src/systems/travel_knowledge_system.lua` owns these acquisition hooks, using
+`src/systems/knowledge/travel_knowledge_system.lua` owns these acquisition hooks, using
 `WorldEvents.record` and the existing `TimeSystem` day/hour clock. Records contain
 plain historical snapshots, never entity references:
 
@@ -955,12 +957,12 @@ Choosing Rest through a goal is opt-in. Passive healing does not require a goal.
 Neither generation nor injury automatically attaches goals:
 
 ```lua
-local Goals = require("src.systems.goal_system")
+local Goals = require("src.systems.goals.goal_system")
 Goals.addGoal(importantNpc, {type = "rest_and_recover"})
 -- Or include this definition in an initial Goals.configure call.
 ```
 
-The shared `src/systems/recovery.lua` rule exposes configurable module settings. Healing settings
+The shared `src/systems/actors/recovery.lua` rule exposes configurable module settings. Healing settings
 previously on WorldState now live here, preserving their original defaults:
 
 | Setting | Default | Meaning |
@@ -1065,9 +1067,9 @@ Manual playtest:
    must retain ownership while recovery waits. Change membership/leadership using existing APIs;
    goals should remain on the original actor and execute only in its eligible context.
 
-Files changed for 7A: `src/systems/goal_system.lua`, `src/systems/recovery.lua`,
-`src/systems/world_activities/rest_activity.lua`, `src/systems/world_activity_system.lua`,
-`src/systems/party_ai_system.lua`, `src/debug/inspector.lua`, `src/debug/campaign_tools.lua`,
+Files changed for 7A: `src/systems/goals/goal_system.lua`, `src/systems/actors/recovery.lua`,
+`src/systems/world_activities/rest_activity.lua`, `src/systems/world_activities/world_activity_system.lua`,
+`src/systems/parties/party_ai_system.lua`, `src/debug/inspector.lua`, `src/debug/campaign_tools.lua`,
 `src/ui/screens/debug_overlay.lua`, `tests/unit/recovery_scenario.lua`,
 `tests/unit/npc_goals_scenario.lua`, `tests/unit/main.lua`, `tests/unit/world_time_sync_scenario.lua`,
 `src/game/states/world_state.lua`, and this document.
@@ -1114,7 +1116,7 @@ F1 recovery modes, real WorldState pause gating and 2x clock scaling. All 22 sce
 independently: 19 pass; the same three documented headless-combat-related failures remain.
 Live UI/gameplay is still unverified. `git diff --check` passes.
 
-Audit files changed: `src/systems/recovery.lua`, `src/systems/goal_system.lua`,
+Audit files changed: `src/systems/actors/recovery.lua`, `src/systems/goals/goal_system.lua`,
 `src/game/states/world_state.lua`, `src/debug/inspector.lua`, `tests/unit/recovery_scenario.lua`,
 `tests/unit/world_time_sync_scenario.lua`, and this document. Recovery remains scoped to the
 active map and living important independent residents; non-leader members do not choose Rest
@@ -1147,7 +1149,7 @@ assignment and obligation. Ordinary healing creates neither a request nor a worl
 
 ### ServiceSystem API and current state
 
-`src/systems/service_system.lua` uses a small context `{world = campaign, map = currentMap}`.
+`src/systems/services/service_system.lua` uses a small context `{world = campaign, map = currentMap}`.
 The world defaults to `EcsWorld.campaign`; map-dependent interactions require an explicit map.
 
 - `findLocalProviders(customer, "heal", context)` returns eligible, affordable local actors.

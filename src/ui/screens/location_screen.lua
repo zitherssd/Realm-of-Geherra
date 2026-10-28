@@ -6,12 +6,12 @@ LocationScreen.__index = LocationScreen
 
 local Button = require("src.ui.widgets.button")
 local StateManager = require("src.core.state_manager")
-local LocationActions = require("src.systems.location_actions")
-local ActionRegistry = require("src.systems.location_action_registry")
-local LocationSystem = require("src.systems.location_system")
+local LocationActions = require("src.systems.locations.location_actions")
+local ActionRegistry = require("src.systems.locations.location_action_registry")
+local LocationSystem = require("src.systems.locations.location_system")
 local PopulationCatalog = require("src.data.population.catalog")
 local DialogueData = require("src.data.dialogue")
-local QuestAvailabilitySystem = require("src.systems.quest_availability_system")
+local QuestAvailabilitySystem = require("src.systems.quests.quest_availability_system")
 local DebugMode = require("src.debug.mode")
 
 function LocationScreen.new(location, onLeave)

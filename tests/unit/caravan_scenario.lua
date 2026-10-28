@@ -4,17 +4,17 @@ local Unit = require("src.ecs.assemblages.unit")
 local Party = require("src.ecs.assemblages.party")
 local Location = require("src.ecs.assemblages.location")
 local Map = require("src.world.map")
-local Locations = require("src.systems.location_system")
-local Parties = require("src.systems.party_system")
-local Goals = require("src.systems.goal_system")
-local Services = require("src.systems.service_system")
-local Caravans = require("src.systems.caravan_system")
-local Activities = require("src.systems.world_activity_system")
-local Time = require("src.systems.time_system")
+local Locations = require("src.systems.locations.location_system")
+local Parties = require("src.systems.parties.party_system")
+local Goals = require("src.systems.goals.goal_system")
+local Services = require("src.systems.services.service_system")
+local Caravans = require("src.systems.services.caravan_system")
+local Activities = require("src.systems.world_activities.world_activity_system")
+local Time = require("src.systems.campaign.time_system")
 local Game = require("src.game.game_context")
-local Events = require("src.systems.world_events")
-local Knowledge = require("src.systems.knowledge_system")
-local TravelKnowledge = require("src.systems.travel_knowledge_system")
+local Events = require("src.systems.campaign.world_events")
+local Knowledge = require("src.systems.knowledge.knowledge_system")
+local TravelKnowledge = require("src.systems.knowledge.travel_knowledge_system")
 local Scenario = {}
 
 local function setup()
@@ -92,7 +92,7 @@ local function journey()
     local world, map, home, far, sponsor, worker, context, tick, party, prep = prepare()
     -- Actual stolen capital is not recreated by trading or delivery.
     local thief = Party.create(world, "Thief")
-    assert(require("src.systems.inventory_system").transferGold(party, thief, 100))
+    assert(require("src.systems.items.inventory_system").transferGold(party, thief, 100))
     local random = TravelKnowledge.random
     TravelKnowledge.random = function() return 1 end -- No optional arrival gossip.
     for _ = 1, 800 do tick(0.1); if not worker.caravan_work then break end end
@@ -220,11 +220,11 @@ local function loss()
     local result = {partyAId = raider.id, partyBId = party.id, outcome = "victory", winnerPartyId = raider.id,
         actors = {[bandit.id] = {partyId = raider.id, finalHp = 100, defeated = false},
             [worker.id] = {partyId = party.id, finalHp = 0, defeated = true}}}
-    local loot = require("src.systems.loot_resolver").resolve(raider, party, result,
+    local loot = require("src.systems.items.loot_resolver").resolve(raider, party, result,
         {plunderAllowed = true, stolenProportion = 1, destroyedProportion = 0}, function() return 0 end)
     local encounter = {id = "caravan-defeat", partyAId = raider.id, partyBId = party.id, x = party.x, y = party.y,
         time = {day = Time.getDay(), hour = Time.getHour()}}
-    local application = require("src.systems.loot_application")
+    local application = require("src.systems.items.loot_application")
     application.apply(application.prepare(loot, {map = map, encounter = encounter, battleResult = result,
         worldTime = {day = Time.getDay(), hour = Time.getHour()}}))
     worker.hp = 0

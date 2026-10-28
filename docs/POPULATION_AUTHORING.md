@@ -12,15 +12,21 @@ there. Changing the population does not change the location's actions or rules.
 | Which residents, personal parties or garrisons spawn | `src/data/population/locations/` |
 | Character stats, equipment, starting gold, goals, capabilities, default retinue | `src/data/npc_archetypes/` |
 | Cultural names and role mappings | `src/data/population/cultures/`, `src/data/names/` |
-| Political defaults and population/garrison overrides | `src/data/population/factions/` |
+| Canonical faction identities, presentation, political defaults and population/garrison overrides | `src/data/factions.lua` → `src/data/population/factions/` |
 | Retinue composition, funds, supplies and initial placement | `src/data/population/parties/` |
 | Default campaign faction list | `src/data/population/settings.lua` |
-| What an action actually does | `src/systems/location_actions.lua` or an individual action module |
+| What an action actually does | `src/systems/locations/location_actions.lua` or an individual action module |
 
 Add new data files to their directory's `index.lua`. IDs must match filenames.
 The removed `location_npc_spawn_rules.lua` and `location_population_config.lua` are
 no longer alternative data sources. Terrain settings remain in `world_generation.lua`.
-The old `static_locations.lua` is still an unwired collection of design notes.
+The unwired handcrafted-location concepts are preserved in [archived data-definition concepts](DATA_DEFINITION_CONCEPTS.md#handcrafted-locations), outside the live data catalogs.
+
+See the [faction contract](FACTION_CONTRACT.md) for canonical faction IDs, independent
+culture overrides, faction-specific recruitment and neutral fallback rules. Use
+`pelasgian` for culture and `pelasgian_clan` for that specific political affiliation;
+`pelasgians` is not a live faction key. The two faction catalog entry points return
+the same table.
 
 ## Named types in Lua
 
@@ -97,7 +103,7 @@ There is no `gameplayType`. Rules have these concrete consumers:
 | `roadWorthy` | Includes the site in normal road tracing |
 | `mapMarker` | Selects an existing location background asset; it does not imply behavior |
 
-`src/systems/location_rules.lua` is the shared policy lookup used by goals, caravans,
+`src/systems/locations/location_rules.lua` is the shared policy lookup used by goals, caravans,
 services, recruitment and the debug fixture. There are no separate town/village/castle
 eligibility lists in those systems. There are no `facilities` flags: market/tavern/
 barracks booleans previously had no gameplay consumer and are now rejected as unknown
@@ -229,11 +235,11 @@ actions = {{label = "Examine the tower", action = "examineWizardTower"}},
 
 Its separate population profile creates one `tower_wizard` actor. The background
 currently reuses the shrine artwork, which has no effect on gameplay eligibility.
-The action registration is in `src/systems/location_action_registry.lua`:
+The action registration is in `src/systems/locations/location_action_registry.lua`:
 
 ```lua
 Actions.register("examineWizardTower",
-    "src.systems.location_actions.examine_wizard_tower", "execute")
+    "src.systems.locations.examine_wizard_tower", "execute")
 ```
 
 The individual module exports `execute(location)` and opens an ordinary description

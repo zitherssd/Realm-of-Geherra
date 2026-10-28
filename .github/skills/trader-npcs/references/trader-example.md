@@ -80,7 +80,7 @@ LocationSystem.addNPC(starterLocation, fishTrader)
    ```
 
 3. Teach `spawnLocationNpcs` to fill the inventory from `stock`. In
-   `systems/location_population_system.lua`, add the requires at the top and populate
+   `systems/population/location_population_system.lua`, add the requires at the top and populate
    right after `npc.name = generateNpcName(...)`:
 
    ```lua

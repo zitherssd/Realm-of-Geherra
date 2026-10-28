@@ -35,7 +35,7 @@ return {
         speaker = "Village Elder",
         lines = {
             {
-                text = "I am Bogdan, elder of this hearth. Name yourself.",
+                text = "I am the elder of this hearth. Name yourself.",
                 options = {
                     { text = "A plain traveler, seeking fair coin and worthy labor.", action = "meet_npc", set = { "introduced_humble" }, next = "elder_greeting" },
                     { text = "A proven spear. My name will stand in these hills.", action = "meet_npc", set = { "introduced_boastful" }, next = "elder_greeting" }

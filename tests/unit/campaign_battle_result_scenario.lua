@@ -1,10 +1,10 @@
 local EcsWorld = require("src.ecs.world")
 local Party = require("src.ecs.assemblages.party")
 local Unit = require("src.ecs.assemblages.unit")
-local PartySystem = require("src.systems.party_system")
+local PartySystem = require("src.systems.parties.party_system")
 local Map = require("src.world.map")
 local EventBus = require("src.core.event_bus")
-local ResultApplier = require("src.systems.campaign_battle_result_applier")
+local ResultApplier = require("src.systems.campaign.campaign_battle_result_applier")
 
 local function createParty(world, map, partyId, actorIds)
     local party = Party.create(world, partyId, nil, partyId)

@@ -6,7 +6,7 @@ local Button = require("src.ui.widgets.button")
 local Tooltip = require("src.ui.widgets.tooltip")
 local InventoryGrid = require("src.ui.widgets.inventory_grid")
 local GameContext = require("src.game.game_context")
-local PartySystem = require("src.systems.party_system")
+local PartySystem = require("src.systems.parties.party_system")
 
 function LootScreen.new(loot, onContinue)
     local self = setmetatable({}, { __index = LootScreen })

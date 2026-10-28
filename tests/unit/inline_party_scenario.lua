@@ -1,12 +1,12 @@
 local Ecs = require("src.ecs.world")
 local Game = require("src.game.game_context")
 local Map = require("src.world.map")
-local Populate = require("src.systems.location_population_system")
+local Populate = require("src.systems.population.location_population_system")
 local Catalog = require("src.data.population.catalog")
 local Composition = require("src.data.types.party_definition")
 local Member = require("src.data.types.party_member")
-local Inventory = require("src.systems.inventory_system")
-local Parties = require("src.systems.party_system")
+local Inventory = require("src.systems.items.inventory_system")
+local Parties = require("src.systems.parties.party_system")
 local Scenario = {}
 
 local function fails(fn, fragment)

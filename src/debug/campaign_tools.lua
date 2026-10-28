@@ -1,13 +1,13 @@
 -- Debug actions resolve IDs at use time and call the normal campaign APIs.
 local Mode = require("src.debug.mode")
 local EcsWorld = require("src.ecs.world")
-local PartySystem = require("src.systems.party_system")
-local GoalSystem = require("src.systems.goal_system")
-local Activities = require("src.systems.world_activity_system")
+local PartySystem = require("src.systems.parties.party_system")
+local GoalSystem = require("src.systems.goals.goal_system")
+local Activities = require("src.systems.world_activities.world_activity_system")
 local GameContext = require("src.game.game_context")
-local Knowledge = require("src.systems.knowledge_system")
+local Knowledge = require("src.systems.knowledge.knowledge_system")
 
-local Services = require("src.systems.service_system")
+local Services = require("src.systems.services.service_system")
 local Tools = {}
 
 function Tools.enableCaravan(map, actorId, sponsorRole)
@@ -169,7 +169,7 @@ function Tools.editableActor(map, actorId, readOnly, expectedCommandPartyId)
     return actor, nil, party
 end
 
-local Definitions = require("src.systems.goal_definitions")
+local Definitions = require("src.systems.goals.goal_definitions")
 
 local function saveGoals(map, actor, party, forms, capabilities)
     local definitions, flags = {}, {}

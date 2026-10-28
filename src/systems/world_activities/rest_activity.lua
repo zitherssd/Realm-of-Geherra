@@ -1,6 +1,6 @@
 local EcsWorld = require("src.ecs.world")
-local PartySystem = require("src.systems.party_system")
-local Recovery = require("src.systems.recovery")
+local PartySystem = require("src.systems.parties.party_system")
+local Recovery = require("src.systems.actors.recovery")
 local Rest = {initialPhase = "rest"}
 
 function Rest.prepare(party, params)

@@ -1,10 +1,10 @@
 -- Readable snapshots for the debug overlay; never retain entity references.
-local PartySystem = require("src.systems.party_system")
+local PartySystem = require("src.systems.parties.party_system")
 local EcsWorld = require("src.ecs.world")
 local Tools = require("src.debug.campaign_tools")
-local Knowledge = require("src.systems.knowledge_system")
+local Knowledge = require("src.systems.knowledge.knowledge_system")
 local KnowledgeText = require("src.ui.knowledge_text")
-local Services = require("src.systems.service_system")
+local Services = require("src.systems.services.service_system")
 local Inspector = {}
 
 local function actorGoalLines(actor, add, map)
@@ -19,7 +19,7 @@ local function actorGoalLines(actor, add, map)
     add("Providing services: " .. tostring(Services.isProviding(actor, {world = actor.__world, map = map})))
     local formation = actor.caravan_formation
     if formation then
-        local now = require("src.systems.caravan_system").now()
+        local now = require("src.systems.services.caravan_system").now()
         add(string.format("Sponsorship cooldown: %.2f world seconds", math.max(0, formation.nextSponsorshipAt - now)))
         local prep = formation.preparation or formation.lastPreparation
         if prep then
@@ -188,7 +188,7 @@ function Inspector.lines(map, kind, id)
         add("Type: " .. tostring(entity.type) .. " | Owner: " .. tostring(entity.owner or "none"))
         add("Definition / culture: " .. tostring(entity.definitionId or entity.type) .. " / " .. tostring(entity.culture or "none"))
         add("Population profile: " .. tostring(entity.populationProfile or "none"))
-        local definition = require("src.systems.location_rules").definition(entity)
+        local definition = require("src.systems.locations.location_rules").definition(entity)
         if definition then
             add("Caravan stop: " .. tostring(definition.rules.caravanStop) .. " | Recovery stop: " .. tostring(definition.rules.recoveryStop))
             add("Location actions: " .. #definition.actions)

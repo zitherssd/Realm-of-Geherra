@@ -4,8 +4,8 @@
 local QuestLogScreen = {}
 QuestLogScreen.__index = QuestLogScreen
 
-local QuestSystem = require("src.systems.quest_system")
-local QuestObjectiveSystem = require("src.systems.quest_objective_system")
+local QuestSystem = require("src.systems.quests.quest_system")
+local QuestObjectiveSystem = require("src.systems.quests.quest_objective_system")
 local Button = require("src.ui.widgets.button")
 
 -- Compass direction from (fromX, fromY) to (toX, toY) on the world map.

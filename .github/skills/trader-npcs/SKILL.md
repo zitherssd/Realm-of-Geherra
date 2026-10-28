@@ -43,7 +43,7 @@ or non-shop inventory UI — those are separate concerns.
 3. **Spawn it**:
    - *Guaranteed / always present*: inject it in `game/game_initializer.lua` after
      `LocationPopulationSystem.populate(...)` and call
-     `LocationSystem.addNPC(location, troop)` (`systems/location_system.lua`).
+     `LocationSystem.addNPC(location, troop)` (`systems/locations/location_system.lua`).
    - *Chance-based per location type*: add `{ troopType = "<type>", count = n, chance = c }`
      to `data/location_npc_spawn_rules.lua` — and give the def a `stock` list so
      `spawnLocationNpcs` can fill its inventory (see
@@ -70,7 +70,7 @@ or non-shop inventory UI — those are separate concerns.
 ## Gotchas
 
 - **Never store shared catalog tables in an inventory.** Use
-  `PartySystem.addItemDefCopy(playerParty, def, qty)` (`systems/party_system.lua`) for
+  `PartySystem.addItemDefCopy(playerParty, def, qty)` (`systems/parties/party_system.lua`) for
   the player and the copy helper in the [reference](./references/trader-example.md) for
   merchants — it shallow-copies and stacks by id. Mutating a shared `data/items.lua`
   table corrupts it for the whole game.

@@ -1,8 +1,8 @@
 local EcsWorld = require("src.ecs.world")
 local Party = require("src.ecs.assemblages.party")
 local EventBus = require("src.core.event_bus")
-local PartyAiSystem = require("src.systems.party_ai_system")
-local WorldActivitySystem = require("src.systems.world_activity_system")
+local PartyAiSystem = require("src.systems.parties.party_ai_system")
+local WorldActivitySystem = require("src.systems.world_activities.world_activity_system")
 local RaidActivity = require("src.systems.world_activities.raid_activity")
 
 local function newMap(parties)
