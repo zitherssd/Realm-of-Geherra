@@ -204,6 +204,12 @@ local function testDuplicateAndInvalidResultsAreAtomic()
 
     assertInvalidIsAtomic(function(invalid) invalid.partyBId = "missing-party" end)
     assertInvalidIsAtomic(function(invalid)
+        invalid.actors["validation-actor-a"].maxHp = -1
+    end)
+    assertInvalidIsAtomic(function(invalid)
+        invalid.actors["validation-actor-a"].statusEffects = "invalid"
+    end)
+    assertInvalidIsAtomic(function(invalid)
         invalid.actors["not-a-campaign-actor"] = {
             partyId = partyA.id,
             finalHp = 10,

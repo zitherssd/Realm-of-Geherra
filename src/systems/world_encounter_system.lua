@@ -3,12 +3,9 @@
 local GameContext = require("src.game.game_context")
 local EventBus = require("src.core.event_bus")
 local HeadlessBattleRunner = require("src.systems.headless_battle_runner")
-local CampaignBattleResultApplier = require("src.systems.campaign_battle_result_applier")
 local LootResolver = require("src.systems.loot_resolver")
-local LootApplication = require("src.systems.loot_application")
-local TimeSystem = require("src.systems.time_system")
-local WorldEvents = require("src.systems.world_events")
-local BattleKnowledge = require("src.systems.battle_knowledge_system")
+
+local CampaignBattleResolution = require("src.systems.campaign_battle_resolution")
 
 local WorldEncounterSystem = {
     combatTicksPerWorldHour = 200,
@@ -129,72 +126,10 @@ local function finishEncounter(map, encounter, result)
     if not partyA or not partyB then
         error("A participating party is no longer on the campaign map", 2)
     end
-    local world = partyA:getWorld()
-    local survivingActorIds = {}
-    local eventData = {
-        time = {day = TimeSystem.getDay(), hour = TimeSystem.getHour()},
-        encounterId = encounter.id, mapId = map.id, x = encounter.x, y = encounter.y,
-        outcome = result.outcome, winnerPartyId = result.winnerPartyId,
-        defeatedPartyIds = result.loserPartyId and {result.loserPartyId} or {},
-        participants = {}, subjectIds = {partyA.id, partyB.id},
-        ticks = result.ticks
-    }
-    for _, party in ipairs({partyA, partyB}) do
-        local participant = {partyId = party.id, name = party.name or tostring(party.id),
-            actorIds = {}, casualties = 0}
-        for _, actor in ipairs(party.actors) do
-            participant.actorIds[#participant.actorIds + 1] = actor.id
-            eventData.subjectIds[#eventData.subjectIds + 1] = actor.id
-            if result.actors[actor.id].defeated then
-                participant.casualties = participant.casualties + 1
-            else
-                survivingActorIds[actor.id] = true
-            end
-        end
-        eventData.participants[#eventData.participants + 1] = participant
-    end
-    local lootResult = LootResolver.resolve(
-        partyA,
-        partyB,
-        result,
-        encounter.lootPolicy
-    )
-    local lootPlan = LootApplication.prepare(lootResult, {
-        map = map,
-        encounter = encounter,
-        battleResult = result,
-        worldTime = {
-            day = TimeSystem.getDay(),
-            hour = TimeSystem.getHour()
-        }
-    })
-    local campaignContext = {
-        map = map,
-        encounter = encounter.runner
-    }
-    CampaignBattleResultApplier.validate(result, campaignContext)
-
-    LootApplication.apply(lootPlan)
-    local applied = CampaignBattleResultApplier.apply(result, {
-        map = map,
-        encounter = encounter.runner
-    })
-    encounter.result = result
-    encounter.lootResult = lootResult
-    encounter.outcome = result.outcome
-    encounter.resultApplied = true
     encounter.state = "completed"
-    eventData.eliminatedPartyIds = applied.eliminatedPartyIds
-    eventData.battlefieldId = lootPlan.remainsSite and lootPlan.remainsSite.id
-    if eventData.battlefieldId then
-        eventData.subjectIds[#eventData.subjectIds + 1] = eventData.battlefieldId
-    end
-    eventData.subjectIds[#eventData.subjectIds + 1] = map.id
-    local event = WorldEvents.record(world, "battle_ended", eventData,
-        "battle_ended:" .. encounter.id)
-    encounter.eventId = event.id
-    BattleKnowledge.learnParticipants(world, event, survivingActorIds)
-    if lootPlan.remainsSite then lootPlan.remainsSite.history.eventId = event.id end
+    CampaignBattleResolution.resolve(result, {
+        map = map, encounter = encounter, rewardPolicy = "npc"
+    })
     addCooldown(map, encounter)
     removeActiveEncounter(map, encounter)
     -- Casualty application may already have removed an eliminated party from the map.

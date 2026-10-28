@@ -40,6 +40,7 @@ function love.load(args)
         require("battle_simulation_scenario").run()
         require("headless_battle_scenario").run()
         require("campaign_battle_result_scenario").run()
+        require("campaign_battle_resolution_scenario").run()
         require("world_encounter_scenario").run()
         require("raid_encounter_scenario").run()
         require("world_time_sync_scenario").run()
@@ -61,6 +62,6 @@ function love.load(args)
     end
 
     print(args and args[1] and (args[1] .. " passed")
-        or "All 31 scenarios and navigation tests passed, including campaign runtime ordering and lifecycle")
+        or "All 32 scenarios and navigation tests passed, including campaign runtime ordering and lifecycle")
     love.event.quit(0)
 end

@@ -1,7 +1,6 @@
 -- Runs the shared battle simulation to a terminal outcome without presentation.
 
 local BattleSimulation = require("src.game.battle.battle_simulation")
-local InventorySystem = require("src.systems.inventory_system")
 
 local HeadlessBattleRunner = {}
 
@@ -70,86 +69,11 @@ local function getMaxTicks(options)
     return maxTicks
 end
 
-local function getLivingCounts(context)
-    local livingByTeam = {player = 0, enemy = 0}
-    for _, unit in ipairs(context.data.unitList) do
-        if unit.hp > 0 then
-            livingByTeam[unit.team] = (livingByTeam[unit.team] or 0) + 1
-        end
-    end
-    return livingByTeam.player, livingByTeam.enemy
-end
-
-local function resolveOutcome(context, partyA, partyB)
-    local partyAAlive, partyBAlive = getLivingCounts(context)
-    if partyAAlive == 0 and partyBAlive == 0 then
-        return "draw", nil
-    elseif partyAAlive == 0 then
-        return "victory", partyB.id
-    elseif partyBAlive == 0 then
-        return "victory", partyA.id
-    end
-    return nil, nil
-end
-
-local function collectBattleUnits(context)
-    local unitsByActorId = {}
-    for _, unit in ipairs(context.data.unitList) do
-        unitsByActorId[unit.id] = unit
-    end
-    for _, unit in ipairs(context.data.casualties) do
-        unitsByActorId[unit.id] = unit
-    end
-    return unitsByActorId
-end
-
-local function addActorResults(result, party, unitsByActorId)
-    for _, actor in ipairs(party.actors) do
-        local battleUnit = unitsByActorId[actor.id]
-        local maxHp = actor.maxHp or (actor.stats and actor.stats.health) or 100
-        local finalHp = battleUnit and battleUnit.hp or actor.hp or maxHp
-
-        result.actors[actor.id] = {
-            partyId = party.id,
-            finalHp = finalHp,
-            defeated = finalHp <= 0,
-            equipment = InventorySystem.deepClone(battleUnit and battleUnit.equipment or actor.equipment or {}),
-            itemDurability = InventorySystem.deepClone(battleUnit and battleUnit.itemDurability or actor.itemDurability or {})
-        }
-    end
-end
-
-local function buildResult(simulation, partyA, partyB, outcome, winnerPartyId)
-    local result = {
-        partyAId = partyA.id,
-        partyBId = partyB.id,
-        outcome = outcome,
-        winnerPartyId = winnerPartyId,
-        loserPartyId = nil,
-        actors = {},
-        ticks = simulation.context.data.tick
-    }
-
-    if winnerPartyId == partyA.id then
-        result.loserPartyId = partyB.id
-    elseif winnerPartyId == partyB.id then
-        result.loserPartyId = partyA.id
-    end
-
-    local unitsByActorId = collectBattleUnits(simulation.context)
-    addActorResults(result, partyA, unitsByActorId)
-    addActorResults(result, partyB, unitsByActorId)
-    return result
-end
-
 local Encounter = {}
 Encounter.__index = Encounter
 
 local function completeEncounter(encounter, outcome, winnerPartyId)
-    encounter.result = buildResult(
-        encounter.simulation,
-        encounter.partyA,
-        encounter.partyB,
+    encounter.result = encounter.simulation:buildResult(
         outcome,
         winnerPartyId
     )
@@ -165,7 +89,7 @@ function Encounter:advance(tickCount)
         error("tickCount must be a non-negative integer", 2)
     end
 
-    local outcome, winnerPartyId = resolveOutcome(self.simulation.context, self.partyA, self.partyB)
+    local outcome, winnerPartyId = self.simulation:getOutcome()
     if outcome then
         return completeEncounter(self, outcome, winnerPartyId)
     end
@@ -173,7 +97,7 @@ function Encounter:advance(tickCount)
     local ticksToRun = math.min(tickCount, self.maxTicks - self.simulation.context.data.tick)
     for _ = 1, ticksToRun do
         self.simulation:tick()
-        outcome, winnerPartyId = resolveOutcome(self.simulation.context, self.partyA, self.partyB)
+        outcome, winnerPartyId = self.simulation:getOutcome()
         if outcome then
             return completeEncounter(self, outcome, winnerPartyId)
         end

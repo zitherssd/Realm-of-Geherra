@@ -69,7 +69,7 @@ local function prepare()
     Locations.addNPC(home, worker); tick(2.1); tick(0.1)
     local request = Services.getRequest(prep.leaderServiceId, context)
     assert(request.status == "assigned" and request.assignedActorId == worker.id)
-    assert(not Services.assign(request.id, worker, context))
+    assert(not Caravans.assign(request.id, worker, context))
     assert(worker.caravan_work and #world:query({"party"}) == 1)
     assert(sponsor.treasury == 1500)
     local party = Ecs.findPartyById(worker.caravan_work.partyId, world)
@@ -148,7 +148,7 @@ local function playerOverride(assigned)
     local prep = sponsor.caravan_formation.preparation
     local originalId = prep.leaderServiceId
     if assigned then
-        assert(Services.assign(originalId, worker, context))
+        assert(Caravans.assign(originalId, worker, context))
         assert(Services.hasObligation(worker, context))
     end
     assert(Caravans.now() < prep.readyAt and Caravans.canVolunteer(sponsor, player, context))
@@ -279,7 +279,7 @@ local function ownershipAndViews()
     Locations.removeNPC(home, worker); Parties.addActor(unrelated, worker)
     unrelated.x, unrelated.y = home.x, home.y
     map:addParty(unrelated); map:stationParty(home, unrelated)
-    assert(not Services.assign(prep.leaderServiceId, worker, context))
+    assert(not Caravans.assign(prep.leaderServiceId, worker, context))
     assert(Parties.getLeader(unrelated) == worker and #unrelated.actors == 1)
     local Inspector = require("src.debug.inspector")
     local lines = table.concat(Inspector.lines(map, "unit", sponsor.id), "\n")
@@ -307,7 +307,37 @@ local function ownershipAndViews()
     plain(sponsor.caravan_formation:serialize())
 end
 
+local function runtimeOwnsExecution()
+    local world, map, home, far, sponsor, worker, context, tick, party, prep = prepare()
+    for _ = 1, 800 do
+        tick(0.1)
+        if worker.caravan_work.phase == "trading" then break end
+    end
+    local work = assert(worker.caravan_work)
+    assert(work.phase == "trading")
+    assert(Services.getRequest(work.serviceId, context).executionPartyId == party.id)
+    Game.data.time.day = Game.data.time.day + 1
+    local treasury, serviceId = party.treasury, work.serviceId
+    Goals.update(1, map)
+    assert(work.phase == "trading" and party.treasury == treasury,
+        "Standalone goal evaluation executed caravan trading")
+    worker.hp = 30
+    CampaignRuntime.updateGoals(1, map)
+    assert(Services.selectedGoal(worker).type == "rest_and_recover")
+    assert(work.phase == "trading" and party.treasury == treasury, "Recovery did not preempt caravan work")
+    worker.hp = 100
+    for _ = 1, 100 do
+        tick(0.1)
+        if work.phase == "returning" then break end
+    end
+    assert(work.phase == "returning" and party.treasury == treasury + math.floor(treasury * Caravans.profitRate))
+    assert(#Events.getByType(world, "caravan_traded") == 1)
+    CampaignRuntime.updateGoals(1, map)
+    assert(#Events.getByType(world, "caravan_traded") == 1 and Services.hasObligation(worker, context) == serviceId)
+end
+
 function Scenario.run()
+    runtimeOwnsExecution()
     journey()
     proactiveAndFailedDispatch()
     playerOverride(false)

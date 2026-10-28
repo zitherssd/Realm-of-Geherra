@@ -80,11 +80,12 @@ return {
         sprite = "src/assets/sprites/units/dog.png",
         slots = {"collar"}, -- Can only wear body armor/collar
         stats = {
-            health = 12,
-            defense = 18,
-            attack = 11,
-            speed = 10,
-            battle_speed = 16
+            health = 20,
+            defense = 11,
+            attack = 13,
+            speed = 15,
+            battle_speed = 16,
+            strength = 12
         },
         size = 3,
         equipment = {},
@@ -124,12 +125,12 @@ return {
         -- Placeholder sprite until a dedicated bear sprite exists.
         sprite = "src/assets/sprites/units/bear.png",
         stats = {
-            health = 68,
+            health = 65,
             defense = 7,
-            attack = 12,
+            attack = 11,
             speed = 11,
             battle_speed = 12,
-            strength = 26
+            strength = 18
         },
         size = 4,
         equipment = {},
@@ -145,11 +146,11 @@ return {
         type = "undead",
         sprite = "src/assets/sprites/units/skeleton.png",
         stats = {
-            health = 35,
-            attack = 28,
-            defense = 26,
+            health = 15,
+            attack = 12,
+            defense = 12,
             speed = 8,
-            battle_speed = 11
+            battle_speed = 8
         },
         size = 3,
         equipment = {
@@ -167,11 +168,11 @@ return {
         type = "undead",
         sprite = "src/assets/sprites/units/skeleton_spear.png",
         stats = {
-            health = 35,
-            attack = 28,
-            defense = 26,
+            health = 15,
+            attack = 12,
+            defense = 12,
             speed = 8,
-            battle_speed = 11
+            battle_speed = 8
         },
         size = 3,
         equipment = {

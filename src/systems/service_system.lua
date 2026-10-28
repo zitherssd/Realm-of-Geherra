@@ -8,6 +8,7 @@ local Events = require("src.systems.world_events")
 local Knowledge = require("src.systems.knowledge_system")
 local Time = require("src.systems.time_system")
 local LocationRules = require("src.systems.location_rules")
+local GoalState = require("src.systems.goal_state")
 local Services = {healAmount = 40, healPrice = 10, healingRetrySeconds = 30, minimumUsefulHeal = 20}
 
 local function copy(value, ancestors)
@@ -184,7 +185,7 @@ local function record(request, eventType, world)
     }, request.id .. ":" .. eventType)
     -- Direct participants know the occurrence; no distant automatic broadcast.
     for _, actor in ipairs({employer or false, worker or false}) do
-        local remoteEmployer = actor == employer and request.type == "lead_caravan" and request.data.caravanPartyId
+        local remoteEmployer = actor == employer and request.executionPartyId
             and eventType == "service_cancelled"
         if actor and actor.memory and not remoteEmployer then
             Knowledge.learn(actor, event.id, Knowledge.getDetailCategories(event.id, world), world)
@@ -243,13 +244,18 @@ function Services.learnCurrentStatus(id, worker, context)
     Knowledge.learn(worker, eventId, Knowledge.getDetailCategories(eventId, world), world)
 end
 
-local function accept(request, worker, context)
+-- Low-level contract acceptance; the caller owns profession/participation policy.
+function Services.accept(id, worker, context)
+    local request = registry(worldFor(context))[id]
+    local available, reason = Services.isAvailable(id, context)
+    if not available then return false, reason end
+    if not Recovery.isLiving(worker) or worker.__world ~= worldFor(context) then return false, "worker_unavailable" end
+    if worker.id == request.employerId then return false, "self_assignment" end
+    if Services.hasObligation(worker, context) then return false, "conflicting_obligation" end
     request.status, request.assignedActorId = "assigned", worker.id
     request.filledEventId = record(request, "service_filled", worldFor(context))
-    local goal = require("src.systems.goal_system").addGoal(worker,
+    GoalState.add(worker,
         {type = "fulfill_obligation", serviceId = request.id, priority = 80})
-    worker.npc_goals.selectedGoalIndex = #worker.npc_goals.goals
-    goal.status = "active"
     return true, copy(request)
 end
 
@@ -263,39 +269,15 @@ function Services.assign(id, worker, context)
     if not worker.npc_goals.capabilities[request.requiredCapability] then return false, "capability_missing" end
     if Services.getLocation(worker, context).id ~= request.locationId then return false, "not_local" end
     if Services.hasObligation(worker, context) then return false, "conflicting_obligation" end
-    if request.type == "lead_caravan" and not require("src.systems.caravan_system").canLead(worker, context) then
-        return false, "independent_leader_required"
-    end
-    return accept(request, worker, context)
+    return Services.accept(id, worker, context)
 end
 
--- Commit a player volunteer after CaravanSystem's physical dispatch succeeds.
--- Cancellation releases a displaced NPC's obligation; a fresh offer preserves
--- the original filled/cancelled history without rewriting an assignment.
-function Services.volunteer(id, worker, context)
-    local request = registry(worldFor(context))[id]
-    local work = worker and worker.caravan_work
-    if not request or request.type ~= "lead_caravan" or not worker.player or not work
-        or work.serviceId ~= id or work.sponsorId ~= request.employerId
-        or Services.hasObligation(worker, context) then return nil end
-    local game = require("src.game.game_context").data
-    local party = Services.getParty(worker, worldFor(context))
-    if game.player ~= worker or game.playerParty ~= party or not party or party.id ~= work.partyId
-        or require("src.systems.party_system").getLeader(party) ~= worker then return nil end
-    local employer = EcsWorld.findActorById(request.employerId, worldFor(context))
-    local ok = Services.cancel(id, context, "player_volunteered")
-    if not ok then return nil end
-    local replacement = assert(Services.createRequest(employer, {type = request.type,
-        requiredCapability = request.requiredCapability, data = request.data}, context))
-    local current = registry(worldFor(context))[replacement.id]
-    local _, assigned = accept(current, worker, context)
-    return assigned
-end
-
-function Services.markCaravanDispatched(id, partyId, context)
+-- Execution may outlive the employer's presence at the commissioning location.
+function Services.start(id, partyId, context)
     local request = assert(registry(worldFor(context))[id])
-    assert(request.type == "lead_caravan" and request.status == "assigned" and not request.data.caravanPartyId)
-    request.data.caravanPartyId = partyId
+    assert(request.status == "assigned" and not request.executionPartyId)
+    assert(EcsWorld.findPartyById(partyId, worldFor(context)), "Execution party missing")
+    request.executionPartyId = partyId
 end
 
 local function close(id, status, context, reason)
@@ -307,12 +289,7 @@ local function close(id, status, context, reason)
     request.status, request.reason = status, reason
     request.closureEventId = record(request, "service_" .. status, world)
     local worker = EcsWorld.findActorById(request.assignedActorId, world)
-    for index, goal in ipairs(worker and worker.npc_goals and worker.npc_goals.goals or {}) do
-        if goal.type == "fulfill_obligation" and goal.serviceId == id then
-            goal.status, goal.resolvedStatus = "satisfied", status
-            if worker.npc_goals.selectedGoalIndex == index then worker.npc_goals.selectedGoalIndex = nil end
-        end
-    end
+    GoalState.closeObligation(worker, id, status)
     return true, copy(request)
 end
 function Services.complete(id, context) return close(id, "completed", context) end
@@ -327,7 +304,7 @@ function Services.update(context)
         if request.status == "open" or request.status == "assigned" then
             local employer = EcsWorld.findActorById(request.employerId, world)
             local worker = EcsWorld.findActorById(request.assignedActorId, world)
-            if (not request.data.caravanPartyId and (not Recovery.isLiving(employer)
+            if (not request.executionPartyId and (not Recovery.isLiving(employer)
                 or not EcsWorld.findLocationById(request.locationId, world)))
                 or (request.status == "assigned" and not Recovery.isLiving(worker)) then
                 Services.cancel(id, context, "participant_or_location_removed")

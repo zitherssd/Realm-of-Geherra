@@ -7,15 +7,8 @@ local BattleSimulation = require("src.game.battle.battle_simulation")
 local BattleUnitSystem = require("src.systems.battle.battle_unit_system")
 local StateManager = require("src.core.state_manager")
 local CombatSystem = require("src.systems.combat_system")
-local InventorySystem = require("src.systems.inventory_system")
-local LootGeneratorSystem = require("src.systems.loot_generator_system")
-local EventBus = require("src.core.event_bus")
-local PartySystem = require("src.systems.party_system")
-local PlayerSystem = require("src.systems.player_system")
-local WorldEvents = require("src.systems.world_events")
-local BattleKnowledge = require("src.systems.battle_knowledge_system")
-local TimeSystem = require("src.systems.time_system")
 local IdAllocator = require("src.core.id_allocator")
+local CampaignBattleResolution = require("src.systems.campaign_battle_resolution")
 local BattleState = {}
 
 local RenderSystem = require("src.systems.battle.render_system")
@@ -64,22 +57,6 @@ local function getNearestEnemyUnit(playerUnit)
     return nearestEnemy
 end
 
--- Crude measure of a party's total combat strength. Used as a difficulty
--- proxy so harder battles (bigger/stronger enemy parties) grant more favor.
-local function computePartyPower(party)
-    local power = 0
-    if party and party.actors then
-        for _, actor in ipairs(party.actors) do
-            local stats = actor.stats or {}
-            local hp = actor.maxHp or stats.health or 50
-            local attack = stats.attack or 10
-            local defense = stats.defense or 10
-            power = power + hp + (attack * 2) + (defense * 2)
-        end
-    end
-    return power
-end
-
 function BattleState.enter(params)
     params = params or {}
     local enemyParty = params.enemyParty
@@ -93,32 +70,18 @@ function BattleState.enter(params)
     BattleContext = BattleState.simulation.context
     BattleState.completed = false
     local world = playerParty:getWorld()
-    local map = GameContext.data.currentMap
-    local data = {
-        encounterId = IdAllocator.forWorld(world):allocate("player_battle"),
-        mapId = map and map.id,
-        x = playerParty.x, y = playerParty.y,
-        participants = {}, subjectIds = {}, eliminatedPartyIds = {}
+    BattleState.encounter = {
+        id = IdAllocator.forWorld(world):allocate("player_battle"),
+        partyAId = playerParty.id, partyBId = enemyParty.id,
+        x = playerParty.x, y = playerParty.y, state = "active"
     }
-    for _, party in ipairs({playerParty, enemyParty}) do
-        local participant = {partyId = party.id, name = party.name or tostring(party.id),
-            actorIds = {}, casualties = 0}
-        data.subjectIds[#data.subjectIds + 1] = party.id
-        for _, actor in ipairs(party.actors) do
-            participant.actorIds[#participant.actorIds + 1] = actor.id
-            data.subjectIds[#data.subjectIds + 1] = actor.id
-        end
-        data.participants[#data.participants + 1] = participant
-    end
-    if data.mapId then data.subjectIds[#data.subjectIds + 1] = data.mapId end
-    BattleState.history = {world = world, data = data}
 end
 
 function BattleState.exit()
     BattleState.enemyParty = nil
     BattleState.onVictory = nil
     BattleState.onComplete = nil
-    BattleState.history = nil
+    BattleState.encounter = nil
     if BattleState.simulation then
         BattleState.simulation:destroy()
         BattleState.simulation = nil
@@ -277,132 +240,31 @@ end
 
 function BattleState.checkBattleEnd()
     if not BattleContext or BattleState.completed then return end
-    local playerAlive = false
-    local enemyAlive = false
-
-    for _, unit in pairs(BattleContext.data.units) do
-        if unit.hp > 0 then
-            if unit.team == "player" then playerAlive = true end
-            if unit.team == "enemy" then enemyAlive = true end
-        end
+    local outcome, winnerPartyId = BattleState.simulation:getOutcome()
+    if not outcome then return end
+    -- Guard before notifications/callbacks, which may check completion again.
+    BattleState.completed = true
+    local simulation = BattleState.simulation
+    local result = simulation:buildResult(outcome, winnerPartyId)
+    local encounter = BattleState.encounter
+    encounter.state = "completed"
+    local resolved = CampaignBattleResolution.resolve(result, {
+        map = GameContext.data.currentMap, encounter = encounter,
+        parties = {simulation.partyA, simulation.partyB}, rewardPolicy = "player"
+    })
+    local victory = winnerPartyId == simulation.partyA.id
+    local rewards = resolved.rewards
+    if victory and BattleState.onVictory then BattleState.onVictory() end
+    if BattleState.onComplete then
+        local callback = BattleState.onComplete
+        BattleState.onComplete = nil
+        callback({outcome = outcome, winnerPartyId = winnerPartyId})
     end
-
-    local playerCasualties = {}
-    local enemyCasualties = {}
-    local generatedLoot = {}
-    local generatedGold = 0
-
-    for _, unit in ipairs(BattleContext.data.casualties) do
-        local name = unit.name or (unit.actor and unit.actor.name) or "Unknown Unit"
-        if unit.team == "player" then
-            table.insert(playerCasualties, name)
-        elseif unit.team == "enemy" then
-            table.insert(enemyCasualties, name)
-
-            if unit.actor and unit.actor.troopType then
-                local _, goldFromUnit = LootGeneratorSystem.generateFromTroop(unit.actor.troopType, generatedLoot)
-                generatedGold = generatedGold + (goldFromUnit or 0)
-            end
-        end
-    end
-
-    if not playerAlive or not enemyAlive then
-        -- Guard before notifications/callbacks, which may check completion again.
-        BattleState.completed = true
-        local playerParty = GameContext.data.playerParty
-        local history = BattleState.history
-        local event = history.data
-        local winnerIndex = playerAlive and 1 or (enemyAlive and 2 or nil)
-        event.time = {day = TimeSystem.getDay(), hour = TimeSystem.getHour()}
-        event.ticks = BattleContext.data.tick
-        event.outcome = winnerIndex and "victory" or "draw"
-        event.winnerPartyId = winnerIndex and event.participants[winnerIndex].partyId or nil
-        event.defeatedPartyIds = winnerIndex and {event.participants[3 - winnerIndex].partyId} or {}
-        local survivingActorIds = {}
-        for _, participant in ipairs(event.participants) do
-            for _, actorId in ipairs(participant.actorIds) do
-                local unit = BattleContext.data.units[actorId]
-                if not unit or unit.hp <= 0 then
-                    participant.casualties = participant.casualties + 1
-                else
-                    survivingActorIds[actorId] = true
-                end
-            end
-        end
-
-        if playerAlive and playerParty and generatedGold > 0 then
-            PartySystem.addTreasury(playerParty, generatedGold)
-        end
-
-        for _, unit in pairs(BattleContext.data.units) do
-            if unit.actor and unit.team == "player" then
-                unit.actor.hp = unit.hp
-                unit.actor.maxHp = unit.maxHp
-                unit.actor.statusEffects = unit.statusEffects
-                unit.actor.equipment = InventorySystem.deepClone(unit.equipment)
-                unit.actor.itemDurability = InventorySystem.deepClone(unit.itemDurability)
-            end
-        end
-
-        for _, unit in ipairs(BattleContext.data.casualties) do
-            if unit.actor and unit.team == "player" then
-                unit.actor.hp = 0
-                unit.actor.maxHp = unit.maxHp
-                unit.actor.statusEffects = unit.statusEffects
-                PartySystem.removeFromParty(playerParty, unit.actor.id)
-            end
-        end
-
-        if playerAlive and BattleState.enemyParty and GameContext.data.currentMap then
-            local removed = GameContext.data.currentMap:removeParty(BattleState.enemyParty.id)
-            if removed then event.eliminatedPartyIds[1] = BattleState.enemyParty.id end
-            print("BattleState: Emitting party_killed for " .. tostring(BattleState.enemyParty.id))
-            EventBus.emit("party_killed", BattleState.enemyParty.id)
-        end
-
-        local favorGained = 0
-        if playerAlive then
-            -- Reward favor based on how hard the battle was: the stronger the
-            -- enemy party is relative to the player's party, the more favor.
-            local enemyPower = computePartyPower(BattleState.enemyParty)
-            local playerPower = math.max(1, computePartyPower(GameContext.data.playerParty))
-            local difficulty = enemyPower / playerPower
-            favorGained = math.floor(4 + difficulty * 8)
-            PlayerSystem.addFavor(favorGained)
-        end
-
-        local recorded = WorldEvents.record(history.world, "battle_ended", event,
-            "battle_ended:" .. event.encounterId)
-        BattleKnowledge.learnParticipants(history.world, recorded, survivingActorIds)
-
-        if playerAlive then
-            if BattleState.onVictory then
-                BattleState.onVictory()
-            end
-        end
-
-        if BattleState.onComplete then
-            local callback = BattleState.onComplete
-            BattleState.onComplete = nil
-            local winnerParty = playerAlive and playerParty or (enemyAlive and BattleState.enemyParty)
-            callback({
-                outcome = winnerParty and "victory" or "draw",
-                winnerPartyId = winnerParty and winnerParty.id or nil
-            })
-        end
-
-        if playerAlive then
-            StateManager.swap("battle_end", {
-                victory = true,
-                playerCasualties = playerCasualties,
-                enemyCasualties = enemyCasualties,
-                loot = generatedLoot,
-                gold = generatedGold,
-                favor = favorGained
-            })
-        else
-            StateManager.swap("menu")
-        end
+    if victory then
+        rewards.victory = true
+        StateManager.swap("battle_end", rewards)
+    else
+        StateManager.swap("menu")
     end
 end
 

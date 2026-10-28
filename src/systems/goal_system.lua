@@ -43,21 +43,7 @@ function GoalSystem.configure(actor, definitions, capabilities)
     return actor.npc_goals
 end
 
-function GoalSystem.addGoal(actor, definition)
-    if definition.type == "fulfill_obligation" then
-        local request = Services.getRequest(definition.serviceId, {world = actor.__world})
-        assert(request and request.status == "assigned" and request.assignedActorId == actor.id,
-            "FulfillObligation requires an accepted service")
-        for _, existing in ipairs(actor.npc_goals and actor.npc_goals.goals or {}) do
-            if existing.type == "fulfill_obligation" and existing.serviceId == definition.serviceId then return existing end
-        end
-    end
-    local goal = newGoal(definition)
-    actor:ensure("npc_goals")
-    table.insert(actor.npc_goals.goals, goal)
-    actor.npc_goals.evaluationCooldownSeconds = 0
-    return goal
-end
+GoalSystem.addGoal = require("src.systems.goal_state").add
 
 local function mapParties(map)
     local parties, traveling = {}, {}
@@ -301,7 +287,17 @@ local function provideService(goal, actor, party, map, playerParty, traveling)
             and actor.npc_goals.capabilities[offer.requiredCapability] and not closed[offer.serviceId] then
             local here = Services.getLocation(actor, context)
             if here and here.id == offer.locationId then
-                local ok, result = Services.assign(offer.serviceId, actor, context)
+                local request = Services.getRequest(offer.serviceId, context)
+                local assign = request and request.type == "lead_caravan" and Caravans.assign or Services.assign
+                local ok, result = assign(offer.serviceId, actor, context)
+                if ok then
+                    local state = actor.npc_goals
+                    local obligation = state.goals[#state.goals]
+                    if obligation.priority > goal.priority then
+                        state.selectedGoalIndex = #state.goals
+                        obligation.status = "active"
+                    end
+                end
                 goal.lastServiceResult = {serviceId = offer.serviceId, success = ok,
                     reason = not ok and result or nil}
                 goal.retrySeconds = GoalSystem.retrySeconds
@@ -400,10 +396,6 @@ local function updateActor(actor, party, dt, map, playerParty, traveling)
             started, reason = provideService(goal, actor, party, map, playerParty, traveling)
         elseif goal.type == "fulfill_obligation" then
             goal.status, goal.reason = "active", "awaiting_service_execution"
-            local request = Services.getRequest(goal.serviceId, {world = actor.__world})
-            if request and request.type == "lead_caravan" then
-                Caravans.fulfill(actor, goal, {world = actor.__world, map = map})
-            end
             return
         elseif goal.type == "acquire_gold" and state.capabilities.caravanFormation then
             started, reason = Caravans.begin(actor, {world = actor.__world, map = map})

@@ -20,8 +20,9 @@ end
 
 local function getContextParties(context)
     local map = context.map
-    if type(map) ~= "table" or type(map.getParties) ~= "function" or
-        type(map.removeParty) ~= "function" then
+    if (map == nil and context.parties == nil) or (map ~= nil and
+        (type(map) ~= "table" or type(map.getParties) ~= "function" or
+        type(map.removeParty) ~= "function")) then
         error("Campaign context must include a map with getParties() and removeParty()", 3)
     end
 
@@ -79,14 +80,6 @@ local function validateAndResolve(result, context)
     if not partyA or not partyB then
         error("EncounterResult party IDs were not found in the campaign context", 3)
     end
-    local mapPartiesById = {}
-    for _, party in ipairs(context.map:getParties()) do
-        mapPartiesById[party.id] = true
-    end
-    if not mapPartiesById[partyA.id] or not mapPartiesById[partyB.id] then
-        error("Encounter parties must both belong to the campaign map", 3)
-    end
-
     local actorsById = {}
     local livingByPartyId = {[partyA.id] = 0, [partyB.id] = 0}
     for _, party in ipairs({partyA, partyB}) do
@@ -112,6 +105,14 @@ local function validateAndResolve(result, context)
             end
             if actorResult.defeated ~= (actorResult.finalHp <= 0) then
                 error("EncounterResult has inconsistent defeated status for actor " .. tostring(actor.id), 3)
+            end
+            if actorResult.maxHp ~= nil and
+                (type(actorResult.maxHp) ~= "number" or actorResult.maxHp ~= actorResult.maxHp or
+                actorResult.maxHp <= 0 or actorResult.maxHp == math.huge) then
+                error("EncounterResult has invalid max HP", 3)
+            end
+            if actorResult.statusEffects ~= nil and type(actorResult.statusEffects) ~= "table" then
+                error("EncounterResult status effects must be a table", 3)
             end
             if actorResult.equipment ~= nil then
                 if type(actorResult.equipment) ~= "table" or type(actorResult.itemDurability) ~= "table" then
@@ -174,6 +175,10 @@ function CampaignBattleResultApplier.apply(result, context)
 
     for actorId, entry in pairs(actorsById) do
         entry.actor.hp = entry.result.finalHp
+        if entry.result.maxHp then entry.actor.maxHp = entry.result.maxHp end
+        if entry.result.statusEffects then
+            entry.actor.statusEffects = InventorySystem.deepClone(entry.result.statusEffects)
+        end
         if entry.result.defeated then
             PartySystem.removeFromParty(entry.party, actorId)
         elseif entry.result.equipment then

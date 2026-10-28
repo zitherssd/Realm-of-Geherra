@@ -33,7 +33,7 @@ local function actorGoalLines(actor, add, map)
             local request = Services.getRequest(id, {world = actor.__world})
             local worker = request and EcsWorld.findActorById(request.assignedActorId, actor.__world)
             local work = worker and worker.caravan_work
-            add("Expedition: " .. id .. " / party " .. tostring(request and request.data.caravanPartyId)
+            add("Expedition: " .. id .. " / party " .. tostring(request and request.executionPartyId)
                 .. " / " .. tostring(work and work.phase or (request and request.status)))
             if work then add("Expected return: " .. work.expectedReturnAt) end
         end

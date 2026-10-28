@@ -94,6 +94,7 @@ local function testInteractiveBattle()
 
     GameContext.data.playerParty = playerParty
     GameContext.data.currentMap = {
+        getParties = function() return {playerParty, enemyParty} end,
         removeParty = function(_, partyId)
             if partyId == enemyParty.id then
                 return true
@@ -190,7 +191,7 @@ local function testInteractiveBattle()
         assert(lastTransition and lastTransition.name == "menu", "defeat did not preserve the existing menu transition")
         local defeat = WorldEvents.getAt(campaign, 2)
         assert(defeat.outcome == "victory" and defeat.winnerPartyId == survivingEnemyParty.id)
-        assert(defeat.defeatedPartyIds[1] == defeatParty.id and #defeat.eliminatedPartyIds == 0)
+        assert(defeat.defeatedPartyIds[1] == defeatParty.id and defeat.eliminatedPartyIds[1] == defeatParty.id)
         assert(defeat.participants[1].casualties == 1 and defeat.id ~= victory.id)
         assert(Knowledge.knows(survivingEnemyParty, defeat.id, campaign) and Knowledge.knows(survivingEnemy, defeat.id, campaign))
         assert(not Knowledge.knows(defeatParty, defeat.id, campaign))
@@ -208,7 +209,7 @@ local function testInteractiveBattle()
         local draw = WorldEvents.getAt(campaign, 3)
         assert(draw.outcome == "draw" and draw.winnerPartyId == nil)
         assert(draw.participants[1].casualties == 1 and draw.participants[2].casualties == 1)
-        assert(#draw.defeatedPartyIds == 0 and #draw.eliminatedPartyIds == 0)
+        assert(#draw.defeatedPartyIds == 0 and #draw.eliminatedPartyIds == 2)
         assert(not Knowledge.knows(drawParty, draw.id, campaign) and not Knowledge.knows(drawEnemy, draw.id, campaign))
         BattleState.checkBattleEnd()
         assert(WorldEvents.count(campaign) == 3)

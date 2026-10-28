@@ -102,6 +102,27 @@ function Caravans.canLead(worker, context)
     return not Services.getParty(worker, context.world) and not worker.caravan_work
 end
 
+-- Caravan applications use the generic contract API only after workflow eligibility.
+function Caravans.assign(id, worker, context)
+    Services.learnCurrentStatus(id, worker, context)
+    local request = Services.getRequest(id, context)
+    if not request or request.type ~= "lead_caravan" then return false, "caravan_request_required" end
+    if not worker or not Caravans.canLead(worker, context) then return false, "independent_leader_required" end
+    return Services.assign(id, worker, context)
+end
+
+-- Physical dispatch has succeeded; replace the offer without rewriting its history.
+local function acceptVolunteer(id, worker, context)
+    local request = assert(Services.getRequest(id, context))
+    local employer = Ecs.findActorById(request.employerId, context.world)
+    assert(Services.cancel(id, context, "player_volunteered"))
+    local replacement = assert(Services.createRequest(employer, {type = request.type,
+        requiredCapability = request.requiredCapability, data = request.data}, context))
+    local ok, assigned = Services.accept(replacement.id, worker, context)
+    assert(ok, "Validated player commissioning must succeed")
+    return assigned
+end
+
 local function preflight(sponsor, worker, context, volunteer)
     local preparation = sponsor and sponsor.caravan_formation and sponsor.caravan_formation.preparation
     if not preparation then return nil, "preparation_missing" end
@@ -204,11 +225,11 @@ function Caravans.dispatch(sponsor, worker, context, volunteer)
     -- All fallible physical operations have succeeded. Player replacement uses
     -- service cancellation + a new commission, retaining immutable old history.
     if volunteer then
-        local replacement = Services.volunteer(prep.leaderServiceId, worker, context)
+        local replacement = acceptVolunteer(prep.leaderServiceId, worker, context)
         assert(replacement, "Validated player commissioning must succeed")
         work.serviceId, prep.leaderServiceId = replacement.id, replacement.id
     end
-    Services.markCaravanDispatched(work.serviceId, party.id, context)
+    Services.start(work.serviceId, party.id, context)
     party.world_activity.goalActorId = worker.id
     work.activitySequence = party.world_activity.sequence
     for _, goal in ipairs(worker.npc_goals.goals) do
@@ -239,7 +260,7 @@ local function fail(worker, work, context, reason)
     -- or delete cargo here: encounter resolution owns eliminated-party cleanup.
 end
 
--- This is the FulfillObligation profession handler, called only when selected.
+-- CampaignRuntime advances selected obligations after goal selection.
 function Caravans.fulfill(worker, goal, context)
     local work = worker.caravan_work
     if not work or work.serviceId ~= goal.serviceId then goal.reason = "awaiting_dispatch"; return end
@@ -316,9 +337,8 @@ function Caravans.fulfill(worker, goal, context)
     else work.reason = reason end
 end
 
--- Called once per positive campaign update, independent of selected sponsor goals.
-function Caravans.update(context)
-    local now = Caravans.now()
+-- Called after goal selection; player work also advances without NPC evaluation.
+function Caravans.updateWork(context)
     for _, worker in ipairs(context.world:query({"unit", "caravan_work"})) do
         local work = worker.caravan_work
         local party = Ecs.findPartyById(work.partyId, context.world)
@@ -327,12 +347,19 @@ function Caravans.update(context)
             or Parties.getLeader(party) ~= worker or not request or request.status ~= "assigned") then
             fail(worker, work, context, "caravan_lost_or_assignment_ended")
         end
-        if worker.player and worker.caravan_work and work.phase ~= "failed" then
+        local selected = Services.selectedGoal(worker)
+        if worker.caravan_work and work.phase ~= "failed" and (worker.player
+            or (selected and selected.type == "fulfill_obligation" and selected.serviceId == work.serviceId)) then
             for _, goal in ipairs(worker.npc_goals.goals) do
                 if goal.serviceId == work.serviceId then Caravans.fulfill(worker, goal, context); break end
             end
         end
     end
+end
+
+-- Preparation and recruitment retain their pre-evaluation ordering.
+function Caravans.update(context)
+    local now = Caravans.now()
     for _, sponsor in ipairs(context.world:query({"unit", "caravan_formation"})) do
         local state, prep = sponsor.caravan_formation, sponsor.caravan_formation.preparation
         if prep then
@@ -344,7 +371,7 @@ function Caravans.update(context)
                 local origin = Ecs.findLocationById(prep.originLocationId, context.world)
                 if Services.getLocation(sponsor, context) == origin then
                     for _, candidate in ipairs(Locations.getAvailableNpcs(origin)) do
-                        if Services.assign(request.id, candidate, context) then break end
+                        if Caravans.assign(request.id, candidate, context) then break end
                     end
                 end
             elseif request.status == "assigned" and now >= prep.readyAt then

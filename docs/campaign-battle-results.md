@@ -1,10 +1,18 @@
 # Campaign Battle Results
 
+Both interactive battles and NPC encounters now submit the same terminal result
+through `CampaignBattleResolution.resolve(result, context)`. See
+[BATTLE_RESOLUTION_A2.md](BATTLE_RESOLUTION_A2.md) for the complete before/after
+flow, explicit reward policies, lifecycle ownership, and regression coverage.
+
 `CampaignBattleResultApplier.apply(result, context)` applies a completed,
 serializable encounter result to the campaign. The context supplies a campaign
 map with `getParties()` and `removeParty()`, the participating campaign parties
 (directly or through `map:getParties()`), and the owning encounter handle. The
-encounter handle must be in its `completed` state.
+encounter handle must be in its `completed` state. An explicit participant pair
+is authoritative for location-generated player opponents that are not traveling
+on the map; with that pair, the map may also be absent. NPC encounters continue
+to resolve participants through `map:getParties()`.
 
 The applier validates both party IDs and the complete actor roster before
 changing campaign state. It persists final HP, removes defeated actors through
@@ -12,9 +20,11 @@ changing campaign state. It persists final HP, removes defeated actors through
 `party_killed` once per eliminated party. Draws apply their final HP and may
 eliminate both parties. Timeouts apply partial casualties and HP, but require
 at least one survivor in each party; a timeout alone cannot eliminate a party.
-Runner results also include copied `equipment` and `itemDurability` maps per
-actor. The applier persists these maps for survivors; legacy results without
-them leave equipment unchanged. Defeated actors' equipment belongs to the loot
+Simulation results also include final `maxHp`, copied `statusEffects`,
+`equipment` and `itemDurability` maps per actor. Optional max HP/status fields
+are persisted for both sides; legacy results without them retain existing values.
+Equipment/durability maps are persisted for survivors; legacy results without
+them leave equipment unchanged. Defeated NPC actors' equipment belongs to the loot
 application step, which runs before casualty removal. Inventories, treasury,
 and loot are not changed by the result applier.
 
@@ -70,9 +80,9 @@ cooldown receive a short retry cooldown; encounter outcomes use the existing
 map-level cooldown. This prevents a failed pursuit from restarting every frame
 while allowing fallback party movement.
 
-Interactive `BattleState` remains on its existing outcome path. It has
-player-specific defeat transitions, victory callbacks, favor, loot, gold, and
-casualty UI data that the generic applier intentionally does not handle.
+Interactive `BattleState` invokes the common campaign resolver with the explicit
+player reward policy. It retains defeat transitions, victory/completion callbacks,
+and presentation of the returned favor, loot, gold, and casualty UI data.
 
 `LootResolver.resolve(partyA, partyB, battleResult, policy, randomSource)` is a
 pure planning API; it does not apply transfers or remove parties. `policy` must
@@ -93,7 +103,7 @@ award no combat loot or plunder and report campaign cargo as retained. The
 resolver does not roll troop drop tables; they remain a potential separate
 compatibility source and are not combined with recovered possessions. NPC world
 encounters use the resolver and its separate application layer; interactive
-player battles remain on the existing reward path.
+player battles explicitly retain troop drops and player loot selection.
 
 Equipment worn during the battle uses its final durability in recovered loot.
 Equipment broken during the battle is recorded as destroyed, preserving resource
@@ -108,8 +118,8 @@ and treasury accounting before mutation, credits combat loot and plunder without
 merging metadata-distinct items, removes destroyed cargo, retains resources with
 surviving parties, and moves retained resources from eliminated parties into
 map-owned battlefield remains. Defeated actors' item stores are cleared after
-their possessions are accounted for. Interactive `BattleState` is not connected
-to this path and retains its prior reward behavior.
+their possessions are accounted for. The common resolver selects this resource path only for NPC encounters;
+interactive battles retain their player reward behavior.
 
 `Map.battlefieldRemains` stores primitive site records with encounter history,
 world time, recoverable item/gold, and corpse identity snapshots made from actual

@@ -63,6 +63,7 @@ function CampaignRuntime.updateGoals(elapsedWorldSeconds, map, playerParty)
     Services.update({world = world, map = map})
     Caravans.update({world = world, map = map})
     GoalSystem.evaluate(elapsedWorldSeconds, map, playerParty)
+    Caravans.updateWork({world = world, map = map})
 end
 
 function CampaignRuntime.update(elapsedWorldSeconds, map, playerParty, isResting, recoveryReservations)

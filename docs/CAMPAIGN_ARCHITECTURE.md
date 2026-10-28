@@ -82,8 +82,8 @@ The frame sequence remains:
    distance against an obstacle), snapshots recovery reservations, then advances existing
    world encounters in world hours. WorldState refreshes encounter hover inspection.
 5. `update` runs, for positive simulation seconds: Concord flush, service cleanup,
-   caravan advancement, goal evaluation, recovery using the earlier reservation snapshot,
-   default activities, then legacy party AI. It always invokes activity update, even
+   caravan preparation/recruitment/dispatch, goal evaluation, caravan work execution,
+   recovery using the earlier reservation snapshot, default activities, then legacy party AI. It always invokes activity update, even
    with zero time, to clean up terminal activities without ticking cooldowns.
 6. WorldState starts any pending player battle and returns immediately on transition;
    otherwise it refreshes visibility and handles location/party interactions.
@@ -1489,3 +1489,8 @@ shared player expedition treasury, waiting at fixed origin for unavailable spons
 escorts/wages/markets. Full save/load is not implemented. Future investigation may compare a learned
 departure's expected return with sponsor knowledge; 7C adds no SearchActivity, AcquireKnowledge,
 investigations, rescue/fleeing, faction, economy or planner framework.
+
+## Workflow cycle removal (A3)
+
+See [WORKFLOW_CYCLES_A3.md](WORKFLOW_CYCLES_A3.md) for the previous cycles, current
+dependency direction, goal-state authority, workflow APIs, and regression coverage.

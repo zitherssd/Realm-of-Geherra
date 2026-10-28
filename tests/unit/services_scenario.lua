@@ -434,7 +434,35 @@ function Scenario.preview()
     love.wheelmoved = WorldState.wheelmoved
 end
 
+local function obligationAuthority()
+    local world, map, home, far, actor, healer, customer, employer, context = setup()
+    CampaignRuntime.updateGoals(1, map)
+    local request = assert(Services.createRequest(employer, {type = "fixture", requiredCapability = "heal"}, context))
+    local selected = Services.selectedGoal(healer)
+    local add = Goals.addGoal
+    Goals.addGoal = function() error("Service assignment must not call the evaluator") end
+    local ok, result = pcall(Services.assign, request.id, healer, context)
+    Goals.addGoal = add
+    assert(ok and result)
+    assert(Services.selectedGoal(healer) == selected, "Contract acceptance selected a goal")
+    local obligation = healer.npc_goals.goals[3]
+    assert(obligation.type == "fulfill_obligation" and obligation.status == "pending")
+    assert(Goals.addGoal(healer, {type = "fulfill_obligation", serviceId = request.id}) == obligation)
+    assert(#healer.npc_goals.goals == 3, "Accepted responsibility was duplicated")
+    healer.hp = 30
+    Goals.update(1, map)
+    assert(Services.selectedGoal(healer).type == "rest_and_recover" and Services.hasObligation(healer, context))
+    healer.hp = 100
+    Goals.update(1, map)
+    assert(Services.selectedGoal(healer) == obligation)
+    assert(Services.cancel(request.id, context))
+    assert(obligation.status == "satisfied" and obligation.resolvedStatus == "cancelled")
+    assert(not Services.selectedGoal(healer))
+    assert(not pcall(Goals.addGoal, healer, {type = "fulfill_obligation", serviceId = request.id}))
+end
+
 function Scenario.run()
+    obligationAuthority()
     immediate()
     playerDialogue()
     commissioning()

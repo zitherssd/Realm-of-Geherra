@@ -63,6 +63,10 @@ function Scenario.run()
             assert(context.world == world and context.map == map)
             record("caravans")
         end)
+        replace(Caravans, "updateWork", function(context)
+            assert(context.world == world and context.map == map)
+            record("caravan_work")
+        end)
         replace(Goals, "evaluate", function(seconds, m, p)
             assert(math.abs(seconds - 0.2) < 1e-7 and m == map and p == player)
             record("goals")
@@ -88,7 +92,7 @@ function Scenario.run()
         assert(math.abs(hours - 0.3) < 1e-7 and math.abs(seconds - 0.2) < 1e-7)
         local snapshot = Runtime.updateEncounters(hours, seconds, map, player, 8)
         Runtime.update(seconds, map, player, true, snapshot)
-        expect("random,reservations,battles,flush,services,caravans,goals,recovery,defaults,ai,activities")
+        expect("random,reservations,battles,flush,services,caravans,goals,caravan_work,recovery,defaults,ai,activities")
         Runtime.updateEncounters(hours, seconds, map, player)
         expect("reservations,battles") -- Waiting/resting do not roll random encounters.
         Goals.update(seconds, map, player)
@@ -147,7 +151,7 @@ function Scenario.run()
         Time.setTimeScale(2)
         WorldState.isResting, WorldState.restInputLock = true, 1
         WorldState.update(0.1)
-        expect("reservations,battles,flush,services,caravans,goals,recovery,defaults,ai,activities,visibility")
+        expect("reservations,battles,flush,services,caravans,goals,caravan_work,recovery,defaults,ai,activities,visibility")
         WorldState.isResting = false
 
         -- Repeated setup and bus replacement must leave exactly one of each listener.
