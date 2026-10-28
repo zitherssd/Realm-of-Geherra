@@ -1,3 +1,4 @@
+local CampaignRuntime = require("src.game.campaign.campaign_runtime")
 local Ecs = require("src.ecs.world")
 local Map = require("src.world.map")
 local Game = require("src.game.game_context")
@@ -125,10 +126,10 @@ function Scenario.run()
         if npc.archetypeId == "wealthy_merchant" then sponsor = sponsor or npc end
     end
     assert(sponsor and sponsor.treasury >= 1500 and not sponsor.caravan_formation)
-    Goals.update(0.1, map)
+    CampaignRuntime.updateGoals(0.1, map)
     local preparation = assert(sponsor.caravan_formation.preparation)
     assert(#Services.listProviders({world = Ecs.campaign, map = map}) >= 1)
-    Goals.update(2.1, map)
+    CampaignRuntime.updateGoals(2.1, map)
     local request = Services.getRequest(preparation.leaderServiceId, {world = Ecs.campaign})
     local worker = assert(Ecs.findActorById(request.assignedActorId))
     assert(worker.archetypeId == "caravan_leader" and Services.hasObligation(worker, {world = Ecs.campaign}))

@@ -19,6 +19,7 @@ function love.load(args)
     EventBus.init()
     GameManager.init()
     StateManager.init()
+    require("src.game.campaign.campaign_runtime").init()
     Input.init()
     
     -- Start in menu state

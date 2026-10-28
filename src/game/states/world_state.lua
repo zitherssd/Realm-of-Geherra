@@ -10,15 +10,11 @@ local StateManager = require("src.core.state_manager")
 local Camera = require("src.world.camera")
 local TimeSystem = require("src.systems.time_system")
 local AttributeSystem = require("src.systems.attribute_system")
-local EncounterSystem = require("src.systems.encounter_system")
+local CampaignRuntime = require("src.game.campaign.campaign_runtime")
 local PartySystem = require("src.systems.party_system")
 local PlayerSystem = require("src.systems.player_system")
 local VisibilitySystem = require("src.systems.visibility_system")
-local PartyAiSystem = require("src.systems.party_ai_system")
 local PartyInteractionSystem = require("src.systems.party_interaction_system")
-local WorldActivitySystem = require("src.systems.world_activity_system")
-local GoalSystem = require("src.systems.goal_system")
-local Recovery = require("src.systems.recovery")
 local WorldEncounterSystem = require("src.systems.world_encounter_system")
 local BattlefieldInteraction = require("src.systems.battlefield_interaction")
 local DebugMode = require("src.debug.mode")
@@ -226,9 +222,7 @@ function WorldState.enter()
     -- Initialize UI font
     WorldState.font = love.graphics.newFont(14)
     WorldState.interactionCooldowns = {}
-    EncounterSystem.reset()
-    WorldEncounterSystem.init()
-    WorldActivitySystem.init()
+    CampaignRuntime.enterWorld()
     EventBus.unsubscribe("party_contact", WorldState._onPartyContact)
     EventBus.subscribe("party_contact", WorldState._onPartyContact)
     WorldState.isResting = WorldState.restModeRequested and true or false
@@ -255,7 +249,7 @@ function WorldState.resume()
         WorldState.font = love.graphics.newFont(14)
     end
 
-    EncounterSystem.reset()
+    CampaignRuntime.resumeWorld()
     WorldState.isResting = false
     WorldState.restInputLock = 0
 end
@@ -376,8 +370,7 @@ function WorldState.update(dt)
     -- Only advance time if moving or waiting
     if shouldAdvanceTime then
         TimeSystem.setPaused(false)
-        elapsedWorldHours = TimeSystem.update(dt)
-        elapsedWorldSeconds = TimeSystem.worldHoursToSeconds(elapsedWorldHours)
+        elapsedWorldHours, elapsedWorldSeconds = CampaignRuntime.advanceTime(dt)
     else
         TimeSystem.setPaused(true)
     end
@@ -433,27 +426,19 @@ function WorldState.update(dt)
 
     -- Random encounter rolls while traveling: accumulate the distance walked
     -- and let the encounter system decide when to spawn a hostile party nearby.
+    local distanceTraveled
     if isMoving and not WorldState.isResting and elapsedWorldSeconds > 0 then
         local ddx = newX - currentX
         local ddy = newY - currentY
-        local distanceTraveled = math.sqrt(ddx * ddx + ddy * ddy)
-        EncounterSystem.update(elapsedWorldSeconds, distanceTraveled)
+        distanceTraveled = math.sqrt(ddx * ddx + ddy * ddy)
     end
 
-    local recoveryReservations = elapsedWorldSeconds > 0
-        and Recovery.encounterReservations(WorldState.currentMap, playerParty) or nil
-    if elapsedWorldHours > 0 then
-        WorldEncounterSystem.update(elapsedWorldHours, WorldState.currentMap)
-    end
+    local recoveryReservations = CampaignRuntime.updateEncounters(
+        elapsedWorldHours, elapsedWorldSeconds, WorldState.currentMap, playerParty, distanceTraveled)
     updateHoveredEncounter()
 
-    if elapsedWorldSeconds > 0 then
-        GoalSystem.update(elapsedWorldSeconds, WorldState.currentMap, playerParty)
-        Recovery.update(elapsedWorldSeconds, WorldState.currentMap, playerParty, WorldState.isResting, recoveryReservations)
-        WorldActivitySystem.ensureDefaultActivities(WorldState.currentMap, playerParty)
-        PartyAiSystem.update(elapsedWorldSeconds, WorldState.currentMap, playerParty)
-    end
-    WorldActivitySystem.update(elapsedWorldSeconds, WorldState.currentMap, playerParty)
+    CampaignRuntime.update(elapsedWorldSeconds, WorldState.currentMap, playerParty,
+        WorldState.isResting, recoveryReservations)
     if startPendingRaidBattle() then
         return
     end

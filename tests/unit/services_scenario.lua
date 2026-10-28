@@ -1,3 +1,4 @@
+local CampaignRuntime = require("src.game.campaign.campaign_runtime")
 -- Focused 7B commissioning fixture; no invented profession execution.
 local Ecs = require("src.ecs.world")
 local Unit = require("src.ecs.assemblages.unit")
@@ -41,7 +42,7 @@ end
 
 local function immediate()
     local world, map, home, far, actor, healer, customer, employer, context = setup()
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     assert(Services.isProviding(healer, context))
     assert(#Services.listProviders(context) == 1)
     customer.hp = 35
@@ -64,25 +65,25 @@ local function immediate()
     customer.hp = 0
     assert(not Services.perform(healer, customer, "heal", context) and customer.hp == 0)
     customer.hp, customer.treasury = 40, 0
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     assert(customer.hp == 40 and customer.npc_goals.goals[1].status == "active")
     Recovery.update(1, map)
     assert(customer.hp > 40 and customer.lastRecovery.mode == "resting")
     customer.hp, customer.treasury = 40, 100
     customer.npc_goals.goals[1].healingRetrySeconds = 0
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     assert(customer.hp == 80 and customer.treasury == 90)
     local hp = customer.hp
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     assert(customer.hp == hp and customer.treasury == 90, "healing purchase loop")
-    Goals.update(0, map)
+    CampaignRuntime.updateGoals(0, map)
     assert(customer.npc_goals.goals[1].healingRetrySeconds == Services.healingRetrySeconds - 1)
     healer.hp = 40
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     assert(not Services.isProviding(healer, context) and healer.npc_goals.capabilities.heal)
     assert(#Services.listProviders(context) == 0)
     healer.hp = 100
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     assert(Services.isProviding(healer, context))
     -- Important stationed followers offer locally, without commanding the party.
     local party = Party.create(world, "Healer party", employer.id)
@@ -90,7 +91,7 @@ local function immediate()
     Parties.addActor(party, employer); Parties.addActor(party, healer)
     party.x, party.y, party.treasury = home.x, home.y, 200
     map:addParty(party); map:stationParty(home, party)
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     customer.hp = 40
     assert(Services.findLocalProviders(customer, "heal", context)[1] == healer)
     assert(Services.perform(healer, customer, "heal", context) and party.treasury == 210)
@@ -115,7 +116,7 @@ local function immediate()
     local generic = Unit.create(world, "soldier")
     Locations.addNPC(home, generic)
     Goals.configure(generic, {{type = "provide_service"}}, {heal = true})
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     assert(generic.npc_goals.evaluationMode == "inactive" and not Services.isProviding(generic, context))
 end
 
@@ -129,7 +130,7 @@ local function playerDialogue()
     party.x, party.y, party.treasury = home.x, home.y, 100
     map:addParty(party)
     GameContext.data.player, GameContext.data.playerParty, GameContext.data.currentMap = player, party, map
-    Goals.update(1, map, party)
+    CampaignRuntime.updateGoals(1, map, party)
     player.hp = 40
     local Dialogue = require("src.game.states.dialogue_state")
     local UI = require("src.ui.ui_manager")
@@ -165,15 +166,15 @@ local function commissioning()
     local second = assert(Services.createRequest(employer, {type = "fixture", requiredCapability = "heal"}, context))
     assert(request.id ~= second.id and Events.count(world) == 2)
     assert(not Knowledge.knows(worker, request.offerEventId))
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     assert(Services.getRequest(request.id, context).status == "open", "omniscient employment discovery")
     assert(Knowledge.learn(worker, request.offerEventId, {"service"}))
     local partial = Knowledge.getKnownEvent(worker, request.offerEventId)
     assert(partial.serviceId == request.id and not partial.employerId and not partial.locationId and not partial.status)
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     assert(Services.getRequest(request.id, context).status == "open")
     assert(Knowledge.learn(worker, request.offerEventId, {"employer", "location"}))
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     local assigned = Services.getRequest(request.id, context)
     assert(assigned.status == "assigned" and assigned.assignedActorId == worker.id)
     assert(Services.selectedGoal(worker).type == "fulfill_obligation")
@@ -184,26 +185,26 @@ local function commissioning()
     local immutable = Events.get(world, request.offerEventId)
     assert(immutable.status == "open" and not immutable.assignedActorId)
     worker.hp, worker.treasury = 40, 0
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     assert(Services.selectedGoal(worker).type == "rest_and_recover")
     assert(worker.npc_goals.goals[3].serviceId == request.id and Services.hasObligation(worker, context))
     worker.hp = 100
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     assert(Services.selectedGoal(worker).type == "fulfill_obligation")
     assert(Services.complete(request.id, context))
     local count = Events.count(world)
     assert(Services.complete(request.id, context) and Events.count(world) == count)
     assert(not Services.cancel(request.id, context))
     assert(worker.npc_goals.goals[3].status == "satisfied")
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     assert(Services.selectedGoal(worker).type == "provide_service")
     assert(Knowledge.learn(worker, second.offerEventId, {"service", "employer", "location"}))
-    Goals.update(10, map)
+    CampaignRuntime.updateGoals(10, map)
     assert(Services.getRequest(second.id, context).status == "assigned")
     assert(Services.cancel(second.id, context))
     count = Events.count(world)
     assert(Services.cancel(second.id, context) and Events.count(world) == count)
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     assert(not Services.hasObligation(worker, context) and Services.selectedGoal(worker).type == "provide_service")
     local snapshot = Services.getRequest(request.id, context)
     snapshot.status, snapshot.data.note = "open", "changed"
@@ -219,7 +220,7 @@ local function commissioning()
     assert(fresh.id ~= removed.id and Services.getRequest(removed.id, context).status == "cancelled")
     -- Pending removal of an assigned worker safely closes its job.
     worker.hp = 100
-    Goals.update(10, map)
+    CampaignRuntime.updateGoals(10, map)
     assert(Services.assign(fresh.id, worker, context))
     worker:destroy()
     Services.update(context)
@@ -243,16 +244,16 @@ local function travelAndKnowledge()
     map:addParty(party)
     customer.hp = 40
     Goals.configure(customer, {{type = "rest_and_recover"}}, {travel = true})
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     assert(party.world_activity.type == "travel" and party.world_activity.params.destinationLocationId == home.id)
     assert(not customer.npc_goals.goals[1].healingRetrySeconds or customer.npc_goals.goals[1].healingRetrySeconds == 0)
     assert(customer.hp == 40 and party.treasury == 100)
-    for _ = 1, 15 do Goals.update(1, map); Activities.update(1, map) end
+    for _ = 1, 15 do CampaignRuntime.updateGoals(1, map); Activities.update(1, map) end
     assert(Services.getLocation(customer, context) == home and party.treasury == 100)
     assert(party.world_activity.type == "rest" and party.world_activity.status == "active")
     -- Return a healer locally and retry only after elapsed world time.
     Locations.removeNPC(far, healer); Locations.addNPC(home, healer)
-    Goals.update(30, map)
+    CampaignRuntime.updateGoals(30, map)
     assert(customer.hp == 80 and party.treasury == 90)
     -- Known remote employment reuses travel and checks live state on arrival.
     local applicant = actor("Remote applicant", far)
@@ -263,33 +264,33 @@ local function travelAndKnowledge()
     applicants.x, applicants.y = far.x, far.y
     map:addParty(applicants); map:stationParty(far, applicants)
     local offer = assert(Services.createRequest(employer, {type = "fixture", requiredCapability = "heal"}, context))
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     assert(not applicants.world_activity or applicants.world_activity.status ~= "active")
     Knowledge.learn(applicant, offer.offerEventId, {"service", "employer", "location"})
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     assert(applicants.world_activity.type == "travel")
     assert(Services.cancel(offer.id, context))
-    for _ = 1, 35 do Goals.update(1, map); Activities.update(1, map) end
+    for _ = 1, 35 do CampaignRuntime.updateGoals(1, map); Activities.update(1, map) end
     assert(Services.getLocation(applicant, context) == home)
     assert(not Services.hasObligation(applicant, context))
     local closure = Services.getRequest(offer.id, context).closureEventId
     assert(Knowledge.knows(applicant, closure), "stale applicant did not learn current status")
     local nextOffer = assert(Services.createRequest(employer, {type = "fixture", requiredCapability = "heal"}, context))
     Knowledge.learn(applicant, nextOffer.offerEventId, {"service", "employer", "location"})
-    Goals.update(10, map)
+    CampaignRuntime.updateGoals(10, map)
     assert(Services.getRequest(nextOffer.id, context).assignedActorId == applicant.id)
     assert(Services.cancel(nextOffer.id, context))
     local independent = actor("Independent applicant", far)
     Goals.configure(independent, {{type = "provide_service"}}, {heal = true})
     local open = assert(Services.createRequest(employer, {type = "fixture", requiredCapability = "heal"}, context))
     Knowledge.learn(independent, open.offerEventId, {"service", "employer", "location"})
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     assert(independent.npc_goals.goals[1].reason == "independent_resident_cannot_travel")
 end
 
 local function viewer()
     local world, map, home, far, actor, healer, customer, employer, context = setup()
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     local v = Viewer.new(world, map)
     assert(#v.rows == 0)
     v:draw() -- Empty actual LÖVE renderer.
@@ -302,7 +303,7 @@ local function viewer()
     assert(#v.rows == 1 and v.rows[1].id == healer.id)
     v:draw()
     healer.hp = 40
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     v:refresh()
     assert(#v.rows == 0)
     v:keypressed("tab"); v:keypressed("3")
@@ -328,7 +329,7 @@ local function viewer()
     if snapshotDirectory then
         local originalWidth, originalHeight = love.graphics.getDimensions()
         healer.hp = 100
-        Goals.update(1, map)
+        CampaignRuntime.updateGoals(1, map)
         for _, size in ipairs({{800, 600}, {1024, 768}, {1280, 720}}) do
             love.window.setMode(size[1], size[2], {resizable = true})
             v:refresh()
@@ -350,7 +351,7 @@ local function viewer()
     end
     local viewerWorker = actor("Viewer worker")
     Goals.configure(viewerWorker, {{type = "provide_service"}}, {heal = true})
-    Goals.update(1, map)
+    CampaignRuntime.updateGoals(1, map)
     assert(Services.assign(request.id, viewerWorker, context))
     v:refresh(); v:keypressed("3")
     assert(#v.rows == 1 and v.rows[1].assignedActorId == viewerWorker.id)
@@ -401,7 +402,7 @@ function Scenario.preview()
         }, context))
         if index <= 3 then
             Knowledge.learn(worker, request.offerEventId, {"service", "employer", "location"})
-            Goals.update(10, map)
+            CampaignRuntime.updateGoals(10, map)
             if index == 1 then Services.complete(request.id, context)
             elseif index == 2 then Services.cancel(request.id, context) end
         end

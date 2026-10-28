@@ -21,10 +21,6 @@ function StateManager.init()
     states.shop = require("src.game.states.shop_state")
     states.world_map = require("src.game.states.world_map_state")
     states.world_generation = require("src.game.states.world_generation_state")
-
-    -- Initialize systems that subscribe to events
-    require("src.systems.quest_system").init()
-    require("src.systems.encounter_system").init()
 end
 
 function StateManager.push(stateName, ...)

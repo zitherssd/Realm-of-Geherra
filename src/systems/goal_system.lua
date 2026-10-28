@@ -426,11 +426,15 @@ end
 -- dt is elapsed world-simulation seconds, never render-frame time.
 function GoalSystem.update(dt, map, playerParty)
     if not map or dt <= 0 or not EcsWorld.campaign then return end
-    local world = EcsWorld.campaign
     -- Concord queries see committed entities; include freshly created actors too.
-    world:__flush()
-    Services.update({world = world, map = map})
-    Caravans.update({world = world, map = map})
+    EcsWorld.campaign:__flush()
+    GoalSystem.evaluate(dt, map, playerParty)
+end
+
+-- CampaignRuntime has already flushed before service/caravan coordination.
+function GoalSystem.evaluate(dt, map, playerParty)
+    if not map or dt <= 0 or not EcsWorld.campaign then return end
+    local world = EcsWorld.campaign
     local parties, traveling = mapParties(map)
     local commanded, membership, residents = {}, {}, {}
     -- Roster membership is authoritative even if a stale resident reference remains.

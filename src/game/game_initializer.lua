@@ -47,10 +47,8 @@ function GameInitializer.beginNewGame(options)
     end
 
     -- Reset game context to clean state
-    GameContext.init()
-    local world = EcsWorld.init()
+    local world = require("src.game.campaign.campaign_runtime").beginNewGame(options)
     GameContext.data.debugCampaignProfile = profile
-    if profile then require("src.systems.time_system").reset() end
 
     -- Set game options
     GameContext.data.difficulty = options.difficulty or "normal"

@@ -1,3 +1,4 @@
+local CampaignRuntime = require("src.game.campaign.campaign_runtime")
 local Init = require("src.game.game_initializer")
 local Ecs = require("src.ecs.world")
 local Game = require("src.game.game_context")
@@ -112,7 +113,7 @@ function Scenario.run()
         assert(Fixture.populate(map, profile) == fixture)
         Init.finalizeNewGame(map, map:getLocations())
         assert(sponsor.treasury == 2000 and #fixture.actors == (profile == "bandit_risk" and 6 or 5))
-        Goals.update(0.1, map, playerParty)
+        CampaignRuntime.updateGoals(0.1, map, playerParty)
         local preparation = assert(sponsor.caravan_formation.preparation)
         local request = assert(Services.getRequest(preparation.leaderServiceId, context))
         assert(#Services.listRequests(context) == 1 and not worker.caravan_work and sponsor.treasury == 2000)
@@ -122,24 +123,24 @@ function Scenario.run()
         assert(playerParty.treasury == 40 and healer.treasury == 110)
         assert(travelers.world_activity.type == "travel")
         if profile == "no_leader" then
-            for _ = 1, 4 do Goals.update(2.1, map, playerParty) end
+            for _ = 1, 4 do CampaignRuntime.updateGoals(2.1, map, playerParty) end
             assert(not Services.getRequest(request.id, context).assignedActorId)
             assert(not Knowledge.knows(distant, request.offerEventId))
             -- Explicit debug knowledge is the sole exceptional control in this test.
             assert(Knowledge.learn(distant, request.offerEventId, {"service", "employer", "location"}, Ecs.campaign))
-            Goals.update(2.1, map, playerParty)
+            CampaignRuntime.updateGoals(2.1, map, playerParty)
             assert(not Services.getRequest(request.id, context).assignedActorId)
             assert(distant.npc_goals.goals[1].reason == "independent_resident_cannot_travel")
             assert(not Services.getParty(distant, Ecs.campaign))
         else
-            Goals.update(2.1, map, playerParty)
+            CampaignRuntime.updateGoals(2.1, map, playerParty)
             assert(Services.getRequest(request.id, context).assignedActorId == worker.id)
         end
         if profile == "healing" then
             local paid = false
             for _ = 1, 600 do
                 local elapsed = Time.worldHoursToSeconds(Time.update(0.1))
-                Goals.update(elapsed, map, playerParty)
+                CampaignRuntime.updateGoals(elapsed, map, playerParty)
                 Activities.update(elapsed, map, playerParty)
                 if travelers.treasury < 100 then paid = true; break end
             end

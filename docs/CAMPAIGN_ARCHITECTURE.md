@@ -60,6 +60,55 @@ This document records the agreed architecture for the campaign simulation and im
 - Only one controller owns a party's movement at a time.
 - Simulation uses the established world-time model.
 
+## Campaign runtime extraction (A1)
+
+`src/game/campaign/campaign_runtime.lua` owns campaign subscriber setup, new-campaign
+context/ECS creation, encounter travel resets, elapsed-time conversion and simulation
+scheduling. Startup calls `init` after the event bus and states are initialized;
+`GameInitializer.beginNewGame` delegates campaign creation to `beginNewGame`.
+Quest and random-encounter listeners are unsubscribed/rebound on setup, so repeated
+setup and setup after `EventBus.init` do not duplicate listeners. World entry resets
+random-encounter travel accumulators and rebinds world-encounter/activity listeners;
+resume only resets the travel accumulators. World exit does not tear down campaign
+subscriptions, which must remain active through player battles and overlays.
+The player raid-contact listener remains in WorldState with the battle transition.
+
+The frame sequence remains:
+
+1. WorldState decides whether time advances and sets the clock pause flag.
+2. `advanceTime(dt)` updates the clock and returns world hours and simulation seconds.
+3. WorldState applies manual player movement and updates the camera using frame seconds.
+4. `updateEncounters` rolls random encounters only for manual movement (including zero
+   distance against an obstacle), snapshots recovery reservations, then advances existing
+   world encounters in world hours. WorldState refreshes encounter hover inspection.
+5. `update` runs, for positive simulation seconds: Concord flush, service cleanup,
+   caravan advancement, goal evaluation, recovery using the earlier reservation snapshot,
+   default activities, then legacy party AI. It always invokes activity update, even
+   with zero time, to clean up terminal activities without ticking cooldowns.
+6. WorldState starts any pending player battle and returns immediately on transition;
+   otherwise it refreshes visibility and handles location/party interactions.
+
+Activity update also retains its existing internal default-activity check after cleanup.
+Idle and zero-scale frames retain terminal cleanup and visibility; developer modals
+return before the simulation and skip both. StateManager updates only the top state,
+so other screens do not implicitly advance the campaign. Waiting, resting and active
+player Travel/Roam admit time; manual movement speed still uses unscaled frame seconds.
+One real second at scale 1 produces 1.5 world hours; simulation seconds are those hours
+divided by 1.5. The clock displays minute increments but returns unquantized elapsed hours.
+
+`GoalSystem.update` retains its signature and standalone Concord flush, but now only
+evaluates goals. Campaign callers that need service/caravan coordination use
+`CampaignRuntime.updateGoals`; the runtime calls `GoalSystem.evaluate` after its own
+flush, preserving the original flush position before services and caravans.
+
+Reset behavior is deliberately preserved: ordinary new games replace context/ECS but
+retain the clock's transient scale, pause flag and fractional accumulator. Debug new
+games reset those too and start at day 1, hour 6. This asymmetry and singleton campaign
+state remain follow-up lifecycle concerns; this extraction does not change their policy.
+Full save/load, battle consequence convergence and goals/services/caravans dependency
+cleanup are outside this change. `campaign_runtime_scenario` covers ordering, unit
+conversion, pause/modal behavior, zero-time cleanup and reset/subscription lifecycle.
+
 ## G. Identity and quests
 
 - Campaign entities use campaign-scoped, monotonic, non-reused IDs.
@@ -168,7 +217,7 @@ inventory, and location membership behavior.
   their outcomes without advancing time. Rejects cancellation while an owned party is reserved
   by an encounter. The debug editor uses this before replacing goals.
 - `GoalSystem.update(elapsedWorldSeconds, map, playerParty)`: evaluate and request activities.
-  `WorldState.update` calls it after world encounters advance and before fallback movement and
+  `CampaignRuntime.update` schedules evaluation after world encounters advance and before fallback movement and
   activity execution. A zero elapsed time does nothing, including leaving retry timers frozen.
 
 One optional `npc_goals` Concord component belongs to a persistent actor. It stores `goals`,
@@ -1297,7 +1346,7 @@ simulation seconds**. The cooldown begins with preparation and is never changed 
 completion or cancellation. Only one preparation is active, but dispatched expeditions do not block
 a later preparation. No active-caravan cap exists.
 
-`GoalSystem.update` invokes service cleanup and `CaravanSystem.update` once for positive elapsed
+`CampaignRuntime.updateGoals` invokes service cleanup and `CaravanSystem.update` once for positive elapsed
 campaign simulation time. The latter processes existing preparations regardless of selected goals
 or currently enabled capabilities. Readiness is an absolute world-clock deadline. A ready preparation
 without a leader waits indefinitely. Insufficient dispatch funds leave the same preparation/request

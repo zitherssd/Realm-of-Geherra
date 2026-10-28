@@ -1,3 +1,4 @@
+local CampaignRuntime = require("src.game.campaign.campaign_runtime")
 local Ecs = require("src.ecs.world")
 local Unit = require("src.ecs.assemblages.unit")
 local Party = require("src.ecs.assemblages.party")
@@ -38,7 +39,7 @@ local function setup()
     local context = {world = world, map = map}
     local function tick(dt, playerParty)
         local elapsed = Time.worldHoursToSeconds(Time.update(dt))
-        Goals.update(elapsed, map, playerParty)
+        CampaignRuntime.updateGoals(elapsed, map, playerParty)
         Activities.update(elapsed, map, playerParty)
     end
     return world, map, home, far, sponsor, worker, context, tick, actor
