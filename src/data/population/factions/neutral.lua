@@ -1,5 +1,5 @@
 local Definition = require("src.data.types.faction")
-return Definition.new {
+return Definition.new({
     id = "neutral",
     defaultCulture = "generic",
     name = "Neutral",
@@ -9,4 +9,4 @@ return Definition.new {
         b = 0.9,
     },
     description = "Animals and unaligned entities.",
-}
+})

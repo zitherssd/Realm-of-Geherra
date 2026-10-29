@@ -82,6 +82,7 @@ function BattleSimulation.new(partyA, partyB, controlPartyA, options)
 
     simulation.context.data.projectileRng = options and options.projectileRng
     simulation.context.data.moraleRng = options and options.moraleRng
+    simulation.context.data.conditionRng = options and options.conditionRng
     simulation.context.data.squads = {}
     addPartyUnits(simulation, partyA, "player", controlPartyA == true)
     addPartyUnits(simulation, partyB, "enemy", false)
@@ -169,13 +170,18 @@ function BattleSimulation:settle(outcome, winnerPartyId)
     if self.settled then return end
     self.settled, self.tacticalOutcome, self.tacticalWinner = true, outcome, winnerPartyId
     self.settlementTicks = 0
-    local units = collectBattleUnits(self.context)
-    for _, unit in pairs(units) do
+    local units = {}
+    for _, unit in pairs(collectBattleUnits(self.context)) do units[#units+1]=unit end
+    table.sort(units,function(a,b)
+        if type(a.id) ~= type(b.id) then return type(a.id) < type(b.id) end
+        return a.id < b.id
+    end)
+    for _, unit in ipairs(units) do
         unit.tacticalHp, unit.tacticalEscaped = unit.hp, unit.escaped == true
         unit.intent, unit.currentCast = nil, nil
     end
     local function pending()
-        for _, unit in pairs(units) do
+        for _, unit in ipairs(units) do
             if unit.hp > 0 then
                 for id, entry in pairs(unit.statusEffects or {}) do
                     if Conditions.finitePeriodic(entry, id) then return true end
@@ -186,14 +192,14 @@ function BattleSimulation:settle(outcome, winnerPartyId)
     end
     while self.settlementTicks < self.SETTLEMENT_LIMIT and pending() do
         self.settlementTicks = self.settlementTicks + 1
-        for _, unit in pairs(units) do
+        for _, unit in ipairs(units) do
             if unit.hp > 0 then ExecutionSystem.tickStatuses(unit, self.context, true) end
         end
         Morale.process(self.context)
         self.context.removeDeadUnits()
     end
     self.settlementTruncated = pending()
-    for _, unit in pairs(units) do
+    for _, unit in ipairs(units) do
         unit.statusEffects = Conditions.persistentStatuses(unit)
     end
     for index = #self.context.data.escaped, 1, -1 do

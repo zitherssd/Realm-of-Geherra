@@ -1,5 +1,5 @@
 local PopulationProfile = require("src.data.types.population_profile")
-return PopulationProfile.new {
+return PopulationProfile.new({
     id = "wizard_tower",
     residents = {
         {
@@ -8,4 +8,4 @@ return PopulationProfile.new {
             count = 1,
         },
     },
-}
+})

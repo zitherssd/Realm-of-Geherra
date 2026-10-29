@@ -1,5 +1,5 @@
 local Definition = require("src.data.types.faction")
-return Definition.new {
+return Definition.new({
     id = "bandits",
     defaultCulture = "generic",
     name = "Bandit Clans",
@@ -9,4 +9,4 @@ return Definition.new {
         b = 0.5,
     },
     description = "Organized bandit groups",
-}
+})

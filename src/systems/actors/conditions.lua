@@ -17,6 +17,7 @@ function Conditions.definition(id, overrides)
     end
     if overrides == true and result.duration == nil then result.duration = 60 end
     result.lifetime = result.lifetime or "battle-only"
+    if result.lifetime == "battle-long" then result.lifetime, result.battleLong = "battle-only", true end
     assert(result.lifetime == "battle-only" or result.lifetime == "persistent" or result.lifetime == "permanent", "Invalid condition lifetime")
     result.policy = result.policy or "refresh"
     assert(result.policy == "refresh" or result.policy == "stack" or result.policy == "replace", "Invalid condition policy")
@@ -52,7 +53,10 @@ end
 function Conditions.metadata(actor, id, bodyPart)
     local entry = Conditions.get(actor, id, bodyPart)
     if not entry then return nil end
-    if bodyPart then return {lifetime = "persistent", durationUnit = "injury-recovery"} end
+    if bodyPart then
+        local definition = require("src.systems.actors.injury_system").definition(actor,entry)
+        return {lifetime="persistent", durationUnit="injury-recovery", category="injury", dispellable=definition and definition.dispellable == true}
+    end
     return Conditions.definition(id, entry)
 end
 
@@ -62,7 +66,7 @@ function Conditions.apply(actor, id, overrides, sourceSkillId)
         return require("src.systems.actors.injury_system").apply(actor, {id = id, bodyPart = overrides.bodyPart})
     end
     local entry = Conditions.definition(id, overrides)
-    if entry.lifetime ~= "permanent" and (entry.duration or 0) <= 0 and not entry.decayEvery then return nil end
+    if entry.lifetime ~= "permanent" and (entry.duration or 0) <= 0 and not entry.decayEvery and not entry.battleLong then return nil end
     local old = Conditions.get(actor, id)
     entry.remaining = entry.lifetime ~= "permanent" and entry.duration or nil
     entry.durationUnit = entry.durationUnit or "battle-ticks"
@@ -70,6 +74,7 @@ function Conditions.apply(actor, id, overrides, sourceSkillId)
     if old and entry.policy ~= "replace" then
         entry.tickCounter = old.tickCounter or 0
         entry.decayCounter = old.decayCounter or 0
+        entry.triggerCounts = old.triggerCounts
         entry.stacks = entry.policy == "stack" and math.min((old.stacks or 1) + 1, entry.maxStacks or math.huge) or (old.stacks or 1)
     end
     if (entry.damagePerTick or 0) > 0 and (entry.tickEvery or 0) < 1 then entry.tickEvery = 20 end
@@ -107,6 +112,68 @@ function Conditions.persistentStatuses(actor)
     return result
 end
 
+function Conditions.entries(actor)
+    local entries = {}
+    for id, entry in pairs(actor.statusEffects or {}) do
+        if Conditions.active(entry) then
+            entries[#entries+1] = {id=id, entry=entry, definition=Conditions.definition(id, entry)}
+        end
+    end
+    table.sort(entries, function(a,b) return a.id < b.id end)
+    return entries
+end
+
+-- Ordinary removal remains available to treatment; magical removal checks eligibility.
+function Conditions.cleanse(actor, filter)
+    local removed = 0
+    local function matches(id, definition, injury)
+        local categories = definition.categories or {}
+        local category = filter.category
+        return definition.dispellable ~= false and (not injury or definition.dispellable == true) and
+            (not filter.id or filter.id == id) and
+            (not category or definition.category == category or categories[category] or (injury and category == "injury"))
+    end
+    for _, item in ipairs(Conditions.entries(actor)) do
+        if matches(item.id, item.definition, false) then Conditions.remove(actor,item.id); removed=removed+1 end
+    end
+    local Injury = require("src.systems.actors.injury_system")
+    for index = #(actor.injuries or {}), 1, -1 do
+        local entry = actor.injuries[index]
+        local definition = Injury.definition(actor,entry)
+        if definition and matches(entry.id,definition,true) then
+            Conditions.remove(actor,entry.id,entry.bodyPart); removed=removed+1
+        end
+    end
+    return removed
+end
+
+-- Snapshot one eligible reaction per condition/event; expiration follows that reaction.
+function Conditions.trigger(actor, event, delivery, rng, react)
+    for _, item in ipairs(Conditions.entries(actor)) do
+        local definition, entry = item.definition, item.entry
+        local reaction = (definition.reactions or {})[event]
+        if reaction and (not reaction.meleeOnly or delivery == "melee") and
+            (reaction.chance == nil or rng() < reaction.chance) then react(reaction) end
+        local expires = definition.expiresOn
+        if expires and expires.event == event and (not expires.meleeOnly or delivery == "melee") then
+            entry.triggerCounts = entry.triggerCounts or {}
+            entry.triggerCounts[event] = (entry.triggerCounts[event] or 0)+1
+            if (expires.triggers and entry.triggerCounts[event] >= expires.triggers) or
+                (expires.chance and rng() < expires.chance) then Conditions.remove(actor,item.id) end
+        end
+    end
+end
+
+function Conditions.damageLimits(actor, direction)
+    local minimum, maximum = 0, math.huge
+    for _, item in ipairs(Conditions.entries(actor)) do
+        local effects = item.definition.effects or {}
+        minimum = math.max(minimum, effects[direction.."DamageMin"] or 0)
+        maximum = math.min(maximum, effects[direction.."DamageMax"] or math.huge)
+    end
+    return minimum, maximum
+end
+
 function Conditions.effects(actor, injuriesOnly)
     local result = {attack = 0, defense = 0, movementSpeedMultiplier = 1, sightMultiplier = 1}
     local function add(effects, stacks)
@@ -126,8 +193,8 @@ function Conditions.effects(actor, injuriesOnly)
     result.movementSpeedMultiplier = math.max(0.2, result.movementSpeedMultiplier)
     result.sightMultiplier = math.max(0.2, result.sightMultiplier)
     if not injuriesOnly then
-        for id, entry in pairs(actor.statusEffects or {}) do
-            if Conditions.active(entry) then add(Conditions.definition(id, entry).effects, entry.stacks or 1) end
+        for _, item in ipairs(Conditions.entries(actor)) do
+            add(item.definition.effects, item.entry.stacks or 1)
         end
     end
     return result

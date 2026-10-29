@@ -1,0 +1,202 @@
+aoe_scenario: FAIL
+aoe_scenario.lua:297: aoe_scenario.lua:141: Explosion not at physical interception
+stack traceback:
+	[C]: in function 'assert'
+	aoe_scenario.lua:141: in function 'projectileImpacts'
+	aoe_scenario.lua:291: in function <aoe_scenario.lua:287>
+	[C]: in function 'xpcall'
+	aoe_scenario.lua:287: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+stack traceback:
+	[C]: in function 'assert'
+	aoe_scenario.lua:297: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+campaign_runtime_scenario: FAIL
+campaign_runtime_scenario.lua:92: assertion failed!
+stack traceback:
+	[C]: in function 'assert'
+	campaign_runtime_scenario.lua:92: in function <campaign_runtime_scenario.lua:29>
+	[C]: in function 'xpcall'
+	campaign_runtime_scenario.lua:29: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+stack traceback:
+	[C]: in function 'error'
+	campaign_runtime_scenario.lua:204: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+combat_regression_scenario: FAIL
+combat_regression_scenario.lua:57: A javelin used main-hand damage
+stack traceback:
+	[C]: in function 'assert'
+	combat_regression_scenario.lua:57: in function 'testSkillDamageAndModifiers'
+	combat_regression_scenario.lua:185: in function <combat_regression_scenario.lua:178>
+	[C]: in function 'xpcall'
+	combat_regression_scenario.lua:178: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+stack traceback:
+	[C]: in function 'error'
+	combat_regression_scenario.lua:193: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+morale_scenario: FAIL
+BattleState: Battle started against party ID: 'Route B'
+morale_scenario.lua:413: winner's fleeing soldiers delayed victory
+stack traceback:
+	[C]: in function 'assert'
+	morale_scenario.lua:413: in function 'victoryWithFleeingSurvivors'
+	morale_scenario.lua:472: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+party_speed_scenario: FAIL
+party_speed_scenario.lua:9: assertion failed!
+stack traceback:
+	[C]: in function 'assert'
+	party_speed_scenario.lua:9: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+personality_return_home_scenario: FAIL
+personality_return_home_scenario.lua:26: 5.3333333333333 ~= 12
+stack traceback:
+	[C]: in function 'assert'
+	personality_return_home_scenario.lua:26: in function 'near'
+	personality_return_home_scenario.lua:101: in function 'accumulation'
+	personality_return_home_scenario.lua:341: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+projectile_scenario: FAIL
+projectile_scenario.lua:290: archer has missing Precision
+stack traceback:
+	[C]: in function 'assert'
+	projectile_scenario.lua:290: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+recovery_scenario: FAIL
+recovery_scenario.lua:165: ordinary goal did not resume
+stack traceback:
+	[C]: in function 'assert'
+	recovery_scenario.lua:165: in function 'interruptionAndResume'
+	recovery_scenario.lua:342: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+world_encounter_scenario: FAIL
+[WorldEncounter] clock-map:encounter:1 started: clock-a vs clock-b
+world_encounter_scenario.lua:48: clock did not return elapsed game hours
+stack traceback:
+	[C]: in function 'assert'
+	world_encounter_scenario.lua:48: in function 'assertNear'
+	world_encounter_scenario.lua:79: in function 'testClockDeltaPauseAndAcceleration'
+	world_encounter_scenario.lua:348: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+world_time_sync_scenario: FAIL
+[WorldEncounter] world-time-sync-map:encounter:1 started: time-encounter-a vs time-encounter-b
+world_time_sync_scenario.lua:201: world-hour to world-second conversion is incorrect
+stack traceback:
+	[C]: in function 'assert'
+	world_time_sync_scenario.lua:201: in function <world_time_sync_scenario.lua:44>
+	[C]: in function 'xpcall'
+	world_time_sync_scenario.lua:239: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+stack traceback:
+	[C]: in function 'error'
+	world_time_sync_scenario.lua:243: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>

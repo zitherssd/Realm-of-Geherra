@@ -1,5 +1,5 @@
 local Definition = require("src.data.types.population_profile")
-return Definition.new {
+return Definition.new({
     id = "trading_town",
     residents = {
         {
@@ -40,4 +40,4 @@ return Definition.new {
             },
         },
     },
-}
+})

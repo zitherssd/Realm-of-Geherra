@@ -1,5 +1,5 @@
 local Definition = require("src.data.types.culture")
-return Definition.new {
+return Definition.new({
     id = "generic",
     namePool = "generic",
     roles = {
@@ -16,4 +16,4 @@ return Definition.new {
         retinue_warrior = "fort_guard",
         quartermaster = "quartermaster",
     },
-}
+})

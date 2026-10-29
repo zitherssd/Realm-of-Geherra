@@ -1,5 +1,5 @@
 local Definition = require("src.data.types.name_pool")
-return Definition.new {
+return Definition.new({
     id = "minotaur",
     pools = {
         default = {
@@ -12,4 +12,4 @@ return Definition.new {
             "Oroth",
         },
     },
-}
+})

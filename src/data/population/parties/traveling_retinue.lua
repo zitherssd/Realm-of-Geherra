@@ -1,6 +1,6 @@
 local Definition = require("src.data.types.party_template")
 -- Starts as a world-map party. The leader's existing goals decide whether it moves.
-return Definition.new {
+return Definition.new({
     id = "traveling_retinue",
     nameSuffix = "Retinue",
     placement = "world",
@@ -20,4 +20,4 @@ return Definition.new {
             },
         },
     },
-}
+})

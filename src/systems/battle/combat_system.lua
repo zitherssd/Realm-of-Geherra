@@ -47,7 +47,7 @@ function CombatSystem.rollProjectileDefense(attacker, defender)
     local precision = EffectiveStats.get(attacker, "precision", 10)
     local shield = CombatSystem._getShieldDefense(defender)
     local attack = precision / 8 + MATH.rollExploding(8) + MATH.rollExploding(8)
-    local defense = MATH.rollExploding(8) + MATH.rollExploding(8) + 2 * shield + 2
+    local defense = MATH.rollExploding(8) + MATH.rollExploding(8) + 2 * shield + EffectiveStats.get(defender, "projectileDefense")
     return attack > defense, attack - defense, shield
 end
 
@@ -74,7 +74,53 @@ function CombatSystem.calculateDamage(attacker, defender, skill)
 
     local damage = math.max(0, weaponDamage + strengthContribution + rollToAttack - totalProtection - rollForAC)
 
-    return math.floor(damage)
+    return CombatSystem.modifyDamage(attacker, defender, damage, damageType)
+end
+
+-- Ordinary calculation/protection -> outgoing -> incoming/typed resistance -> caps -> floor.
+function CombatSystem.modifyDamage(attacker, defender, damage, kind)
+    local outgoing = attacker and Conditions.effects(attacker) or {}
+    local incoming = Conditions.effects(defender)
+    damage = math.max(0, damage + (outgoing.outgoingDamage or 0)) * (outgoing.outgoingDamageMultiplier or 1)
+    damage = math.max(0, damage + (incoming.incomingDamage or 0)) * (incoming.incomingDamageMultiplier or 1)
+        * (incoming["incomingDamage_"..kind.."Multiplier"] or 1)
+    local outMin,outMax = Conditions.damageLimits(attacker or {}, "outgoing")
+    local inMin,inMax = Conditions.damageLimits(defender, "incoming")
+    -- Upper caps win when independently authored minimum/maximum constraints conflict.
+    return math.max(0, math.floor(math.min(math.max(damage,outMin,inMin),outMax,inMax)))
+end
+
+function CombatSystem.typedDamage(attacker, defender, amount, kind)
+    return CombatSystem.modifyDamage(attacker,defender,
+        math.max(0,amount-EffectiveStats.protection(defender,kind)),kind)
+end
+
+local function trigger(actor, event, other, skill, delivery)
+    local context = actor.battleContext or (other and other.battleContext)
+    local rng = context and context.data.conditionRng or math.random
+    Conditions.trigger(actor,event,delivery,rng,function(reaction)
+        local target = reaction.target == "self" and actor or other
+        if not target or target.hp <= 0 then return end
+        if (reaction.damage or 0) > 0 then
+            local damage = CombatSystem.typedDamage(actor,target,reaction.damage,reaction.damageType or "blunt")
+            CombatSystem._applyBattleDamage(target,damage,true,{reactive=true})
+        end
+        local ids = {}
+        for id in pairs(reaction.apply or {}) do ids[#ids+1]=id end
+        table.sort(ids)
+        for _, id in ipairs(ids) do Conditions.apply(target,id,reaction.apply[id],skill and skill.id) end
+    end)
+end
+
+local function finishAttack(attacker,defender,skill,result,hpLost,delivery)
+    trigger(defender,"onAttackReceived",attacker,skill,delivery)
+    if result.hit then
+        trigger(defender,"onHitReceived",attacker,skill,delivery)
+        if hpLost > 0 then trigger(defender,"onDamageReceived",attacker,skill,delivery) end
+        trigger(attacker,"onHitDealt",defender,skill,delivery)
+    end
+    result.defeated = defender.hp <= 0
+    return result
 end
 
 -- Calculate total protection for a damage type (innate + equipment)
@@ -142,7 +188,8 @@ function CombatSystem._determineMissAction(hasShield, wouldHitWithoutShield)
 end
 
 -- Private function for battle context
-function CombatSystem._applyBattleDamage(unit, damage, isStatusDamage)
+function CombatSystem._applyBattleDamage(unit, damage, isStatusDamage, options)
+    options = options or {}
     -- BattleUnit uses .hp, not .stats.health
     if unit.escaped and not isStatusDamage then return false end
     local previousHp = unit.hp
@@ -153,6 +200,9 @@ function CombatSystem._applyBattleDamage(unit, damage, isStatusDamage)
     if not isStatusDamage then Injury.fromDamage(unit, previousHp - unit.hp) end
     if unit.battleContext then
         morale.damage(unit.battleContext, unit, previousHp - unit.hp, powers)
+    end
+    if previousHp > unit.hp and not options.reactive and not options.deferEvents then
+        trigger(unit,"onDamageReceived",options.attacker,options.skill,"periodic")
     end
     return unit.hp <= 0
 end
@@ -190,11 +240,12 @@ end
 
 function CombatSystem.resolveAttack(attacker, defender, skill)
     if skill.healing then return CombatSystem.resolveAreaEffect(attacker, defender, skill) end
+    local previousHp = defender.hp
     local isHit, margin, shieldDefense = CombatSystem.rollAttack(attacker, defender, skill)
 
     if isHit then
         local damage = CombatSystem.calculateDamage(attacker, defender, skill)
-        local defeated = CombatSystem._applyBattleDamage(defender, damage)
+        local defeated = CombatSystem._applyBattleDamage(defender, damage, false, {deferEvents=true})
 
         -- Visual: Damage Flash (Red)
         if defender.visualEffects then
@@ -205,7 +256,7 @@ function CombatSystem.resolveAttack(attacker, defender, skill)
         end
 
         if skill.type == "melee" and not skill.aoe and not skill.projectile then Conditions.apply(defender, "harassed") end
-        return {hit = true, damage = damage, defeated = defeated}
+        return finishAttack(attacker,defender,skill,{hit=true,damage=damage,defeated=defeated},previousHp-defender.hp,skill.type or "melee")
     end
 
     -- MISS: block only when the shield was the deciding factor, else evade.
@@ -222,11 +273,11 @@ function CombatSystem.resolveAttack(attacker, defender, skill)
     end
 
     if skill.type == "melee" and not skill.aoe and not skill.projectile then Conditions.apply(defender, "harassed") end
-    return {hit = false, damage = 0, defeated = false, action = action}
+    return finishAttack(attacker,defender,skill,{hit=false,damage=0,defeated=false,action=action},0,skill.type or "melee")
 end
 
 -- Physical contact can be defended without delivering a projectile's area payload.
-function CombatSystem.resolveProjectileContact(attacker, defender, skill)
+function CombatSystem.resolveProjectileContact(attacker, defender, skill, deferAttempt)
     local mode = skill and skill.projectile and skill.projectile.defenseMode or "opposed"
     assert(mode == "none" or mode == "opposed", "Unknown projectile defense mode: "..tostring(mode))
     if mode == "none" then return {hit = true} end
@@ -236,14 +287,17 @@ function CombatSystem.resolveProjectileContact(attacker, defender, skill)
     local action = CombatSystem._determineMissAction(shield > 0, margin + 2 * shield > 0)
     if action == "block" then CombatSystem.applyBlockDurabilityLoss(defender) end
     if defender.visualEffects then defender.visualEffects.shakeTime = 0.5 end
-    return {hit = false, damage = 0, defeated = false, action = action}
+    local result = {hit=false,damage=0,defeated=false,action=action}
+    if not deferAttempt then return finishAttack(attacker,defender,skill,result,0,"projectile") end
+    return result
 end
 
 function CombatSystem.resolveProjectileAttack(attacker, defender, skill)
-    local result = CombatSystem.resolveProjectileContact(attacker, defender, skill)
+    local previousHp = defender.hp
+    local result = CombatSystem.resolveProjectileContact(attacker, defender, skill, true)
     if result.hit then
         local damage = CombatSystem.calculateDamage(attacker, defender, skill)
-        local defeated = CombatSystem._applyBattleDamage(defender, damage)
+        local defeated = CombatSystem._applyBattleDamage(defender, damage, false, {deferEvents=true})
 
         if defender.visualEffects then
             defender.visualEffects.flashTime = 0.3
@@ -252,18 +306,20 @@ function CombatSystem.resolveProjectileAttack(attacker, defender, skill)
             defender.visualEffects.flashIntensity = 0.8
         end
 
-        return {hit = true, damage = damage, defeated = defeated}
+        return finishAttack(attacker,defender,skill,{hit=true,damage=damage,defeated=defeated},previousHp-defender.hp,"projectile")
     end
 
-    return result
+    return finishAttack(attacker,defender,skill,result,0,"projectile")
 end
 
 -- Area contact is guaranteed; protection, injuries and morale use normal damage.
 function CombatSystem.resolveAreaEffect(attacker, defender, skill)
-    local damage, defeated = 0, false
+    local previousHp = defender.hp
+    local damage, defeated, hpLost = 0, false, 0
     if skill.baseDamage then
         damage = CombatSystem.calculateDamage(attacker, defender, skill)
-        defeated = CombatSystem._applyBattleDamage(defender, damage)
+        defeated = CombatSystem._applyBattleDamage(defender, damage, false, {deferEvents=true})
+        hpLost = previousHp-defender.hp
         if defender.visualEffects then
             defender.visualEffects.flashTime = 0.3
             defender.visualEffects.flashDuration = 0.3
@@ -276,7 +332,9 @@ function CombatSystem.resolveAreaEffect(attacker, defender, skill)
         healed = math.max(0, math.min(skill.healing, defender.maxHp-defender.hp))
         defender.hp = defender.hp+healed
     end
-    return {hit = true, damage = damage, healed = healed, defeated = defeated}
+    local result = {hit=true,damage=damage,healed=healed,defeated=defeated}
+    if skill.baseDamage or not skill.healing then return finishAttack(attacker,defender,skill,result,hpLost,"aoe") end
+    return result
 end
 
 return CombatSystem

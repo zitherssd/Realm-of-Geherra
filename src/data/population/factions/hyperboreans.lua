@@ -1,5 +1,5 @@
 local Definition = require("src.data.types.faction")
-return Definition.new {
+return Definition.new({
     id = "hyperboreans",
     defaultCulture = "generic",
     name = "The Hyperboreans",
@@ -9,4 +9,4 @@ return Definition.new {
         b = 1.0,
     },
     description = "Rare, mythic figures who intervene when balance is broken.",
-}
+})

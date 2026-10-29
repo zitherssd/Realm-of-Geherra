@@ -1,5 +1,5 @@
 local Definition = require("src.data.types.faction")
-return Definition.new {
+return Definition.new({
     id = "dacians",
     defaultCulture = "generic",
     name = "The Dacians",
@@ -9,4 +9,4 @@ return Definition.new {
         b = 0.2,
     },
     description = "Rivals to the Menari with strong cultural memory and shared identity.",
-}
+})

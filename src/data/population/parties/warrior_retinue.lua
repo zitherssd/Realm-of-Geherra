@@ -1,5 +1,5 @@
 local Definition = require("src.data.types.party_template")
-return Definition.new {
+return Definition.new({
     id = "warrior_retinue",
     nameSuffix = "Retinue",
     placement = "stationed",
@@ -19,4 +19,4 @@ return Definition.new {
             },
         },
     },
-}
+})

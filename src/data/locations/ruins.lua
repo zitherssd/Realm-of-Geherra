@@ -1,5 +1,5 @@
 local Definition = require("src.data.types.location_definition")
-return Definition.new {
+return Definition.new({
     id = "ruins",
     displayName = "Ruins",
     mapMarker = "ruins",
@@ -58,4 +58,4 @@ return Definition.new {
         "The Forgotten Gate",
         "Irenmoth Ruins",
     },
-}
+})

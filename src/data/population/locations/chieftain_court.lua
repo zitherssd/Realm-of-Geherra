@@ -1,5 +1,5 @@
 local Definition = require("src.data.types.population_profile")
-return Definition.new {
+return Definition.new({
     id = "chieftain_court",
     residents = {
         -- The chieftain archetype supplies its personal retinue by default.
@@ -20,4 +20,4 @@ return Definition.new {
             count = 1,
         },
     },
-}
+})

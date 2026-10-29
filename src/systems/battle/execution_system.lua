@@ -215,8 +215,11 @@ end
 function ExecutionSystem.tickStatuses(unit, context, finiteOnly)
     if not Conditions.permits(unit, "cast") then unit.currentCast = nil end
     for id, entry in pairs(unit.statusEffects or {}) do
-        if not Conditions.active(entry) then Conditions.remove(unit, id)
-        elseif not finiteOnly or Conditions.finitePeriodic(entry, id) then
+        if not Conditions.active(entry) then Conditions.remove(unit,id) end
+    end
+    for _, item in ipairs(Conditions.entries(unit)) do
+        local id,entry = item.id,item.entry
+        if unit.statusEffects[id] == entry and (not finiteOnly or Conditions.finitePeriodic(entry, id)) then
             local definition = Conditions.definition(id, entry)
             if unit.hp > 0 and (definition.tickEvery or 0) > 0 then
                 entry.tickCounter = (entry.tickCounter or 0) + 1
@@ -224,7 +227,7 @@ function ExecutionSystem.tickStatuses(unit, context, finiteOnly)
                     entry.tickCounter = 0
                     local damage = (definition.damagePerTick or 0) * (definition.stackPeriodicDamage and (entry.stacks or 1) or 1)
                     if damage > 0 then
-                        damage = math.max(0, math.floor(damage - EffectiveStats.protection(unit, definition.damageType or "blunt")))
+                        damage = CombatSystem.typedDamage(nil, unit, damage, definition.damageType or "blunt")
                         CombatSystem._applyBattleDamage(unit, damage, true)
                         Morale.process(context)
                         if damage > 0 and context.addFloatingText then

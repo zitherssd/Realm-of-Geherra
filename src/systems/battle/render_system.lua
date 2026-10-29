@@ -1,3 +1,4 @@
+local ConditionVisuals = require("src.game.battle.condition_visuals")
 -- systems/battle/render_system.lua
 -- Handles visual updates (lerping) and world-space drawing.
 
@@ -15,11 +16,15 @@ local imageCache = {}
 local projectileSpriteBounds = {}
 
 local flashShader = love.graphics.newShader[[
+    extern vec3 conditionTint;
+    extern number saturation;
     extern vec3 flashColor;
     extern number flashAmount;
     vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) {
         vec4 pixel = Texel(texture, texture_coords);
-        vec3 flashed = mix(pixel.rgb, flashColor, flashAmount);
+        number gray = dot(pixel.rgb, vec3(0.299, 0.587, 0.114));
+        vec3 presented = mix(vec3(gray), pixel.rgb, saturation) * conditionTint;
+        vec3 flashed = mix(presented, flashColor, flashAmount);
         return vec4(flashed, pixel.a) * color;
     }
 ]]
@@ -339,6 +344,8 @@ function RenderSystem.drawMoraleDebug(context)
 end
 
 local function drawUnit(unit, showCollisionCircles)
+    love.graphics.push("all")
+    local presentation = ConditionVisuals.compose(unit)
     local sprite = getImage(unit.actor.sprite)
     local drawX, drawY = unit.visualX, unit.visualY
     local burnIntensity = getBurnIntensity(unit)
@@ -375,7 +382,11 @@ local function drawUnit(unit, showCollisionCircles)
     end
 
     if sprite then
-        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.setColor(1, 1, 1, presentation.alpha)
+        flashShader:send("conditionTint", presentation.tint)
+        flashShader:send("saturation", presentation.saturation)
+        flashShader:send("flashAmount", 0)
+        if presentation.active then love.graphics.setShader(flashShader) end
 
         if unit.visualEffects and unit.visualEffects.flashTime > 0 then
             local baseIntensity = unit.visualEffects.flashIntensity or 0.7
@@ -455,7 +466,10 @@ local function drawUnit(unit, showCollisionCircles)
     local hpPercent = math.max(0, unit.hp / math.max(1, unit.maxHp))
     love.graphics.setColor(0.2, 0.8, 0.2, 1)
     love.graphics.rectangle("fill", barX, barY, barWidth * hpPercent, barHeight)
+    love.graphics.pop()
 end
+
+RenderSystem.drawUnit = drawUnit
 
 local function drawProjectile(proj)
     initializeProjectileProjection(proj)

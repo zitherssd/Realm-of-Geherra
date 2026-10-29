@@ -1,5 +1,5 @@
 local Definition = require("src.data.types.npc_archetype")
-return Definition.new {
+return Definition.new({
     id = "minotaur_chieftain",
     troopType = "gaia_minotaur_commander",
     title = "Chieftain",
@@ -50,4 +50,4 @@ return Definition.new {
             },
         },
     },
-}
+})

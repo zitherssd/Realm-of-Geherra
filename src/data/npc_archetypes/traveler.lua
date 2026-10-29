@@ -1,5 +1,5 @@
 local Definition = require("src.data.types.npc_archetype")
-return Definition.new {
+return Definition.new({
     id = "traveler",
     troopType = "soldier",
     title = "Traveler",
@@ -13,4 +13,4 @@ return Definition.new {
     capabilities = {
         travel = true,
     },
-}
+})

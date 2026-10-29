@@ -1,5 +1,5 @@
 local Definition = require("src.data.types.location_definition")
-return Definition.new {
+return Definition.new({
     id = "windmill",
     displayName = "Windmill",
     mapMarker = "windmill",
@@ -49,4 +49,4 @@ return Definition.new {
         "The Crestwood Post",
         "Weary Wheel Mill",
     },
-}
+})

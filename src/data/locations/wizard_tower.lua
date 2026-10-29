@@ -1,5 +1,5 @@
 local LocationDefinition = require("src.data.types.location_definition")
-return LocationDefinition.new {
+return LocationDefinition.new({
     id = "wizard_tower",
     displayName = "Wizard Tower",
     mapMarker = "shrine",
@@ -44,4 +44,4 @@ return LocationDefinition.new {
         "Tower of Ash",
         "The Silent Observatory",
     },
-}
+})

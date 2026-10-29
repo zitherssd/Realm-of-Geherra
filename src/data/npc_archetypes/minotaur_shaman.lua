@@ -1,5 +1,5 @@
 local Definition = require("src.data.types.npc_archetype")
-return Definition.new {
+return Definition.new({
     id = "minotaur_shaman",
     troopType = "gaia_minotaur_naked",
     title = "Shaman",
@@ -19,4 +19,4 @@ return Definition.new {
     capabilities = {
         heal = true,
     },
-}
+})

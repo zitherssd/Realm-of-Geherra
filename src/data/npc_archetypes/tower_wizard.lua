@@ -1,5 +1,5 @@
 local NpcArchetype = require("src.data.types.npc_archetype")
-return NpcArchetype.new {
+return NpcArchetype.new({
     id = "tower_wizard",
     troopType = "blue_river_astrologer",
     title = "Wizard",
@@ -14,4 +14,4 @@ return NpcArchetype.new {
         },
     },
     capabilities = {},
-}
+})

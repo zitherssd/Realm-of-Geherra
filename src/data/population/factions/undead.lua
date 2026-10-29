@@ -1,5 +1,5 @@
 local Definition = require("src.data.types.faction")
-return Definition.new {
+return Definition.new({
     id = "undead",
     defaultCulture = "generic",
     name = "Undead Forces",
@@ -9,4 +9,4 @@ return Definition.new {
         b = 0.3,
     },
     description = "The restless dead.",
-}
+})
