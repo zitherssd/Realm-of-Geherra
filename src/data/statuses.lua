@@ -5,7 +5,7 @@ return {
     ["stoneskin"] = {
         battleLong = true,
         category = "buff",
-        effects = { protection_slashing = 10, protection_piercing = 10, protection_blunt = 3 },
+        effects = { protection_slashing = 10, protection_piercing = 8, protection_blunt = 3 },
         visual = { saturation = 0.3 },
     },
 

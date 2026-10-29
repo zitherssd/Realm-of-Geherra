@@ -99,6 +99,12 @@ local function unitAssemblage(e, troopType, id)
             end
         end
 
+        if data.innateProtections then
+            for kind, value in pairs(data.innateProtections) do
+                e.innateProtections[kind] = value
+            end
+        end
+
         if data.size then
             e.size = data.size
             e.profile = e.size * 10

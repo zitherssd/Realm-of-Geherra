@@ -7,6 +7,7 @@ local Projectile = require("src.game.battle.projectiles")
 local Skills = require("src.data.skills")
 local Dice = require("src.utils.math")
 local Morale = require("src.game.battle.morale")
+local Decision = require("src.systems.battle.decision_system")
 local Scenario = {}
 
 local function unit(id,x,y,team,radius)
@@ -118,6 +119,102 @@ local function delivery()
     assert(Aoe.intersects(shape,{x=320,y=100,collisionRadius=0}) and shape.x==300,"Explicit line origin")
     a.facing=1;shape=Aoe.at(a,{shape="cone",length=20,angle=0},a.x,a.y)
     assert(Aoe.intersects(shape,{x=80,y=100,collisionRadius=0}),"Facing fallback")
+end
+
+local function placement()
+    local a,b=unit("placement-caster",100,100),unit("placement-target",130,100,"enemy")
+    local c=context(a,b)
+    local skill={id="placement-circle",type="aoe",range=1,baseDamage=10,aoe={shape="circle",radius=20}}
+    Skills[skill.id]=skill;a.skills[skill.id]={}
+    Execution._executeSkillEffect(a,skill.id,nil,{x=140,y=100},c)
+    assert(b.hp<100,"Ground circle failed inside casting range")
+    b.hp=100;a.cooldowns[skill.id]=nil;a.globalCooldown=0
+    Execution._executeSkillEffect(a,skill.id,nil,{x=150.01,y=100},c)
+    assert(b.hp==100 and not a.cooldowns[skill.id],"Ground circle exceeded casting range or retargeted")
+
+    a,b=unit("moved-caster",100,100),unit("moved-target",130,100,"enemy")
+    c=context(a,b);skill.windup=2;a.skills[skill.id]={};a.globalCooldown=0
+    Execution._initiateSkill(a,{skillId=skill.id,target={x=140,y=100}},c)
+    a.x=80;a.currentCast.remaining=0;Execution._completeCast(a,c)
+    assert(b.hp==100 and not a.cooldowns[skill.id],"Windup skipped execution-time range validation")
+
+    local selfSkill={id="self-circle",type="aoe",range=0,baseDamage=10,aoe={shape="circle",radius=20}}
+    Skills[selfSkill.id]=selfSkill;a,b=unit("self-caster",100,100),unit("self-far",150,100,"enemy")
+    c=context(a,b);a.skills[selfSkill.id]={}
+    assert(Aoe.targetingMode(selfSkill.aoe,selfSkill)=="self","Range-zero circle was not inferred as self-targeted")
+    Execution._executeSkillEffect(a,selfSkill.id,nil,{x=800,y=400},c)
+    assert(a.hp<100 and b.hp==100,"Self AoE did not center on caster")
+
+    for _,kind in ipairs({"cone","line"}) do
+        local directional={id="aim-"..kind,type="aoe",range=0,baseDamage=10,
+            aoe={shape=kind,length=60,width=12,angle=math.pi/2}}
+        Skills[directional.id]=directional
+        a,b=unit("aim-caster-"..kind,100,100),unit("east-"..kind,140,100,"enemy")
+        local west=unit("west-"..kind,60,100,"enemy");c=context(a,b,west);a.skills[directional.id]={}
+        local preview=Aoe.at(a,directional.aoe,a.x,a.y,1,0)
+        Execution._executeSkillEffect(a,directional.id,nil,{x=a.x,y=a.y},c,{x=1,y=0})
+        assert(Aoe.intersects(preview,b) and b.hp<100 and west.hp==100,
+            kind.." preview geometry diverged from cursor-directed hits")
+    end
+    Skills[skill.id],Skills[selfSkill.id]=nil,nil
+    Skills["aim-cone"],Skills["aim-line"]=nil,nil
+end
+
+local function npcPlacement()
+    local ai=unit("aoe-ai",100,100,"player")
+    local enemies={unit("near-a",200,100,"enemy"),unit("near-b",210,100,"enemy"),
+        unit("group-a",300,100,"enemy"),unit("group-b",312,100,"enemy")}
+    local ally=unit("friendly-fire-risk",205,110,"player")
+    local c=context(ai,enemies[1],enemies[2],enemies[3],enemies[4],ally)
+    local skill={id="ai-ground",type="aoe",range=6,baseDamage=10,aoe={shape="circle",radius=20}}
+    Skills[skill.id]=skill;ai.skills[skill.id]={}
+    Decision._processAI(ai,c)
+    assert(ai.intent and ai.intent.skillId==skill.id and ai.intent.target.x>=290,
+        "NPC did not place a ground AoE on the safe enemy group")
+    local hits=Aoe.select(Aoe.at(ai,skill.aoe,ai.intent.target.x,ai.intent.target.y),c.data.unitList,ai,skill.aoe.eligibility)
+    for _,hit in ipairs(hits) do assert(hit.team~="player","NPC accepted harmful friendly fire") end
+
+    local healer=unit("aoe-healer",100,300,"player")
+    local friends={unit("friend-a",140,300,"player"),unit("friend-b",150,300,"player")}
+    friends[1].hp,friends[2].hp=80,80
+    local foe=unit("healer-foe",200,300,"enemy")
+    c=context(healer,friends[1],friends[2],foe)
+    local beneficial={id="ai-beneficial",type="aoe",range=2,healing=10,
+        aoe={shape="circle",radius=20,eligibility="allies"}}
+    Skills[beneficial.id]=beneficial;healer.skills[beneficial.id]={}
+    Decision._processAI(healer,c)
+    assert(healer.intent and healer.intent.skillId==beneficial.id and healer.intent.target.x>=130,
+        "NPC beneficial AoE did not target allied units: "..tostring(healer.intent and healer.intent.target and healer.intent.target.x))
+    Skills[skill.id],Skills[beneficial.id]=nil,nil
+end
+
+local function playerInput()
+    local Ecs=require("src.ecs.world")
+    local Party=require("src.ecs.assemblages.party")
+    local Unit=require("src.ecs.assemblages.unit")
+    local Parties=require("src.systems.parties.party_system")
+    local GameContext=require("src.game.game_context")
+    local BattleState=require("src.game.states.battle_state")
+    Skills["self-circle"]={id="self-circle",type="aoe",range=0,baseDamage=10,aoe={shape="circle",radius=20}}
+    local world=Ecs.init()
+    local playerParty,enemyParty=Party.create(world,"aoe-input-player"),Party.create(world,"aoe-input-enemy")
+    local actor=Unit.create(world,"soldier","aoe-input-actor")
+    actor.skills["self-circle"]={};Parties.addActor(playerParty,actor)
+    local foe=Unit.create(world,"soldier","aoe-input-foe");Parties.addActor(enemyParty,foe)
+    GameContext.data.playerParty=playerParty
+    BattleState.enter({enemyParty=enemyParty})
+    local data=BattleState.simulation.context.data
+    data.targetingMode,data.targetingSkillId,data.targetingPoint=true,"self-circle",{x=0,y=0}
+    BattleState.mousepressed(0,0,1)
+    assert(data.playerCommand and data.playerCommand.skillId=="self-circle" and
+        data.playerCommand.target.x==data.playerUnit.x,"Player AoE confirm did not capture self placement")
+    data.playerCommand=nil
+    data.targetingMode,data.targetingSkillId,data.targetingPoint=true,"self-circle",{x=0,y=0}
+    BattleState.mousepressed(0,0,2)
+    assert(not data.targetingMode and not data.playerCommand,"Player AoE cancel submitted a command")
+    BattleState.exit()
+    GameContext.data.playerParty=nil
+    Skills["self-circle"]=nil
 end
 
 local function projectileImpacts()
@@ -288,7 +385,7 @@ function Scenario.run()
         Dice.rollExploding=function(sides) assert(sides==6,"AoE performed an accuracy/defense roll");return 1 end
         Combat.rollAttack=function() error("AoE rolled melee accuracy") end
         Combat.rollProjectileDefense=function() error("AoE rolled projectile defense") end
-        geometry();effects();delivery();projectileImpacts()
+        geometry();effects();delivery();placement();npcPlacement();playerInput();projectileImpacts()
         Dice.rollExploding=function() return 1 end
         Combat.rollAttack,Combat.rollProjectileDefense=attack,projectileDefense
         compatibility();casualtyOpportunities()
@@ -296,5 +393,16 @@ function Scenario.run()
     Dice.rollExploding,Combat.rollAttack,Combat.rollProjectileDefense=dice,attack,projectileDefense
     assert(ok,err)
     print("M5 geometry, eligibility, effects, delivery and physical impact checks passed")
+end
+
+function Scenario.runTargeting()
+    local dice=Dice.rollExploding
+    local ok,err=xpcall(function()
+        Dice.rollExploding=function() return 1 end
+        placement();npcPlacement();playerInput();compatibility()
+    end,debug.traceback)
+    Dice.rollExploding=dice
+    assert(ok,err)
+    print("M5.2 player and NPC AoE targeting checks passed")
 end
 return Scenario

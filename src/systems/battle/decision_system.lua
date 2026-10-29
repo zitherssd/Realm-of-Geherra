@@ -8,6 +8,7 @@ local Concord = require("src.libs.concord")
 local CombatSystem = require("src.systems.battle.combat_system")
 local RangeUtils = require("src.systems.battle.range_utils")
 local BattleUnitSystem = require("src.systems.battle.battle_unit_system")
+local Aoe = require("src.game.battle.aoe")
 
 local DecisionSystem = Concord.system({pool = {"battleUnit"}})
 
@@ -29,7 +30,8 @@ function DecisionSystem:update(context)
                         type = playerCommand.type,
                         target = playerCommand.target,
                         skillId = playerCommand.skillId,
-                        targetUnitId = playerCommand.targetUnitId
+                        targetUnitId = playerCommand.targetUnitId,
+                        targetDirection = playerCommand.targetDirection
                     }
                     -- Consume command after assignment
                     context.data.playerCommand = nil
@@ -57,7 +59,7 @@ function DecisionSystem._processAI(unit, context)
     if not unit.regrouping then unit.regroupAttack = nil end
     local target, distance = context.findNearestHostile(unit)
     local rangedRange, best, priority = nil, nil, -math.huge
-    local bestTarget, bestRisk, bestDistance
+    local bestTarget, bestRisk, bestDistance, bestAoePlacement
     -- Cooldown affects readiness, never whether ranged supplies remain viable.
     for id in pairs(unit.skills or {}) do
         local skill = CombatSystem.getEffectiveSkill(unit, id)
@@ -68,15 +70,52 @@ function DecisionSystem._processAI(unit, context)
             if ranged then rangedRange = math.max(rangedRange or 0, range) end
         end
     end
-    if target then
+    do
         for id in pairs(unit.skills or {}) do
             local skill = CombatSystem.getEffectiveSkill(unit, id)
-            if skill and skill.type ~= "command" and not skill.healing and
+            if skill and skill.type ~= "command" and (skill.aoe or not skill.healing) and
                 (not skill.maxCharges or (unit.charges[id] or 0) > 0) and
                 (unit.cooldowns[id] or 0) <= 0 then
                 local ranged = skill.type == "ranged" or skill.projectile or (skill.range or 0) > 2
                 local score = (ranged and 1000 or 0) + (skill.baseDamage or 0)
-                for _, candidate in ipairs(context.data.unitList) do
+                if skill.aoe then
+                    local mode = Aoe.targetingMode(skill.aoe, skill)
+                    local beneficial = (skill.healing ~= nil and skill.healing ~= false) or skill.aoe.eligibility == "allies"
+                    local bestPlacement, bestPlacementScore, useful = nil, 0, 0
+                    for _, candidate in ipairs(context.data.unitList) do
+                        local appropriate = (candidate.team == unit.team) == beneficial
+                        if candidate.hp > 0 and not candidate.escaped and appropriate then
+                            local px, py = mode == "self" and unit.x or candidate.x,
+                                mode == "self" and unit.y or candidate.y
+                            local distanceSq = (px-unit.x)^2+(py-unit.y)^2
+                            if mode ~= "ground" or distanceSq <= RangeUtils.effectiveSkillRange(unit, nil, skill)^2 then
+                                local shape = Aoe.at(unit, skill.aoe, px, py)
+                                local hits = Aoe.select(shape, context.data.unitList, unit, skill.aoe.eligibility)
+                                local good, friendly = 0, 0
+                                for _, hit in ipairs(hits) do
+                                    if (hit.team == unit.team) == beneficial and
+                                        (not skill.healing or hit.hp < hit.maxHp) then good = good+1
+                                    elseif not beneficial then friendly = friendly+1 end
+                                end
+                                local placementScore = good-friendly*2
+                                if good > useful or (good == useful and placementScore > bestPlacementScore) then
+                                    useful, bestPlacementScore = good, placementScore
+                                    bestPlacement = {x=px,y=py,dx=px-unit.x,dy=py-unit.y}
+                                end
+                            end
+                        end
+                    end
+                    if bestPlacement and useful > 0 and bestPlacementScore > 0 then
+                        score = score + bestPlacementScore*10
+                        if score > priority then
+                            best, priority, bestTarget, bestRisk, bestDistance = id, score, nil, 0, 0
+                            bestAoePlacement = {
+                                point = mode == "direction" and {x=unit.x,y=unit.y} or {x=bestPlacement.x,y=bestPlacement.y},
+                                direction = mode == "direction" and {x=bestPlacement.dx,y=bestPlacement.dy} or nil
+                            }
+                        end
+                    end
+                elseif target then for _, candidate in ipairs(context.data.unitList) do
                     if candidate.team ~= unit.team and candidate.hp > 0 and not candidate.escaped then
                         local d = (candidate.x-unit.x)^2+(candidate.y-unit.y)^2
                         local range = RangeUtils.effectiveSkillRange(unit, candidate, skill)
@@ -89,7 +128,7 @@ function DecisionSystem._processAI(unit, context)
                             best, priority, bestTarget, bestRisk, bestDistance = id, score, candidate, risk, d
                         end
                     end
-                end
+                end end
             end
         end
     end
@@ -106,11 +145,15 @@ function DecisionSystem._processAI(unit, context)
         unit.regroupAttack = true
     end
     if best then
-        target = bestTarget
         local skill = CombatSystem.getEffectiveSkill(unit, best)
-        unit.intent = {type="SKILL", skillId=best, targetUnitId=target.id,
-            target=skill.aoe and skill.aoe.eligibility == "allies" and {x=unit.x,y=unit.y}
-                or (skill.targeted and {x=target.x,y=target.y} or nil)}
+        if skill.aoe then
+            local placement = bestAoePlacement
+            unit.intent = {type="SKILL", skillId=best, target=placement.point, targetDirection=placement.direction}
+        else
+            target = bestTarget
+            unit.intent = {type="SKILL", skillId=best, targetUnitId=target.id,
+                target=skill.targeted and {x=target.x,y=target.y} or nil}
+        end
     elseif Conditions.permits(unit, "move") and not position and target and (not rangedRange or distance > rangedRange^2) then
         unit.intent = {type="MOVE", target={x=target.x,y=target.y}, avoidObstacles=true}
     end

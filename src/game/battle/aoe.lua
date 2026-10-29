@@ -2,6 +2,15 @@
 local Aoe = {}
 local EPSILON = 1e-9
 
+function Aoe.targetingMode(config, skill)
+    if config.targeting then return config.targeting end
+    if config.shape == "circle" then
+        if not skill or (skill.range or 0) == 0 then return "self" end
+        return "ground"
+    end
+    return "direction"
+end
+
 local function segmentDistanceSquared(x, y, ax, ay, bx, by)
     local dx, dy = bx-ax, by-ay
     local lengthSq = dx*dx+dy*dy
@@ -57,7 +66,7 @@ end
 
 -- A circle follows the selected point; directional shapes originate at the caster,
 -- or at an explicit origin. A zero-distance aim uses the caster's facing.
-function Aoe.at(caster, config, x, y)
+function Aoe.at(caster, config, x, y, directionX, directionY)
     local shape = {}
     for key, value in pairs(config) do shape[key] = value end
     if config.shape == "circle" then
@@ -65,8 +74,8 @@ function Aoe.at(caster, config, x, y)
     else
         shape.x, shape.y = caster.x, caster.y
         if config.origin then shape.x, shape.y = config.origin.x, config.origin.y end
-        shape.dx, shape.dy = x-shape.x, y-shape.y
-        if shape.dx == 0 and shape.dy == 0 then shape.dx = -(caster.facing or -1) end
+        shape.dx, shape.dy = directionX or x-shape.x, directionY or y-shape.y
+        if shape.dx == 0 and shape.dy == 0 then shape.dx, shape.dy = -(caster.facing or -1), 0 end
     end
     return shape
 end

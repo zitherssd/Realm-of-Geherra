@@ -380,21 +380,23 @@ return {
         sprite = "src/assets/sprites/units/dragon.png",
         stats = {
             health = 250,
-            attack = 15,
+            attack = 12,
             defense = 10,
-            speed = 12,
-            battle_speed = 8,
+            speed = 9,
+            battle_speed = 7,
+            strength = 25
         },
         size = 8,
         equipment = {},
-        skills = {
-            --"fireball",
+        skills = { "flame_breath", "bite" },
+        skillModifiers = {
+            bite = { windup = 30, recovery = 30, baseDamage = 12 },
         },
         innateProtections = {
-            slashing = 2,
-            piercing = 3,
-            blunt = 2,
-            fire = 10,
+            slashing = 15,
+            piercing = 13,
+            blunt = 15,
+            fire = 15,
             ice = 0,
             shock = 0,
             poison = 0,

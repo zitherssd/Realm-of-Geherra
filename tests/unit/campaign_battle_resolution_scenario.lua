@@ -69,7 +69,7 @@ local function runMode(player, winner, detached)
     local world, map, parties, actors = fixture(player, detached)
     local encounter, simulation, presentation, runner
     local completions, victories, finishes, killed, rolls = 0, 0, 0, 0, 0
-    local previousSwap, previousDrop = StateManager.swap, Drops.generateFromTroop
+    local previousSwap, previousDrop, previousRandom = StateManager.swap, Drops.generateFromTroop, math.random
     StateManager.swap = function(name, params) presentation = {name = name, params = params} end
     Drops.generateFromTroop = function(_, loot)
         rolls = rolls + 1
@@ -109,7 +109,11 @@ local function runMode(player, winner, detached)
             assert(Resolution.resolve(result, {encounter = encounter}) == nil,
                 "Reentrant resolution should wait for the outer resolution")
         end)
-        if player then BattleState.checkBattleEnd() else Encounters.update(0, map) end
+        if player then
+            math.random = function() return 0.5 end
+            BattleState.checkBattleEnd()
+            math.random = previousRandom
+        else Encounters.update(0, map) end
         local resolved = encounter.resolution
         assert(resolved and encounter.resultApplied)
         equal(encounter.result, result)
@@ -142,8 +146,10 @@ local function runMode(player, winner, detached)
                 assert(parties[1].treasury == 114 and presentation.params.gold == 14)
                 assert(#presentation.params.loot == 2 and #parties[1].inventory == 1,
                     "Player loot was credited before selection")
-                assert(presentation.params.favor == 20 and actors.a1.favor == 31,
-                    "Favor lost pre-casualty enemy/post-casualty player strength")
+                local expectedFavor = math.floor(18 * math.sqrt(
+                    result.initialCombatPower.enemy / math.max(1, result.initialCombatPower.player) * result.maximumThreat))
+                assert(presentation.params.favor == expectedFavor and actors.a1.favor == 11 + expectedFavor,
+                    "Favor did not use initial combat power and maximum threat")
                 assert(#presentation.params.playerCasualties == 1 and #presentation.params.enemyCasualties == 2)
             else
                 assert(presentation.name == "menu" and actors.a1.favor == 11)
@@ -166,7 +172,7 @@ local function runMode(player, winner, detached)
             eliminated = event.eliminatedPartyIds}
     end, debug.traceback)
     if player then BattleState.exit() end
-    StateManager.swap, Drops.generateFromTroop = previousSwap, previousDrop
+    StateManager.swap, Drops.generateFromTroop, math.random = previousSwap, previousDrop, previousRandom
     if not ok then error(snapshot, 0) end
     return snapshot
 end

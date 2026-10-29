@@ -5,12 +5,13 @@ local ConditionVisuals = require("src.game.battle.condition_visuals")
 local RenderSystem = {}
 local DebugMode = require("src.debug.mode")
 local CombatSystem = require("src.systems.battle.combat_system")
+local Aoe = require("src.game.battle.aoe")
 local RangeUtils = require("src.systems.battle.range_utils")
 
 local SPRITE_FEET_OFFSET_DIAMETER_RATIO = 1 / 3
 local UNIT_HEALTH_BAR_WIDTH = 40
 local UNIT_BASE_VISUAL_SCALE = 1.3
-local UNIT_VISUAL_SCALE_PER_SIZE = 0.08
+local UNIT_VISUAL_SCALE_PER_SIZE = 0.05
 
 local imageCache = {}
 local projectileSpriteBounds = {}
@@ -710,6 +711,55 @@ function RenderSystem.draw(context)
     end
 
     love.graphics.pop()
+end
+
+function RenderSystem.drawTargetingPreview(context, skill, point, direction, valid)
+    local caster = context.data.playerUnit
+    if not caster or not skill or not skill.aoe or not point then return end
+    local camera = context.data.camera
+    love.graphics.push()
+    if camera then
+        local screenW, screenH = love.graphics.getWidth(), love.graphics.getHeight()
+        love.graphics.translate(screenW/2, screenH/2)
+        love.graphics.scale(camera.zoom or 1)
+        love.graphics.translate(-screenW/2, -screenH/2)
+        love.graphics.translate(-math.floor(camera.x or 0), -math.floor(camera.y or 0))
+    end
+    local shape = Aoe.at(caster, skill.aoe, point.x, point.y,
+        direction and direction.x, direction and direction.y)
+    local color = valid and {0.2,0.9,0.35,0.28} or {1,0.15,0.12,0.28}
+    love.graphics.setColor(color)
+    if shape.shape == "circle" then
+        love.graphics.circle("fill", shape.x, shape.y, math.max(0,shape.radius or 0))
+        love.graphics.setColor(color[1],color[2],color[3],0.95)
+        love.graphics.circle("line", shape.x, shape.y, math.max(0,shape.radius or 0))
+    elseif shape.shape == "line" then
+        local length = math.max(0,shape.length or 0)
+        local dx,dy = shape.dx or 1,shape.dy or 0
+        local magnitude = math.sqrt(dx*dx+dy*dy)
+        if magnitude == 0 then dx,dy=1,0 else dx,dy=dx/magnitude,dy/magnitude end
+        love.graphics.setLineWidth(math.max(1,shape.width or 0))
+        love.graphics.line(shape.x,shape.y,shape.x+dx*length,shape.y+dy*length)
+        love.graphics.setLineWidth(1)
+    else
+        local half = math.max(0,math.min(2*math.pi,shape.angle or 0))/2
+        local dx,dy = shape.dx or 1,shape.dy or 0
+        local magnitude = math.sqrt(dx*dx+dy*dy)
+        if magnitude == 0 then dx,dy=1,0 else dx,dy=dx/magnitude,dy/magnitude end
+        local points = {shape.x,shape.y}
+        local steps = math.max(2,math.ceil(32*half/math.pi))
+        for i=0,steps do
+            local angle = -half+2*half*i/steps
+            points[#points+1] = shape.x+(dx*math.cos(angle)-dy*math.sin(angle))*shape.length
+            points[#points+1] = shape.y+(dx*math.sin(angle)+dy*math.cos(angle))*shape.length
+        end
+        love.graphics.polygon("fill",points)
+        love.graphics.setColor(color[1],color[2],color[3],0.95)
+        love.graphics.polygon("line",points)
+    end
+    love.graphics.pop()
+    love.graphics.setColor(1,1,1,1)
+    love.graphics.setLineWidth(1)
 end
 
 return RenderSystem

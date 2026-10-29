@@ -107,13 +107,16 @@ return {
             "mainHand",
             "offHand",
         },
-        grantsSkill = "attack",
+        grantsSkill = "dagger",
         durability = 10,
         maxDurability = 10,
         skillModifiers = {
             damageType = "piercing",
             baseDamage = 6,
             range = 0.2,
+            windup = 0,
+            recovery = 5,
+            cooldown = 40,
         },
         requires = {
             attributes = {
@@ -133,7 +136,7 @@ return {
             "mainHand",
             "offHand",
         },
-        grantsSkill = "attack",
+        grantsSkill = "dagger",
         durability = 10,
         maxDurability = 10,
         skillModifiers = {

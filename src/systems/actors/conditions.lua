@@ -15,7 +15,7 @@ function Conditions.definition(id, overrides)
         result.damagePerTick = overrides.damagePerTick or overrides.damage_per_tick or result.damagePerTick
         result.tickEvery = overrides.tickEvery or overrides.tick_every or result.tickEvery
     end
-    if overrides == true and result.duration == nil then result.duration = 60 end
+    if overrides == true and result.duration == nil and not result.battleLong then result.duration = 60 end
     result.lifetime = result.lifetime or "battle-only"
     if result.lifetime == "battle-long" then result.lifetime, result.battleLong = "battle-only", true end
     assert(result.lifetime == "battle-only" or result.lifetime == "persistent" or result.lifetime == "permanent", "Invalid condition lifetime")

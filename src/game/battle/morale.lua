@@ -60,6 +60,11 @@ function Morale.threat(powers, team)
     return math.max(1, enemy / friendly)
 end
 
+local function trackMaximumThreat(context, powers)
+    local threat = Morale.threat(powers, "player")
+    context.data.maximumThreat = math.max(context.data.maximumThreat or 0, threat)
+end
+
 function Morale.flee(context, unit, root)
     if not Morale.eligible(unit) then return false end
     local powers = Morale.powers(context)
@@ -115,6 +120,7 @@ function Morale.process(context)
         assert(index <= bound, "Morale cascade exceeded its transition bound")
         local event = queue[index]
         local unit, root = event.unit, event.root
+        trackMaximumThreat(context, event.powers)
         if event.kind == "damage" then
             Morale.change(context, unit, -Morale.damageScale * (event.hpLost / unit.maxHp)^2 *
                 Morale.threat(event.powers, unit.team), root)
@@ -164,6 +170,7 @@ function Morale.process(context)
                 end
             end
         end
+        trackMaximumThreat(context, Morale.powers(context))
         index = index + 1
     end
     data.moraleQueue, data.processingMorale = {}, nil

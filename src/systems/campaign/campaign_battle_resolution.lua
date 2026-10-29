@@ -11,16 +11,6 @@ local TimeSystem = require("src.systems.campaign.time_system")
 
 local CampaignBattleResolution = {}
 
-local function computePartyPower(party)
-    local power = 0
-    for _, actor in ipairs(party.actors) do
-        local stats = actor.stats or {}
-        local hp = actor.maxHp or stats.health or 50
-        power = power + hp + (stats.attack or 10) * 2 + (stats.defense or 10) * 2
-    end
-    return power
-end
-
 function CampaignBattleResolution.resolve(result, context)
     local encounter = context.encounter
     if encounter.resolution then return encounter.resolution end
@@ -79,14 +69,12 @@ function CampaignBattleResolution.resolve(result, context)
         eventData.participants[#eventData.participants + 1] = participant
     end
 
-    local lootResult, lootPlan, enemyPower
+    local lootResult, lootPlan
     if context.rewardPolicy == "npc" then
         lootResult = LootResolver.resolve(partyA, partyB, result, encounter.lootPolicy)
         lootPlan = LootApplication.prepare(lootResult, {
             map = context.map, encounter = encounter, battleResult = result, worldTime = time
         })
-    else
-        enemyPower = computePartyPower(partyB)
     end
 
     -- Failures after mutation must not be retried against partially changed rosters/resources.
@@ -104,7 +92,8 @@ function CampaignBattleResolution.resolve(result, context)
     local applied = ResultApplier.apply(result, campaignContext)
     if context.rewardPolicy == "player" and result.winnerPartyId == partyA.id then
         if rewards.gold > 0 then PartySystem.addTreasury(partyA, rewards.gold) end
-        rewards.favor = math.floor(4 + enemyPower / math.max(1, computePartyPower(partyA)) * 8)
+        local ratio = result.initialCombatPower.enemy / math.max(1, result.initialCombatPower.player)
+        rewards.favor = math.floor(18 * math.sqrt(ratio * result.maximumThreat) * (0.8 + 0.4 * math.random()))
         PlayerSystem.addFavor(rewards.favor)
     end
 

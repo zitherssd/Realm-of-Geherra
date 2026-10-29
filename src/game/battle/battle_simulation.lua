@@ -87,6 +87,10 @@ function BattleSimulation.new(partyA, partyB, controlPartyA, options)
     addPartyUnits(simulation, partyA, "player", controlPartyA == true)
     addPartyUnits(simulation, partyB, "enemy", false)
 
+    local initialCombatPower = Morale.powers(simulation.context)
+    simulation.context.data.initialCombatPower = initialCombatPower
+    simulation.context.data.maximumThreat = Morale.threat(initialCombatPower, "player")
+
     return simulation
 end
 
@@ -224,6 +228,8 @@ function BattleSimulation:buildResult(outcome, winnerPartyId)
         loserPartyId = nil,
         routedPartyIds = {},
         actors = {},
+        initialCombatPower = self.context.data.initialCombatPower,
+        maximumThreat = self.context.data.maximumThreat,
         ticks = self.context.data.tick,
         settlementTicks = self.settlementTicks,
         settlementTruncated = self.settlementTruncated

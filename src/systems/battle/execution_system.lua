@@ -201,8 +201,9 @@ local function bypassDirection(unit, context, bypass, distance, targetX, targetY
     return bestX,bestY
 end
 
-function ExecutionSystem._resolveAoeAtPoint(attackerUnit, skillData, targetX, targetY, context)
-    local shape = Aoe.at(attackerUnit, skillData.aoe, targetX, targetY)
+function ExecutionSystem._resolveAoeAtPoint(attackerUnit, skillData, targetX, targetY, context, direction)
+    local shape = Aoe.at(attackerUnit, skillData.aoe, targetX, targetY,
+        direction and direction.x, direction and direction.y)
     local targets = Aoe.select(shape, context.data.unitList, attackerUnit, skillData.aoe.eligibility)
     for _, targetUnit in ipairs(targets) do
         local result = CombatSystem.resolveAreaEffect(attackerUnit, targetUnit, skillData)
@@ -429,6 +430,7 @@ function ExecutionSystem._initiateSkill(unit, intent, context)
                 skillId = skillId,
                 target = intent.target,
                 targetUnitId = intent.targetUnitId,
+                targetDirection = intent.targetDirection,
                 remaining = windup
             }
             unit.globalCooldown = windup
@@ -438,7 +440,7 @@ function ExecutionSystem._initiateSkill(unit, intent, context)
             unit.visualEffects.flashColor = {1, 1, 0.8}
             unit.visualEffects.flashIntensity = 0.5
         else
-            ExecutionSystem._executeSkillEffect(unit, skillId, intent.targetUnitId, intent.target, context)
+            ExecutionSystem._executeSkillEffect(unit, skillId, intent.targetUnitId, intent.target, context, intent.targetDirection)
         end
     end
 end
@@ -452,12 +454,13 @@ function ExecutionSystem._completeCast(unit, context)
         unit.currentCast.skillId,
         unit.currentCast.targetUnitId,
         unit.currentCast.target,
-        context
+        context,
+        unit.currentCast.targetDirection
     )
     unit.currentCast = nil
 end
 
-function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, targetPoint, context)
+function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, targetPoint, context, targetDirection)
     local skillData = CombatSystem.getEffectiveSkill(unit, skillId)
     if not Conditions.permits(unit, "cast") or not Conditions.permits(unit, "attack") then return end
     if not skillData or unit.fleeing or unit.escaped or unit.hp <= 0 then return end
@@ -474,7 +477,10 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
     local castTargetY = nil
 
     if isTargetedAoe then
-        if targetPoint and targetPoint.x and targetPoint.y then
+        local mode = Aoe.targetingMode(skillData.aoe, skillData)
+        if mode == "self" then
+            castTargetX, castTargetY = unit.x, unit.y
+        elseif targetPoint and targetPoint.x and targetPoint.y then
             castTargetX = targetPoint.x
             castTargetY = targetPoint.y
         elseif targetUnit and targetUnit.hp > 0 and not targetUnit.escaped then
@@ -484,21 +490,13 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
             castTargetX, castTargetY = unit.x, unit.y
         end
 
-        if castTargetX and castTargetY then
+        if castTargetX and castTargetY and mode == "ground" then
             local dx = castTargetX - unit.x
             local dy = castTargetY - unit.y
             local distSq = dx * dx + dy * dy
             local maxRange = RangeUtils.effectiveSkillRange(unit, nil, skillData)
             if distSq > (maxRange * maxRange) + 0.01 then
-                local fallback = context.findNearestHostile(unit, maxRange)
-                if fallback then
-                    castTargetX = fallback.x
-                    castTargetY = fallback.y
-                    targetUnit = fallback
-                else
-                    castTargetX = nil
-                    castTargetY = nil
-                end
+                castTargetX, castTargetY = nil, nil
             end
         end
     else
@@ -563,7 +561,7 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
             context.addProjectile(proj)
         else
             if isTargetedAoe then
-                ExecutionSystem._resolveAoeAtPoint(unit, skillData, castTargetX, castTargetY, context)
+                ExecutionSystem._resolveAoeAtPoint(unit, skillData, castTargetX, castTargetY, context, targetDirection)
             elseif targetUnit then
                 local result = CombatSystem.resolveAttack(unit, targetUnit, skillData)
                 ExecutionSystem.applyAttackResult(result, targetUnit, context, skillData)

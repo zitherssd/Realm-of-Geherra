@@ -24,4 +24,22 @@ return {
             defenseMode = "none",
         },
     },
+
+    ["flame_breath"] = {
+        id = "flame_breath",
+        name = "Flame Breath",
+        type = "aoe",
+        description = "Breathe fire in a cone in front of you",
+        damageType = "fire",
+        baseDamage = 13,
+        aoe = { shape = "cone", angle = math.rad(60), length = 210, eligibility = "all" },
+        range = 5.0,
+        windup = 90,
+        recovery = 80,
+        cooldown = 150,
+        cost = 25,
+        onHitStatuses = {
+            "burn",
+        },
+    },
 }

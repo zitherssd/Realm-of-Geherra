@@ -15,26 +15,29 @@ local RenderSystem = require("src.systems.battle.render_system")
 
 local GameContext = require("src.game.game_context")
 local RangeUtils = require("src.systems.battle.range_utils")
+local Aoe = require("src.game.battle.aoe")
 
 local TICK_RATE = 1 / 20
 local MAX_FRAME_SKIP = 5
 local BattleContext
 
 local function isTargetedAoeSkill(skillData)
-    return skillData and skillData.aoe ~= nil and skillData.targeted
+    return skillData and skillData.aoe ~= nil
 end
 
-local function worldToScreen(context, worldX, worldY)
+local function screenToWorld(context, screenX, screenY)
     local camera = context.data.camera
-    local screenW = love.graphics.getWidth()
-    local screenH = love.graphics.getHeight()
-    local zoom = (camera and camera.zoom) or 1.0
-    local camX = (camera and camera.x) or 0
-    local camY = (camera and camera.y) or 0
+    local screenW, screenH = love.graphics.getWidth(), love.graphics.getHeight()
+    local zoom = camera and camera.zoom or 1
+    return (screenX-screenW/2)/zoom+screenW/2+(camera and camera.x or 0),
+        (screenY-screenH/2)/zoom+screenH/2+(camera and camera.y or 0)
+end
 
-    local sx = ((worldX - camX) - screenW / 2) * zoom + screenW / 2
-    local sy = ((worldY - camY) - screenH / 2) * zoom + screenH / 2
-    return sx, sy, zoom
+local function targetingValid(unit, skill, point)
+    if not unit or not skill or not point then return false end
+    if Aoe.targetingMode(skill.aoe,skill) ~= "ground" then return true end
+    local range = RangeUtils.effectiveSkillRange(unit,nil,skill)
+    return (point.x-unit.x)^2+(point.y-unit.y)^2 <= range*range+0.01
 end
 
 local function getNearestEnemyUnit(playerUnit)
@@ -120,6 +123,21 @@ function BattleState.update(dt)
 
     if playerUnit and BattleUnitSystem.canAct(playerUnit) then
         if targetingMode then
+            local skill = CombatSystem.getEffectiveSkill(playerUnit, BattleContext.data.targetingSkillId)
+            local mode = skill and Aoe.targetingMode(skill.aoe, skill)
+            if mode ~= "self" then
+                local mx,my = love.mouse.getPosition()
+                local wx,wy = screenToWorld(BattleContext,mx,my)
+                local bounds = BattleContext.data.bounds
+                wx,wy = math.max(0,math.min(bounds.width,wx)),math.max(0,math.min(bounds.height,wy))
+                BattleContext.data.targetingPoint = {x=wx,y=wy}
+                if mode == "direction" then
+                    local dx,dy = wx-playerUnit.x,wy-playerUnit.y
+                    local length = math.sqrt(dx*dx+dy*dy)
+                    if length > 0 then dx,dy=dx/length,dy/length end
+                    BattleContext.data.targetingDirection = {x=dx,y=dy}
+                end
+            end
             local dx, dy = 0, 0
             if Input.isKeyDown("w") or Input.isKeyDown("up") then dy = -1 end
             if Input.isKeyDown("s") or Input.isKeyDown("down") then dy = 1 end
@@ -141,22 +159,26 @@ function BattleState.update(dt)
             if (Input.isKeyDown("space") or Input.isKeyDown("return")) and BattleContext.data.inputCooldown <= 0 then
                 local point = BattleContext.data.targetingPoint
                 local skillId = BattleContext.data.targetingSkillId
-                if point and skillId then
+                if point and skillId and targetingValid(playerUnit,skill,point) then
                     BattleContext.data.playerCommand = {
                         type = "SKILL",
                         skillId = skillId,
-                        target = {x = point.x, y = point.y},
+                        target = skill and Aoe.targetingMode(skill.aoe,skill) == "direction"
+                            and {x=playerUnit.x,y=playerUnit.y} or {x=point.x,y=point.y},
+                        targetDirection = BattleContext.data.targetingDirection,
                         unitId = playerUnit.id
                     }
+                    BattleContext.data.targetingMode = false
+                    BattleContext.data.targetingSkillId = nil
+                    BattleContext.data.targetingPoint = nil
+                    BattleContext.data.targetingDirection = nil
                 end
-                BattleContext.data.targetingMode = false
-                BattleContext.data.targetingSkillId = nil
-                BattleContext.data.targetingPoint = nil
                 BattleContext.data.inputCooldown = 0.2
             elseif Input.isKeyDown("escape") and BattleContext.data.inputCooldown <= 0 then
                 BattleContext.data.targetingMode = false
                 BattleContext.data.targetingSkillId = nil
                 BattleContext.data.targetingPoint = nil
+                BattleContext.data.targetingDirection = nil
                 BattleContext.data.inputCooldown = 0.2
             end
         else
@@ -188,11 +210,12 @@ function BattleState.update(dt)
                             BattleContext.data.inputCooldown = 0.2
                         elseif isTargetedAoeSkill(skillData) then
                             local nearestEnemy = getNearestEnemyUnit(playerUnit)
-                            local defaultPoint = skillData.aoe.eligibility == "allies" and {x = playerUnit.x, y = playerUnit.y}
+                            local defaultPoint = Aoe.targetingMode(skillData.aoe,skillData) == "self" and {x=playerUnit.x,y=playerUnit.y}
                                 or (nearestEnemy and {x = nearestEnemy.x, y = nearestEnemy.y} or {x = playerUnit.x, y = playerUnit.y})
                             BattleContext.data.targetingMode = true
                             BattleContext.data.targetingSkillId = skillId
                             BattleContext.data.targetingPoint = defaultPoint
+                            BattleContext.data.targetingDirection = nil
                             BattleContext.data.inputCooldown = 0.2
                         else
                             local bestTarget = nil
@@ -253,6 +276,41 @@ function BattleState.update(dt)
     BattleState.checkBattleEnd()
 end
 
+function BattleState.mousepressed(x, y, button)
+    local data = BattleContext and BattleContext.data
+    if not data or not data.targetingMode then return end
+    if button == 2 then
+        data.targetingMode, data.targetingSkillId, data.targetingPoint, data.targetingDirection = false,nil,nil,nil
+    elseif button == 1 then
+        local unit = data.units[data.selectedUnitId]
+        local skill = unit and CombatSystem.getEffectiveSkill(unit,data.targetingSkillId)
+        local point = data.targetingPoint
+        local direction
+        if unit and skill and Aoe.targetingMode(skill.aoe,skill) ~= "self" then
+            local wx,wy = screenToWorld(BattleContext,x,y)
+            local bounds=data.bounds
+            point={x=math.max(0,math.min(bounds.width,wx)),y=math.max(0,math.min(bounds.height,wy))}
+            if Aoe.targetingMode(skill.aoe,skill) == "direction" then
+                local dx,dy=point.x-unit.x,point.y-unit.y
+                local length=math.sqrt(dx*dx+dy*dy)
+                if length>0 then direction={x=dx/length,y=dy/length} end
+            end
+        else
+            direction=data.targetingDirection
+        end
+        if unit and skill and point and targetingValid(unit,skill,point) then
+            local mode = Aoe.targetingMode(skill.aoe,skill)
+            local target = mode == "direction" and {x=unit.x,y=unit.y} or
+                (mode == "self" and {x=unit.x,y=unit.y} or {x=point.x,y=point.y})
+            data.playerCommand = {type="SKILL",skillId=skill.id,target=target,
+                targetDirection=direction,unitId=unit.id}
+        end
+        if unit and skill and point and targetingValid(unit,skill,point) then
+            data.targetingMode, data.targetingSkillId, data.targetingPoint, data.targetingDirection = false,nil,nil,nil
+        end
+    end
+end
+
 function BattleState.checkBattleEnd()
     if not BattleContext or BattleState.completed then return end
     local outcome, winnerPartyId = BattleState.simulation:getOutcome()
@@ -307,14 +365,14 @@ function BattleState.draw()
     end
 
     if BattleContext.data.targetingMode and BattleContext.data.targetingPoint then
-        local tx = BattleContext.data.targetingPoint.x
-        local ty = BattleContext.data.targetingPoint.y
-        local sx, sy, zoom = worldToScreen(BattleContext, tx, ty)
-        love.graphics.setColor(1, 0.1, 0.1, 1)
-        love.graphics.setLineWidth(3)
-        love.graphics.circle("line", sx, sy, 18 * zoom)
-        love.graphics.setLineWidth(1)
-        love.graphics.print("TARGETING MODE", 10, 50)
+        local skill = CombatSystem.getEffectiveSkill(playerUnit,BattleContext.data.targetingSkillId)
+        local point = BattleContext.data.targetingPoint
+        local mode = skill and Aoe.targetingMode(skill.aoe,skill)
+        if mode == "self" then point = playerUnit end
+        local valid = targetingValid(playerUnit,skill,point)
+        RenderSystem.drawTargetingPreview(BattleContext,skill,point,BattleContext.data.targetingDirection,valid)
+        love.graphics.setColor(valid and 0.6 or 1,valid and 1 or 0.2,valid and 0.6 or 0.2,1)
+        love.graphics.print(valid and "TARGETING MODE" or "OUT OF RANGE",10,50)
     end
 
     if playerUnit and playerUnit.skillList then

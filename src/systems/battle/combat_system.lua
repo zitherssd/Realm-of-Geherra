@@ -144,8 +144,15 @@ function CombatSystem.getEffectiveSkill(unit, skillId)
     local modifiers = CombatSystem._getSkillModifiers(unit, skillId)
     if modifiers then
         for k, v in pairs(modifiers) do
-            effectiveSkill[k] = v  -- Override with the weapon's modifier
+            effectiveSkill[k] = v  -- Override with the item's modifier
         end
+    end
+
+    local troopType = unit and (unit.troopType or (unit.actor and unit.actor.troopType))
+    local troopModifiers = troopType and require("src.data.troops")[troopType]
+    troopModifiers = troopModifiers and troopModifiers.skillModifiers and troopModifiers.skillModifiers[skillId]
+    if troopModifiers then
+        for k, v in pairs(troopModifiers) do effectiveSkill[k] = v end
     end
 
     return effectiveSkill
