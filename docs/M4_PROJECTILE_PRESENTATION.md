@@ -22,7 +22,7 @@ This is a rendering conversion, not trajectory correction: flight, aiming RNG, c
 ## Changed files
 
 - `src/systems/battle/render_system.lua`: cached sprite measurements and projectile-to-sprite projection. The original projectile interpolation runs toward the converted screen position at the same 15/s rate. Flight glyphs/trails and contact VFX use this frame.
-- `src/systems/battle/execution_system.lua`: retain intended/actual unit references and contact Z for presentation only; emit a brief contact ring. Existing physics and damage calls are untouched.
+- `src/systems/battle/execution_system.lua`: retain intended/actual unit references and contact Z for presentation only; emit a brief contact ring only on a successful attack roll. Defended projectiles continue visually with collisions and damage disabled until their original trajectory terminates. Existing physics and damage calls are untouched.
 - `tests/unit/projectile_presentation_scenario.lua`: actual-asset rendering tests and an optional capture.
 - `tests/unit/main.lua`: register the scenario.
 - `docs/M4_projectile_presentation.png`: visually inspected LÖVE capture with original-size sprites, calibrated launch arrows and an unintended-target contact marker.

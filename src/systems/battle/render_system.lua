@@ -152,6 +152,7 @@ local function initializeProjectileProjection(proj)
     if proj.presentationInitialized then return end
     proj.visualX,proj.visualY = RenderSystem.projectProjectile(proj,
         proj.startX,proj.startY,proj.startZ,nil,0)
+    proj.visualDepthY = proj.startY
     proj.presentationInitialized = true
 end
 
@@ -197,6 +198,7 @@ function RenderSystem.update(dt, context)
             local dy = projectedY - proj.visualY
             proj.visualX = proj.visualX + dx * PROJ_LERP * dt
             proj.visualY = proj.visualY + dy * PROJ_LERP * dt
+            proj.visualDepthY = proj.visualDepthY + (proj.y-proj.visualDepthY) * PROJ_LERP * dt
 
             if proj.trailParticles then
                 for i = #proj.trailParticles, 1, -1 do
@@ -336,6 +338,231 @@ function RenderSystem.drawMoraleDebug(context)
     love.graphics.pop()
 end
 
+local function drawUnit(unit, showCollisionCircles)
+    local sprite = getImage(unit.actor.sprite)
+    local drawX, drawY = unit.visualX, unit.visualY
+    local burnIntensity = getBurnIntensity(unit)
+    local freezeIntensity = getStatusIntensity(unit, "freeze")
+    local paralyzeIntensity = getStatusIntensity(unit, "paralyze")
+    local collisionRadius = unit.collisionRadius or 18
+    local renderScale = getActorRenderScale(unit.actor)
+
+        if unit.visualEffects and unit.visualEffects.shakeTime > 0 then
+            local magnitude = 3 * (unit.visualEffects.shakeTime * 4)
+            drawX = drawX + (love.math.random() - 0.5) * magnitude
+            drawY = drawY + (love.math.random() - 0.5) * magnitude
+        end
+
+        if unit.visualEffects and unit.visualEffects.lungeTime > 0 then
+            local p = 1.0 - (unit.visualEffects.lungeTime / unit.visualEffects.lungeDuration)
+            local offset = math.sin(p * math.pi) * (collisionRadius * renderScale * 0.5)
+            drawX = drawX + unit.visualEffects.lungeX * offset
+            drawY = drawY + unit.visualEffects.lungeY * offset
+        end
+
+        if showCollisionCircles then
+            if unit.team == "player" then
+                love.graphics.setColor(0.3, 0.95, 0.3, 0.9)
+            elseif unit.team == "enemy" then
+                love.graphics.setColor(0.95, 0.35, 0.35, 0.9)
+            else
+                love.graphics.setColor(0.95, 0.95, 0.35, 0.9)
+            end
+            love.graphics.setLineWidth(1.5)
+            love.graphics.circle("line", drawX, drawY, collisionRadius)
+            love.graphics.circle("fill", drawX, drawY, 1.8)
+            love.graphics.setLineWidth(1)
+        end
+
+        if sprite then
+            love.graphics.setColor(1, 1, 1, 1)
+
+            if unit.visualEffects and unit.visualEffects.flashTime > 0 then
+                local baseIntensity = unit.visualEffects.flashIntensity or 0.7
+                local duration = unit.visualEffects.flashDuration or 1.0
+                local fade = math.min(1, math.max(0, unit.visualEffects.flashTime / duration))
+                local intensity = baseIntensity * fade
+
+                flashShader:send("flashColor", unit.visualEffects.flashColor)
+                flashShader:send("flashAmount", intensity)
+                love.graphics.setShader(flashShader)
+            end
+
+            local w, h = sprite:getDimensions()
+            local scale = renderScale
+            local spriteFeetOffsetY = (collisionRadius * 2) * SPRITE_FEET_OFFSET_DIAMETER_RATIO
+            love.graphics.draw(sprite, drawX, drawY + spriteFeetOffsetY, 0, scale * (unit.facing or 1), scale, w / 2, h)
+
+            love.graphics.setShader()
+        else
+            if unit.team == "player" then
+                love.graphics.setColor(0.2, 0.8, 0.2, 1)
+            elseif unit.team == "enemy" then
+                love.graphics.setColor(0.8, 0.2, 0.2, 1)
+            else
+                love.graphics.setColor(0.8, 0.8, 0.2, 1)
+            end
+            love.graphics.circle("fill", drawX, drawY, collisionRadius * renderScale)
+        end
+
+        if burnIntensity > 0 then
+            local effectRadius = collisionRadius * renderScale
+            local pulse = 0.65 + 0.35 * math.sin(love.timer.getTime() * 18)
+            fireballHeatShader:send("time", love.timer.getTime())
+            fireballHeatShader:send("pulse", pulse)
+
+            love.graphics.setShader(fireballHeatShader)
+            love.graphics.setBlendMode("add")
+            love.graphics.setColor(1, 1, 1, 0.45 * burnIntensity)
+            love.graphics.circle("fill", drawX, drawY - effectRadius * 0.35, effectRadius * (1.2 + 0.2 * pulse))
+            love.graphics.setShader()
+
+            love.graphics.setColor(1, 0.5, 0.15, 0.35 * burnIntensity)
+            love.graphics.circle("line", drawX, drawY - effectRadius * 0.35, effectRadius * (1.35 + 0.2 * pulse))
+            love.graphics.setBlendMode("alpha")
+        end
+
+        if freezeIntensity > 0 then
+            local effectRadius = collisionRadius * renderScale
+            local pulse = 0.7 + 0.3 * math.sin(love.timer.getTime() * 10)
+            love.graphics.setBlendMode("add")
+            love.graphics.setColor(0.45, 0.7, 1, 0.4 * freezeIntensity)
+            love.graphics.circle("fill", drawX, drawY - effectRadius * 0.35, effectRadius * (1.15 + 0.15 * pulse))
+            love.graphics.setColor(0.7, 0.9, 1, 0.4 * freezeIntensity)
+            love.graphics.circle("line", drawX, drawY - effectRadius * 0.35, effectRadius * (1.3 + 0.15 * pulse))
+            love.graphics.setBlendMode("alpha")
+        end
+
+        if paralyzeIntensity > 0 then
+            local effectRadius = collisionRadius * renderScale
+            local pulse = 0.7 + 0.3 * math.sin(love.timer.getTime() * 26)
+            love.graphics.setBlendMode("add")
+            love.graphics.setColor(1, 0.9, 0.35, 0.4 * paralyzeIntensity)
+            love.graphics.circle("line", drawX, drawY - effectRadius * 0.35, effectRadius * (1.2 + 0.2 * pulse))
+            love.graphics.setColor(0.6, 0.85, 1, 0.3 * paralyzeIntensity)
+            love.graphics.circle("fill", drawX, drawY - effectRadius * 0.35, effectRadius * (0.9 + 0.2 * pulse))
+            love.graphics.setBlendMode("alpha")
+        end
+
+        local barWidth = UNIT_HEALTH_BAR_WIDTH
+        local barHeight = 4
+        local barX = drawX - barWidth / 2
+        local barY = drawY + collisionRadius * renderScale - 4
+
+        love.graphics.setColor(0.3, 0, 0, 1)
+        love.graphics.rectangle("fill", barX, barY, barWidth, barHeight)
+
+        local hpPercent = math.max(0, unit.hp / math.max(1, unit.maxHp))
+        love.graphics.setColor(0.2, 0.8, 0.2, 1)
+        love.graphics.rectangle("fill", barX, barY, barWidth * hpPercent, barHeight)
+end
+
+local function drawProjectile(proj)
+    initializeProjectileProjection(proj)
+    local projectedX,projectedY,heightScale = RenderSystem.projectProjectile(proj)
+    local trailDX,trailDY = projectedX-proj.x,projectedY-(proj.y-(proj.z or 0))
+    if proj.trailParticles and #proj.trailParticles > 0 then
+        for _, p in ipairs(proj.trailParticles) do
+            local lifeRatio = math.max(0, math.min(1, p.life / p.duration))
+            local size = p.size * (0.4 + 0.6 * lifeRatio)
+            if p.kind == "smoke" then
+                love.graphics.setBlendMode("alpha")
+                love.graphics.setColor(0.2, 0.2, 0.2, 0.22 * lifeRatio)
+                love.graphics.circle("fill", p.x+trailDX, p.y+trailDY, size)
+            else
+                love.graphics.setBlendMode("add")
+                love.graphics.setColor(1, 0.5 + 0.4 * lifeRatio, 0.15, 0.55 * lifeRatio)
+                love.graphics.circle("fill", p.x+trailDX, p.y+trailDY, size)
+            end
+        end
+        love.graphics.setBlendMode("alpha")
+    end
+
+    local sprite = getImage(proj.sprite)
+    if proj.style == "fireball" then
+        local pulse = 0.75 + 0.25 * math.sin(love.timer.getTime() * 22)
+        fireballHeatShader:send("time", love.timer.getTime())
+        fireballHeatShader:send("pulse", pulse)
+        love.graphics.setShader(fireballHeatShader)
+        love.graphics.setBlendMode("add")
+        love.graphics.setColor(1, 1, 1, 0.95)
+        love.graphics.circle("fill", proj.visualX, proj.visualY, 13)
+        love.graphics.setShader()
+
+        love.graphics.setColor(1, 0.95, 0.8, 0.95)
+        love.graphics.circle("fill", proj.visualX, proj.visualY, 3.5)
+
+        love.graphics.setColor(1, 0.5, 0.15, 0.26)
+        love.graphics.circle("line", proj.visualX, proj.visualY, 17)
+        love.graphics.setBlendMode("alpha")
+    elseif proj.style == "frostbolt" then
+        local pulse = 0.75 + 0.25 * math.sin(love.timer.getTime() * 18)
+        love.graphics.setBlendMode("add")
+        love.graphics.setColor(0.45, 0.8, 1, 0.35)
+        love.graphics.circle("fill", proj.visualX, proj.visualY, 13 * pulse)
+        love.graphics.setColor(0.75, 0.95, 1, 0.9)
+        love.graphics.circle("fill", proj.visualX, proj.visualY, 6 * pulse)
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.circle("fill", proj.visualX, proj.visualY, 2.5)
+        love.graphics.setColor(0.6, 0.85, 1, 0.3)
+        love.graphics.circle("line", proj.visualX, proj.visualY, 16)
+        love.graphics.setBlendMode("alpha")
+    elseif proj.style == "lightning" then
+        local pulse = 0.7 + 0.3 * math.sin(love.timer.getTime() * 32)
+        love.graphics.setBlendMode("add")
+        love.graphics.setColor(1, 0.95, 0.5, 0.45 * pulse)
+        love.graphics.circle("fill", proj.visualX, proj.visualY, 15 * pulse)
+        love.graphics.setColor(1, 1, 1, 0.95)
+        love.graphics.circle("fill", proj.visualX, proj.visualY, 7 * pulse)
+        love.graphics.setColor(0.7, 0.85, 1, 0.4)
+        love.graphics.circle("line", proj.visualX, proj.visualY, 18)
+        love.graphics.setBlendMode("alpha")
+    elseif proj.style == "arrow" then
+        local dz = ((proj.endZ-proj.startZ)+4*proj.arc*(1-2*proj.progress))/proj.distance*heightScale
+        love.graphics.setColor(0.7, 0.6, 0.4, 1)
+        love.graphics.line(proj.visualX-proj.nx*10, proj.visualY-(proj.ny-dz)*10,
+            proj.visualX, proj.visualY)
+    elseif proj.style == "sling_stone" then
+        love.graphics.setColor(0.38, 0.34, 0.28, 1)
+        love.graphics.circle("fill", proj.visualX, proj.visualY, 3)
+    elseif sprite then
+        local dx = proj.nx * proj.distance
+        local dy_linear = proj.ny * proj.distance
+        local dy_arc = (-(proj.endZ-proj.startZ)-4*proj.arc*(1-2*proj.progress))*heightScale
+        local target_angle = math.atan2(dy_linear + dy_arc, dx)
+
+        local horizontal_angle = 0
+        if dx < 0 then
+            horizontal_angle = math.pi
+        end
+
+        local rotation = (horizontal_angle + target_angle) / 2
+
+        local sx = 1
+        if dx < 0 then
+            sx = -1
+            rotation = math.pi - rotation
+        end
+
+        local drawX = proj.visualX
+        local drawY = proj.visualY
+
+        local w, h = sprite:getDimensions()
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.draw(sprite, drawX, drawY, rotation, sx, 1, w / 2, h / 2)
+    else
+        local pulse = 0.7 + 0.3 * math.sin(love.timer.getTime() * 24)
+        love.graphics.setBlendMode("add")
+        love.graphics.setColor(1, 0.65, 0.2, 0.28)
+        love.graphics.circle("fill", proj.visualX, proj.visualY, 14 * pulse)
+        love.graphics.setColor(1, 0.85, 0.4, 0.75)
+        love.graphics.circle("fill", proj.visualX, proj.visualY, 8 * pulse)
+        love.graphics.setColor(1, 0.95, 0.75, 1)
+        love.graphics.circle("fill", proj.visualX, proj.visualY, 3.5)
+        love.graphics.setBlendMode("alpha")
+    end
+end
+
 function RenderSystem.draw(context)
     local camera = context.data.camera
 
@@ -377,248 +604,27 @@ function RenderSystem.draw(context)
         end
     end
 
-    local sortedUnits = {}
+    local drawables = {}
     for _, unit in ipairs(context.data.unitList) do
         if unit.hp > 0 then
-            table.insert(sortedUnits, unit)
+            drawables[#drawables+1] = {unit=unit, depth=unit.visualY or unit.y or 0,
+                x=unit.visualX or unit.x or 0, order=#drawables+1}
         end
     end
-
-    table.sort(sortedUnits, function(a, b)
-        local ay = a.visualY or a.y or 0
-        local by = b.visualY or b.y or 0
-        if ay == by then
-            return (a.visualX or a.x or 0) < (b.visualX or b.x or 0)
-        end
-        return ay < by
+    for _, proj in ipairs(context.data.projectiles or {}) do
+        initializeProjectileProjection(proj)
+        -- Sort by interpolated battlefield depth, never the elevated screen Y.
+        drawables[#drawables+1] = {projectile=proj, depth=proj.visualDepthY,
+            x=proj.visualX, order=#drawables+1}
+    end
+    table.sort(drawables, function(a,b)
+        if a.depth ~= b.depth then return a.depth < b.depth end
+        if a.x ~= b.x then return a.x < b.x end
+        return a.order < b.order
     end)
-
-    for _, unit in ipairs(sortedUnits) do
-        local sprite = getImage(unit.actor.sprite)
-        local drawX, drawY = unit.visualX, unit.visualY
-        local burnIntensity = getBurnIntensity(unit)
-        local freezeIntensity = getStatusIntensity(unit, "freeze")
-        local paralyzeIntensity = getStatusIntensity(unit, "paralyze")
-        local collisionRadius = unit.collisionRadius or 18
-        local renderScale = getActorRenderScale(unit.actor)
-
-            if unit.visualEffects and unit.visualEffects.shakeTime > 0 then
-                local magnitude = 3 * (unit.visualEffects.shakeTime * 4)
-                drawX = drawX + (love.math.random() - 0.5) * magnitude
-                drawY = drawY + (love.math.random() - 0.5) * magnitude
-            end
-
-            if unit.visualEffects and unit.visualEffects.lungeTime > 0 then
-                local p = 1.0 - (unit.visualEffects.lungeTime / unit.visualEffects.lungeDuration)
-                local offset = math.sin(p * math.pi) * (collisionRadius * renderScale * 0.5)
-                drawX = drawX + unit.visualEffects.lungeX * offset
-                drawY = drawY + unit.visualEffects.lungeY * offset
-            end
-
-            if showCollisionCircles then
-                if unit.team == "player" then
-                    love.graphics.setColor(0.3, 0.95, 0.3, 0.9)
-                elseif unit.team == "enemy" then
-                    love.graphics.setColor(0.95, 0.35, 0.35, 0.9)
-                else
-                    love.graphics.setColor(0.95, 0.95, 0.35, 0.9)
-                end
-                love.graphics.setLineWidth(1.5)
-                love.graphics.circle("line", drawX, drawY, collisionRadius)
-                love.graphics.circle("fill", drawX, drawY, 1.8)
-                love.graphics.setLineWidth(1)
-            end
-
-            if sprite then
-                love.graphics.setColor(1, 1, 1, 1)
-
-                if unit.visualEffects and unit.visualEffects.flashTime > 0 then
-                    local baseIntensity = unit.visualEffects.flashIntensity or 0.7
-                    local duration = unit.visualEffects.flashDuration or 1.0
-                    local fade = math.min(1, math.max(0, unit.visualEffects.flashTime / duration))
-                    local intensity = baseIntensity * fade
-
-                    flashShader:send("flashColor", unit.visualEffects.flashColor)
-                    flashShader:send("flashAmount", intensity)
-                    love.graphics.setShader(flashShader)
-                end
-
-                local w, h = sprite:getDimensions()
-                local scale = renderScale
-                local spriteFeetOffsetY = (collisionRadius * 2) * SPRITE_FEET_OFFSET_DIAMETER_RATIO
-                love.graphics.draw(sprite, drawX, drawY + spriteFeetOffsetY, 0, scale * (unit.facing or 1), scale, w / 2, h)
-
-                love.graphics.setShader()
-            else
-                if unit.team == "player" then
-                    love.graphics.setColor(0.2, 0.8, 0.2, 1)
-                elseif unit.team == "enemy" then
-                    love.graphics.setColor(0.8, 0.2, 0.2, 1)
-                else
-                    love.graphics.setColor(0.8, 0.8, 0.2, 1)
-                end
-                love.graphics.circle("fill", drawX, drawY, collisionRadius * renderScale)
-            end
-
-            if burnIntensity > 0 then
-                local effectRadius = collisionRadius * renderScale
-                local pulse = 0.65 + 0.35 * math.sin(love.timer.getTime() * 18)
-                fireballHeatShader:send("time", love.timer.getTime())
-                fireballHeatShader:send("pulse", pulse)
-
-                love.graphics.setShader(fireballHeatShader)
-                love.graphics.setBlendMode("add")
-                love.graphics.setColor(1, 1, 1, 0.45 * burnIntensity)
-                love.graphics.circle("fill", drawX, drawY - effectRadius * 0.35, effectRadius * (1.2 + 0.2 * pulse))
-                love.graphics.setShader()
-
-                love.graphics.setColor(1, 0.5, 0.15, 0.35 * burnIntensity)
-                love.graphics.circle("line", drawX, drawY - effectRadius * 0.35, effectRadius * (1.35 + 0.2 * pulse))
-                love.graphics.setBlendMode("alpha")
-            end
-
-            if freezeIntensity > 0 then
-                local effectRadius = collisionRadius * renderScale
-                local pulse = 0.7 + 0.3 * math.sin(love.timer.getTime() * 10)
-                love.graphics.setBlendMode("add")
-                love.graphics.setColor(0.45, 0.7, 1, 0.4 * freezeIntensity)
-                love.graphics.circle("fill", drawX, drawY - effectRadius * 0.35, effectRadius * (1.15 + 0.15 * pulse))
-                love.graphics.setColor(0.7, 0.9, 1, 0.4 * freezeIntensity)
-                love.graphics.circle("line", drawX, drawY - effectRadius * 0.35, effectRadius * (1.3 + 0.15 * pulse))
-                love.graphics.setBlendMode("alpha")
-            end
-
-            if paralyzeIntensity > 0 then
-                local effectRadius = collisionRadius * renderScale
-                local pulse = 0.7 + 0.3 * math.sin(love.timer.getTime() * 26)
-                love.graphics.setBlendMode("add")
-                love.graphics.setColor(1, 0.9, 0.35, 0.4 * paralyzeIntensity)
-                love.graphics.circle("line", drawX, drawY - effectRadius * 0.35, effectRadius * (1.2 + 0.2 * pulse))
-                love.graphics.setColor(0.6, 0.85, 1, 0.3 * paralyzeIntensity)
-                love.graphics.circle("fill", drawX, drawY - effectRadius * 0.35, effectRadius * (0.9 + 0.2 * pulse))
-                love.graphics.setBlendMode("alpha")
-            end
-
-            local barWidth = UNIT_HEALTH_BAR_WIDTH
-            local barHeight = 4
-            local barX = drawX - barWidth / 2
-            local barY = drawY + collisionRadius * renderScale - 4
-
-            love.graphics.setColor(0.3, 0, 0, 1)
-            love.graphics.rectangle("fill", barX, barY, barWidth, barHeight)
-
-            local hpPercent = math.max(0, unit.hp / math.max(1, unit.maxHp))
-            love.graphics.setColor(0.2, 0.8, 0.2, 1)
-            love.graphics.rectangle("fill", barX, barY, barWidth * hpPercent, barHeight)
-    end
-
-    local projectiles = context.data.projectiles
-    if projectiles then
-        for _, proj in ipairs(projectiles) do
-            initializeProjectileProjection(proj)
-            local projectedX,projectedY,heightScale = RenderSystem.projectProjectile(proj)
-            local trailDX,trailDY = projectedX-proj.x,projectedY-(proj.y-(proj.z or 0))
-            if proj.trailParticles and #proj.trailParticles > 0 then
-                for _, p in ipairs(proj.trailParticles) do
-                    local lifeRatio = math.max(0, math.min(1, p.life / p.duration))
-                    local size = p.size * (0.4 + 0.6 * lifeRatio)
-                    if p.kind == "smoke" then
-                        love.graphics.setBlendMode("alpha")
-                        love.graphics.setColor(0.2, 0.2, 0.2, 0.22 * lifeRatio)
-                        love.graphics.circle("fill", p.x+trailDX, p.y+trailDY, size)
-                    else
-                        love.graphics.setBlendMode("add")
-                        love.graphics.setColor(1, 0.5 + 0.4 * lifeRatio, 0.15, 0.55 * lifeRatio)
-                        love.graphics.circle("fill", p.x+trailDX, p.y+trailDY, size)
-                    end
-                end
-                love.graphics.setBlendMode("alpha")
-            end
-
-            local sprite = getImage(proj.sprite)
-            if proj.style == "fireball" then
-                local pulse = 0.75 + 0.25 * math.sin(love.timer.getTime() * 22)
-                fireballHeatShader:send("time", love.timer.getTime())
-                fireballHeatShader:send("pulse", pulse)
-                love.graphics.setShader(fireballHeatShader)
-                love.graphics.setBlendMode("add")
-                love.graphics.setColor(1, 1, 1, 0.95)
-                love.graphics.circle("fill", proj.visualX, proj.visualY, 13)
-                love.graphics.setShader()
-
-                love.graphics.setColor(1, 0.95, 0.8, 0.95)
-                love.graphics.circle("fill", proj.visualX, proj.visualY, 3.5)
-
-                love.graphics.setColor(1, 0.5, 0.15, 0.26)
-                love.graphics.circle("line", proj.visualX, proj.visualY, 17)
-                love.graphics.setBlendMode("alpha")
-            elseif proj.style == "frostbolt" then
-                local pulse = 0.75 + 0.25 * math.sin(love.timer.getTime() * 18)
-                love.graphics.setBlendMode("add")
-                love.graphics.setColor(0.45, 0.8, 1, 0.35)
-                love.graphics.circle("fill", proj.visualX, proj.visualY, 13 * pulse)
-                love.graphics.setColor(0.75, 0.95, 1, 0.9)
-                love.graphics.circle("fill", proj.visualX, proj.visualY, 6 * pulse)
-                love.graphics.setColor(1, 1, 1, 1)
-                love.graphics.circle("fill", proj.visualX, proj.visualY, 2.5)
-                love.graphics.setColor(0.6, 0.85, 1, 0.3)
-                love.graphics.circle("line", proj.visualX, proj.visualY, 16)
-                love.graphics.setBlendMode("alpha")
-            elseif proj.style == "lightning" then
-                local pulse = 0.7 + 0.3 * math.sin(love.timer.getTime() * 32)
-                love.graphics.setBlendMode("add")
-                love.graphics.setColor(1, 0.95, 0.5, 0.45 * pulse)
-                love.graphics.circle("fill", proj.visualX, proj.visualY, 15 * pulse)
-                love.graphics.setColor(1, 1, 1, 0.95)
-                love.graphics.circle("fill", proj.visualX, proj.visualY, 7 * pulse)
-                love.graphics.setColor(0.7, 0.85, 1, 0.4)
-                love.graphics.circle("line", proj.visualX, proj.visualY, 18)
-                love.graphics.setBlendMode("alpha")
-            elseif proj.style == "arrow" then
-                local dz = ((proj.endZ-proj.startZ)+4*proj.arc*(1-2*proj.progress))/proj.distance*heightScale
-                love.graphics.setColor(0.7, 0.6, 0.4, 1)
-                love.graphics.line(proj.visualX-proj.nx*10, proj.visualY-(proj.ny-dz)*10,
-                    proj.visualX, proj.visualY)
-            elseif proj.style == "sling_stone" then
-                love.graphics.setColor(0.38, 0.34, 0.28, 1)
-                love.graphics.circle("fill", proj.visualX, proj.visualY, 3)
-            elseif sprite then
-                local dx = proj.nx * proj.distance
-                local dy_linear = proj.ny * proj.distance
-                local dy_arc = (-(proj.endZ-proj.startZ)-4*proj.arc*(1-2*proj.progress))*heightScale
-                local target_angle = math.atan2(dy_linear + dy_arc, dx)
-
-                local horizontal_angle = 0
-                if dx < 0 then
-                    horizontal_angle = math.pi
-                end
-
-                local rotation = (horizontal_angle + target_angle) / 2
-
-                local sx = 1
-                if dx < 0 then
-                    sx = -1
-                    rotation = math.pi - rotation
-                end
-
-                local drawX = proj.visualX
-                local drawY = proj.visualY
-
-                local w, h = sprite:getDimensions()
-                love.graphics.setColor(1, 1, 1, 1)
-                love.graphics.draw(sprite, drawX, drawY, rotation, sx, 1, w / 2, h / 2)
-            else
-                local pulse = 0.7 + 0.3 * math.sin(love.timer.getTime() * 24)
-                love.graphics.setBlendMode("add")
-                love.graphics.setColor(1, 0.65, 0.2, 0.28)
-                love.graphics.circle("fill", proj.visualX, proj.visualY, 14 * pulse)
-                love.graphics.setColor(1, 0.85, 0.4, 0.75)
-                love.graphics.circle("fill", proj.visualX, proj.visualY, 8 * pulse)
-                love.graphics.setColor(1, 0.95, 0.75, 1)
-                love.graphics.circle("fill", proj.visualX, proj.visualY, 3.5)
-                love.graphics.setBlendMode("alpha")
-            end
-        end
+    for _, entry in ipairs(drawables) do
+        if entry.unit then drawUnit(entry.unit,showCollisionCircles)
+        else drawProjectile(entry.projectile) end
     end
 
     local vfx = context.data.vfx

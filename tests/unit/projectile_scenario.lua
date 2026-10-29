@@ -135,7 +135,7 @@ local function impacts()
     assert(ally.hp==85 and b.hp==100 and #c.data.projectiles==0,"Friendly fire failed")
     Execution._updateProjectiles(c);assert(ally.hp==85,"Duplicate projectile damage")
     local p=shot(a,b,{speed=600});a.stats.precision=0;c.data.projectiles={p}
-    Execution._updateProjectiles(c);assert(ally.hp==85 and #c.data.projectiles==0,"Defended projectile continued")
+    Execution._updateProjectiles(c);assert(ally.hp==85 and #c.data.projectiles==1 and p.visualOnly,"Defended projectile did not become visual-only")
     a.stats.precision=100;ally.y=300
     c.data.projectiles={shot(a,b,{speed=600})}
     Execution._updateProjectiles(c);assert(b.hp==85,"Enemy impact failed")
@@ -146,6 +146,55 @@ local function impacts()
     assert(b.hp==85 and ally.hp==70 and b.statusEffects.burn and ally.statusEffects.burn,"Fireball splash/direct status changed")
     Dice.rollExploding=original
 end
+local function defendedContinuation()
+    local dice, defense = Dice.rollExploding, Combat.rollProjectileDefense
+    Dice.rollExploding=function() return 1 end
+    for _,skill in ipairs({Skills.arrow,Skills.fireball}) do
+        for _,shielded in ipairs({false,true}) do
+            local a,b,behind=unit("a",100,200),unit("b",300,200,"enemy"),unit("behind",340,200,"enemy")
+            a.stats.precision=0 -- Equal dice give an unshielded tie, also a defense success.
+            if shielded then b.equipment.offHand="wooden_shield";b.itemDurability.wooden_shield=1 end
+            local c=context(a,b,behind)
+            local calls=0
+            Combat.rollProjectileDefense=function(...)
+                calls=calls+1;assert(calls==1,"Visual continuation rolled a second attack")
+                return defense(...)
+            end
+            local p=P.launch(a,skill,b.x,b.y,b,function() return 0.5 end)
+            if skill==Skills.fireball then p.trailParticles={} end
+            c.addProjectile(p)
+            for _=1,30 do
+                Execution._updateProjectiles(c)
+                if p.visualOnly then break end
+            end
+            assert(p.visualOnly and #c.data.projectiles==1 and b.hp==100,"Defense did not preserve a harmless visual")
+            local contactX=p.x
+            assert(#c.data.vfx==0,"Defense displayed a hit circle or explosion")
+            if shielded then assert(not b.equipment.offHand,"Defense did not break the one-durability shield") end
+            a.stats.precision=1000 -- A mistakenly live continuation would now damage the next unit.
+            local random=math.random
+            math.random=function() error("Visual-only continuation consumed combat RNG") end
+            for _=1,200 do
+                Execution._updateProjectiles(c)
+                if #c.data.projectiles==0 then break end
+            end
+            math.random=random
+            assert(#c.data.projectiles==0 and p.x>contactX,"Visual projectile never continued/expired")
+            if skill==Skills.arrow then assert(math.abs(p.z)<0.00001,"Defended arrow did not reach ground") end
+            assert(calls==1 and a.hp==100 and b.hp==100 and behind.hp==100,"Continuation caused further damage")
+            assert(#c.data.vfx==0 and next(behind.statusEffects)==nil,"Harmless continuation produced impact effects or splash")
+        end
+    end
+    local a,b=unit("hit-a",100,200),unit("hit-b",300,200,"enemy")
+    a.stats.precision=1000
+    Combat.rollProjectileDefense=defense
+    local c=context(a,b);c.addProjectile(P.launch(a,Skills.arrow,b.x,b.y,b,function() return 0.5 end))
+    for _=1,30 do Execution._updateProjectiles(c);if #c.data.projectiles==0 then break end end
+    assert(b.hp<100 and #c.data.projectiles==0 and #c.data.vfx==1 and
+        c.data.vfx[1].type=="projectile_contact","Successful hit lost its circle or kept flying")
+    Dice.rollExploding,Combat.rollProjectileDefense=dice,defense
+end
+
 local function ai()
     local a,b,ally=unit("a",100,200),unit("b",400,200,"enemy"),unit("ally",150,200)
     a.skills={frostbolt={}};local c=context(a,b,ally)
@@ -232,7 +281,7 @@ function Scenario.run()
         assert(#c.data.projectiles == 1 and c.data.projectiles[1].skillId == entry[3],
             entry[1].." could not launch its ranged attack")
     end
-    geometry();defense();impacts();ai();presentationParity()
+    geometry();defense();impacts();defendedContinuation();ai();presentationParity()
     print("M4 precision, trajectory, collision, defense, friendly fire and AI checks passed")
 end
 return Scenario

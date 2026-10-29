@@ -88,7 +88,7 @@ function Projectile.advance(p, context)
         if p.physicalDistance+length >= p.maxRange then limit((p.maxRange-p.physicalDistance)/length,"range") end
         local target
         for _, unit in ipairs(context.data.unitList) do
-            if (unit ~= p.attackerUnit or p.traveled > (unit.collisionRadius or 18)+p.radius)
+            if not p.visualOnly and (unit ~= p.attackerUnit or p.traveled > (unit.collisionRadius or 18)+p.radius)
                 and unit.hp > 0 and not unit.escaped then
                 local t = Projectile.intersect(p,x,y,z,unit)
                 if t and t < stop then stop,reason,target = t,"unit",unit end

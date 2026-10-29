@@ -615,7 +615,14 @@ function ExecutionSystem._updateProjectiles(context)
         if reason then
             local skillData = proj.skillData
 
-            if skillData and skillData.projectile and skillData.projectile.style == "fireball" and context.addVfx then
+            local result
+            if collidedUnit then
+                result = CombatSystem.resolveProjectileAttack(proj.attackerUnit, collidedUnit, skillData)
+                ExecutionSystem.applyAttackResult(result, collidedUnit, context, skillData)
+                if not result.hit and result.action ~= "block" then proj.visualOnly = true end
+            end
+
+            if not proj.visualOnly and (not result or result.hit) and skillData and skillData.projectile and skillData.projectile.style == "fireball" and context.addVfx then
                 context.addVfx({
                     type = "fire_explosion",
                     x = tx,
@@ -643,46 +650,42 @@ function ExecutionSystem._updateProjectiles(context)
                 })
             end
 
-            if collidedUnit and context.addVfx then
+            if result and result.hit and context.addVfx then
                 context.addVfx({type="projectile_contact", x=tx, y=ty, z=proj.z,
                     projectile=proj, contactUnit=collidedUnit, time=0, duration=0.12})
             end
-            local result
-            if collidedUnit then
-                result = CombatSystem.resolveProjectileAttack(proj.attackerUnit, collidedUnit, skillData)
-                ExecutionSystem.applyAttackResult(result, collidedUnit, context, skillData)
-            end
-            if skillData and skillData.type == "aoe" and skillData.targeted and
+            if not proj.visualOnly and skillData and skillData.type == "aoe" and skillData.targeted and
                 (reason == "ground" or (result and result.hit)) then
                 ExecutionSystem._resolveAoeAtPoint(proj.attackerUnit, skillData, tx, ty, context, collidedUnit, true)
             end
 
-            table.remove(projectiles, i)
+            if not collidedUnit or not proj.visualOnly then table.remove(projectiles, i) end
         else
             local skillData = proj.skillData
             if skillData and skillData.projectile and skillData.projectile.style == "fireball" and proj.trailParticles then
                 proj.trailSpawnTimer = (proj.trailSpawnTimer or 0) + 1
                 if proj.trailSpawnTimer >= 1 then
                     proj.trailSpawnTimer = 0
+                    local random = proj.visualOnly and love.math.random or math.random
                     table.insert(proj.trailParticles, {
                         kind = "ember",
-                        x = proj.x + (math.random() - 0.5) * 6,
-                        y = proj.y - proj.z + (math.random() - 0.5) * 6,
-                        vx = (math.random() - 0.5) * 10,
-                        vy = -20 - math.random() * 35,
-                        life = 0.24 + math.random() * 0.16,
-                        duration = 0.24 + math.random() * 0.16,
-                        size = 3 + math.random() * 3
+                        x = proj.x + (random() - 0.5) * 6,
+                        y = proj.y - proj.z + (random() - 0.5) * 6,
+                        vx = (random() - 0.5) * 10,
+                        vy = -20 - random() * 35,
+                        life = 0.24 + random() * 0.16,
+                        duration = 0.24 + random() * 0.16,
+                        size = 3 + random() * 3
                     })
                     table.insert(proj.trailParticles, {
                         kind = "smoke",
-                        x = proj.x + (math.random() - 0.5) * 8,
-                        y = proj.y - proj.z + (math.random() - 0.5) * 8,
-                        vx = (math.random() - 0.5) * 7,
-                        vy = -10 - math.random() * 12,
-                        life = 0.35 + math.random() * 0.3,
-                        duration = 0.35 + math.random() * 0.3,
-                        size = 5 + math.random() * 5
+                        x = proj.x + (random() - 0.5) * 8,
+                        y = proj.y - proj.z + (random() - 0.5) * 8,
+                        vx = (random() - 0.5) * 7,
+                        vy = -10 - random() * 12,
+                        life = 0.35 + random() * 0.3,
+                        duration = 0.35 + random() * 0.3,
+                        size = 5 + random() * 5
                     })
                 end
             end

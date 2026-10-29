@@ -251,7 +251,7 @@ function CombatSystem.resolveAttack(attacker, defender, skill)
 end
 
 function CombatSystem.resolveProjectileAttack(attacker, defender, skill)
-    local hit, _, shield = CombatSystem.rollProjectileDefense(attacker, defender)
+    local hit, margin, shield = CombatSystem.rollProjectileDefense(attacker, defender)
 
     if hit then
         local damage = CombatSystem.calculateDamage(attacker, defender, skill)
@@ -267,7 +267,7 @@ function CombatSystem.resolveProjectileAttack(attacker, defender, skill)
         return {hit = true, damage = damage, defeated = defeated}
     end
 
-    local action = shield > 0 and "block" or "evade"
+    local action = CombatSystem._determineMissAction(shield > 0, margin + 2 * shield > 0)
     if action == "block" then CombatSystem.applyBlockDurabilityLoss(defender) end
     if defender.visualEffects then
         defender.visualEffects.shakeTime = 0.5
