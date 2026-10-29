@@ -1,5 +1,7 @@
 -- Builds and stores serializable battlefield aftermath on the owning map.
 
+local Inventory = require("src.systems.items.inventory_system")
+
 local BattlefieldRemainsSystem = {}
 
 local function ensureMapState(map)
@@ -155,7 +157,9 @@ function BattlefieldRemainsSystem.prepare(map, encounter, battleResult, worldTim
     retainedGold = retainedGold or {}
     local lootItems, goldTotal = {}, 0
     for _, resource in ipairs(retainedItems) do
-        lootItems[#lootItems + 1] = copySerializable(resource, "Retained loot")
+        local item = copySerializable(resource.item, "Retained loot item")
+        if resource.durabilityRemaining ~= nil then item.durabilityRemaining = resource.durabilityRemaining end
+        assert(Inventory.addItem({inventory = lootItems}, item), "Invalid remains item")
     end
     for _, resource in ipairs(retainedGold) do
         if type(resource.amount) ~= "number" or resource.amount < 0 then
@@ -182,12 +186,11 @@ function BattlefieldRemainsSystem.prepare(map, encounter, battleResult, worldTim
         id = nil,
         discovered = false,
         currentlyVisible = false,
-        loot = {
-            items = lootItems,
-            gold = goldTotal
-        },
+        inventory = lootItems,
+        loot = {gold = goldTotal},
         corpses = corpses,
         history = {
+            resourceAllocations = copySerializable(retainedItems, "Retained resource history"),
             encounterId = encounter.id,
             position = {x = x, y = y},
             participants = participants,
@@ -226,14 +229,14 @@ function BattlefieldRemainsSystem.serialize(map)
         site.currentlyVisible = false
     end
     return {
-        schemaVersion = 1,
+        schemaVersion = 2,
         nextSequence = map.nextBattlefieldRemainsSequence,
         sites = sites
     }
 end
 
 function BattlefieldRemainsSystem.restore(map, data)
-    if type(map) ~= "table" or type(data) ~= "table" or data.schemaVersion ~= 1 or
+    if type(map) ~= "table" or type(data) ~= "table" or (data.schemaVersion ~= 1 and data.schemaVersion ~= 2) or
         type(data.sites) ~= "table" or type(data.nextSequence) ~= "number" or
         data.nextSequence < 1 or data.nextSequence % 1 ~= 0 then
         error("Invalid serialized battlefield remains data", 2)
@@ -241,6 +244,29 @@ function BattlefieldRemainsSystem.restore(map, data)
     local sites = copySerializable(data.sites, "Serialized battlefield remains")
     for _, site in ipairs(sites) do
         requireStableId(site.id, "Battlefield remains site")
+        if data.schemaVersion == 1 then
+            if site.inventory ~= nil or type(site.loot) ~= "table" or type(site.loot.items) ~= "table" then
+                error("Invalid legacy battlefield inventory", 2)
+            end
+            for index, resource in pairs(site.loot.items) do
+                if type(index) ~= "number" or index < 1 or index % 1 ~= 0 or
+                    index > #site.loot.items or type(resource) ~= "table" then
+                    error("Invalid legacy battlefield item list", 2)
+                end
+            end
+            site.inventory = Inventory.new()
+            site.history = site.history or {}
+            site.history.resourceAllocations = copySerializable(site.loot.items, "Legacy resource history")
+            for _, resource in ipairs(site.loot.items) do
+                local item = copySerializable(resource.item or resource, "Legacy loot item")
+                if resource.item and resource.durabilityRemaining ~= nil then
+                    item.durabilityRemaining = resource.durabilityRemaining
+                end
+                assert(Inventory.addItem(site, item), "Invalid legacy remains item")
+            end
+            site.loot.items = nil
+        end
+        if not Inventory.isValid(site.inventory) then error("Invalid battlefield inventory", 2) end
         site.discovered = site.discovered == true
         site.currentlyVisible = false
     end

@@ -11,6 +11,7 @@ local AttributesPanel = require("src.ui.widgets.attributes_panel")
 local Button = require("src.ui.widgets.button")
 local Tooltip = require("src.ui.widgets.tooltip")
 local EquipmentSystem = require("src.systems.items.equipment_system")
+local Inventory = require("src.systems.items.inventory_system")
 local PartySystem = require("src.systems.parties.party_system")
 local GameContext = require("src.game.game_context")
 local Items = require("src.data.items")
@@ -360,19 +361,14 @@ function InventoryScreen:_clickEquipFromInventory(index)
     local targetSlot = self:_chooseEquipSlot(item.id)
     if not targetSlot then return false end
 
-    local unequippedId = EquipmentSystem.equip(self.actor, item.id, targetSlot)
+    local unequippedId, unequippedItem = EquipmentSystem.equip(self.actor, item, targetSlot)
     if unequippedId == false then
         return false
     end
 
-    -- Equipping consumes one from the stack; only remove the entry when it's empty
-    if item.quantity and item.quantity > 1 then
-        item.quantity = item.quantity - 1
-    else
-        table.remove(self.party.inventory, index)
-    end
+    Inventory.removeItem(self.party, index, 1)
     if unequippedId and Items[unequippedId] then
-        PartySystem.addItemDefCopy(self.party, Items[unequippedId], 1)
+        Inventory.addItem(self.party, unequippedItem)
     end
 
     self.navMode = "equipment"
@@ -387,9 +383,9 @@ end
 
 function InventoryScreen:_clickUnequipSlot(slotId)
     if not self.actor then return false end
-    local itemId = EquipmentSystem.unequip(self.actor, slotId)
+    local itemId, item = EquipmentSystem.unequip(self.actor, slotId)
     if itemId and Items[itemId] then
-        PartySystem.addItemDefCopy(self.party, Items[itemId], 1)
+        Inventory.addItem(self.party, item)
         self.navMode = "inventory"
         self.selectedInventoryIndex = #self.party.inventory
         return true
@@ -468,16 +464,11 @@ function InventoryScreen:mousereleased(x, y, button)
 
             if equipData then
                 if self.dragging.source == "inventory" then
-                    local unequippedId = EquipmentSystem.equip(self.actor, item.id, region.slotId)
+                    local unequippedId, unequippedItem = EquipmentSystem.equip(self.actor, item, region.slotId)
                     if unequippedId ~= false then
-                        -- Equipping consumes one from the stack; only remove the entry when it's empty
-                        if item.quantity and item.quantity > 1 then
-                            item.quantity = item.quantity - 1
-                        else
-                            table.remove(self.party.inventory, self.dragging.index)
-                        end
+                        Inventory.removeItem(self.party, self.dragging.index, 1)
                         if unequippedId and Items[unequippedId] then
-                            PartySystem.addItemDefCopy(self.party, Items[unequippedId], 1)
+                            Inventory.addItem(self.party, unequippedItem)
                         end
                         handled = true
                     end
@@ -489,11 +480,13 @@ function InventoryScreen:mousereleased(x, y, button)
                         local fitsSource = not destinationItemId or
                             EquipmentSystem.canEquip(self.actor, destinationItemId, self.dragging.slot)
                         if fitsDestination and fitsSource then
-                            EquipmentSystem.equip(self.actor, fromItemId, region.slotId)
-                            if destinationItemId then
-                                EquipmentSystem.equip(self.actor, destinationItemId, self.dragging.slot)
-                            else
-                                EquipmentSystem.unequip(self.actor, self.dragging.slot)
+                            local fromItem = EquipmentSystem.getEquippedItem(self.actor, self.dragging.slot)
+                            local destinationItem = EquipmentSystem.getEquippedItem(self.actor, region.slotId)
+                            EquipmentSystem.unequip(self.actor, self.dragging.slot)
+                            EquipmentSystem.unequip(self.actor, region.slotId)
+                            EquipmentSystem.equip(self.actor, fromItem, region.slotId)
+                            if destinationItem then
+                                EquipmentSystem.equip(self.actor, destinationItem, self.dragging.slot)
                             end
                             handled = true
                         else

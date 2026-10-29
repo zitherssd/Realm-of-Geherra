@@ -38,63 +38,45 @@ function DecisionSystem:update(context)
 end
 
 function DecisionSystem._processAI(unit, context)
-    -- Find nearest hostile
-    local nearestTarget, minDist = context.findNearestHostile(unit)
-
-    if nearestTarget then
-        -- AI Logic: Select best available skill from actor's known skills
-        local bestSkillId = nil
-        local bestPriority = -1
-        
-        -- Iterate through all skills the actor knows
-        for skillId, _ in pairs(unit.skills or {}) do
-            local skillData = CombatSystem.getEffectiveSkill(unit, skillId)
-            
-            if skillData then
-                local range = RangeUtils.effectiveSkillRange(unit, nearestTarget, skillData)
-                local rangeSq = range * range
-                local onCooldown = (unit.cooldowns[skillId] or 0) > 0
-                local hasCharges = true
-                
-                -- Check charges if the skill has a limit
-                if skillData.maxCharges then
-                    hasCharges = (unit.charges[skillId] or 0) > 0
-                end
-                
-                -- Check if usable (in range and off cooldown)
-                if not onCooldown and hasCharges and minDist <= rangeSq then
-                    -- Priority: Prefer higher damage multiplier
-                    local priority = skillData.damageMultiplier or 0
-                    
-                    if priority > bestPriority then
-                        bestPriority = priority
-                        bestSkillId = skillId
-                    end
+    local Squads = require("src.game.battle.squads")
+    local position = Squads.position(unit)
+    local target, distance = context.findNearestHostile(unit)
+    local rangedRange, best, priority = nil, nil, -math.huge
+    -- Cooldown affects readiness, never whether ranged supplies remain viable.
+    for id in pairs(unit.skills or {}) do
+        local skill = CombatSystem.getEffectiveSkill(unit, id)
+        if skill and skill.type ~= "command" and not skill.healing and
+            (not skill.maxCharges or (unit.charges[id] or 0) > 0) then
+            local ranged = skill.type == "ranged" or skill.projectile or (skill.range or 0) > 2
+            local range = RangeUtils.effectiveSkillRange(unit, target, skill)
+            if ranged then rangedRange = math.max(rangedRange or 0, range) end
+        end
+    end
+    if target then
+        for id in pairs(unit.skills or {}) do
+            local skill = CombatSystem.getEffectiveSkill(unit, id)
+            if skill and skill.type ~= "command" and not skill.healing and
+                (not skill.maxCharges or (unit.charges[id] or 0) > 0) and
+                (unit.cooldowns[id] or 0) <= 0 then
+                local ranged = skill.type == "ranged" or skill.projectile or (skill.range or 0) > 2
+                local range = RangeUtils.effectiveSkillRange(unit, target, skill)
+                local score = (ranged and 1000 or 0) + (skill.baseDamage or 0)
+                if distance <= range^2 and (not rangedRange or ranged) and score > priority then
+                    best, priority = id, score
                 end
             end
         end
-        
-        if bestSkillId then
-            local bestSkillData = CombatSystem.getEffectiveSkill(unit, bestSkillId)
-            local intentTarget = nil
-            local intentTargetUnitId = nearestTarget.id
-
-            if bestSkillData and bestSkillData.type == "aoe" and bestSkillData.targeted == true then
-                intentTarget = {x = nearestTarget.x, y = nearestTarget.y}
-            end
-
-            unit.intent = {
-                type = "SKILL",
-                skillId = bestSkillId,
-                target = intentTarget,
-                targetUnitId = intentTargetUnitId
-            }
-        else
-            unit.intent = {
-                type = "MOVE",
-                target = {x = nearestTarget.x, y = nearestTarget.y}
-            }
+    end
+    if best then
+        local skill = CombatSystem.getEffectiveSkill(unit, best)
+        unit.intent = {type="SKILL", skillId=best, targetUnitId=target.id,
+            target=skill.targeted and {x=target.x,y=target.y} or nil}
+    elseif position then
+        if (unit.x-position.x)^2 + (unit.y-position.y)^2 > 12^2 then
+            unit.intent = {type="MOVE", target=position, avoidObstacles=true}
         end
+    elseif target and (not rangedRange or distance > rangedRange^2) then
+        unit.intent = {type="MOVE", target={x=target.x,y=target.y}, avoidObstacles=true}
     end
 end
 

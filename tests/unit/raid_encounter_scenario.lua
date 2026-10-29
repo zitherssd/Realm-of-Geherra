@@ -33,7 +33,7 @@ local function createParty(world, map, id, actorPrefix, config)
         actor.profile = config.profile or actor.profile
         actor.hp = config.health
         actor.maxHp = config.health
-        actor.inventory = {bread = 2}
+        actor.inventory = {{id = "bread", quantity = 2}}
         actor.skills = config.skills or {}
         PartySystem.addActor(party, actor)
     end
@@ -193,9 +193,9 @@ local function runContactToCompletion(world)
     for _, item in ipairs(raider.inventory) do
         if item.id == originalCaravanCargo.id then cargoTotal = cargoTotal + item.quantity end
     end
-    for _, item in ipairs(remains[1].loot.items) do
-        if item.item.id == originalCaravanCargo.id then
-            retainedCargo = retainedCargo + item.item.quantity
+    for _, item in ipairs(remains[1].inventory) do
+        if item.id == originalCaravanCargo.id then
+            retainedCargo = retainedCargo + item.quantity
         end
     end
     for _, resource in ipairs(encounter.lootResult.destroyedResources.items) do
@@ -211,9 +211,9 @@ local function runContactToCompletion(world)
             receivedMetadata = item.metadata and item.metadata.origin == "caravan"
         end
     end
-    for _, resource in ipairs(remains[1].loot.items) do
-        if resource.item.id == originalCaravanCargo.id then
-            receivedMetadata = resource.item.metadata and resource.item.metadata.origin == "caravan"
+    for _, item in ipairs(remains[1].inventory) do
+        if item.id == originalCaravanCargo.id then
+            receivedMetadata = item.metadata and item.metadata.origin == "caravan"
         end
     end
     assert(receivedMetadata, "cargo metadata was not preserved in loot allocations")

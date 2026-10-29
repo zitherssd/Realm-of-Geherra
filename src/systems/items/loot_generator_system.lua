@@ -4,6 +4,7 @@
 local LootGeneratorSystem = {}
 local TroopsData = require("src.data.troops")
 local ItemsData = require("src.data.items")
+local Inventory = require("src.systems.items.inventory_system")
 local Item = require("src.entities.item")
 
 -- Generate loot based on a troop type's definition
@@ -29,25 +30,11 @@ function LootGeneratorSystem.generateFromTable(lootTable, targetList)
             if drop.currency == "gold" then
                 totalGold = totalGold + count
             else
-                -- Check for existing stack in targetList to merge
-                local found = false
-                for _, existingItem in ipairs(targetList) do
-                    if existingItem.id == drop.id then
-                        existingItem:addToStack(count)
-                        found = true
-                        break
-                    end
-                end
-            
-                if not found then
-                    local itemDef = ItemsData[drop.id]
-                    if itemDef then
-                        local newItem = Item.new(drop.id, itemDef.type)
-                        newItem.name = itemDef.name
-                        newItem.description = itemDef.description
-                        newItem.quantity = count
-                        table.insert(targetList, newItem)
-                    end
+                local itemDef = ItemsData[drop.id]
+                if itemDef then
+                    local item = Item.new(drop.id, itemDef.type)
+                    item.name, item.description = itemDef.name, itemDef.description
+                    assert(Inventory.addItem({inventory = targetList}, item, count), "Invalid generated loot")
                 end
             end
         end

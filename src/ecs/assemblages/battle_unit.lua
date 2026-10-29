@@ -7,8 +7,14 @@ local Skills = require("src.data.skills")
 local Items = require("src.data.items")
 
 local DEFAULT_MOVE_STEP = 24
-local DEFAULT_COLLISION_RADIUS = 18
+local RADIUS_PER_SIZE = 6
+local DEFAULT_HEIGHT_MULTIPLIER = 4
 local DEFAULT_ATTACK_REACH = 8
+
+local function actorRadius(actor)
+    local size = actor.size or 3
+    return RADIUS_PER_SIZE * (math.min(size, 3) + math.max(size - 3, 0) * 0.5)
+end
 
 local function copyTable(source)
     local copy = {}
@@ -28,6 +34,8 @@ local function battleUnitAssemblage(e, actor, worldX, worldY, team)
     -- Persistent Data Reference
     e.actor = actor
     e.id = actor.id
+    e.injuryProfile = actor.injuryProfile
+    e.injuries = copyTable(actor.injuries or {})
     e.equipment = copyTable(actor.equipment or {})
     e.itemDurability = copyTable(actor.itemDurability or {})
 
@@ -38,7 +46,9 @@ local function battleUnitAssemblage(e, actor, worldX, worldY, team)
     e.velocityY = 0
     e.moveCooldown = 0
     e.moveStep = DEFAULT_MOVE_STEP
-    e.collisionRadius = DEFAULT_COLLISION_RADIUS
+    e.collisionRadius = actorRadius(actor)
+    e.heightMultiplier = actor.heightMultiplier or DEFAULT_HEIGHT_MULTIPLIER
+    e.height = e.collisionRadius * e.heightMultiplier
     e.attackRange = DEFAULT_ATTACK_REACH
     e.moveTarget = nil
     e.state = "idle"
@@ -162,7 +172,7 @@ local function battleUnitAssemblage(e, actor, worldX, worldY, team)
     table.sort(e.skillList)
 end
 
-local BattleUnit = {assemble = battleUnitAssemblage}
+local BattleUnit = {assemble = battleUnitAssemblage, actorRadius = actorRadius}
 
 function BattleUnit.create(world, actor, worldX, worldY, team)
     return Concord.entity(world):assemble(battleUnitAssemblage, actor, worldX, worldY, team)

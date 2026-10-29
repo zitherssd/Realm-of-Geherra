@@ -58,7 +58,6 @@ local function testInventoryOwnershipAndNoAliasing()
     assertEqual(#source.inventory, #unchanged, "invalid transfer changed source inventory")
 
     local trader = Unit.create(world, "trader", "merchant-1")
-    trader.inventoryFormat = "list"
     trader.inventory = {
         { id = "wine", quantity = 3, metadata = { vintage = "spring" } },
         { id = "bread", quantity = 5, metadata = { batch = "south" } }
@@ -78,7 +77,7 @@ local function testInventoryOwnershipAndNoAliasing()
     assertEqual(#trader.inventory, 2, "post-departure cargo was not transferred")
     assertEqual(trader.inventory[2].quantity, 100, "return cargo quantity was not preserved")
 
-    local invalidTarget = { inventory = { invalid = true }, inventoryFormat = "list" }
+    local invalidTarget = { inventory = { invalid = true } }
     party.inventory[1] = { id = "returning_goods", quantity = 2, metadata = { condition = "worn" } }
     local sourceSnapshot = InventorySystem.deepClone(party.inventory)
     assertEqual(InventorySystem.transferItem(party, 1, invalidTarget), nil,
@@ -87,13 +86,13 @@ local function testInventoryOwnershipAndNoAliasing()
     assertEqual(invalidTarget.inventory.invalid, true, "failed item transfer changed destination")
 
     local actor = Unit.create(world, "soldier", "actor-1")
-    actor.inventory = { bread = 2 }
+    actor.inventory = {{id = "bread", quantity = 2}}
     actor.equipment = { mainHand = "iron_sword" }
     local actorParty = Party.create(world, "Actor Party", actor.id, "actor-party")
     actorParty.inventory = { { id = "bread", quantity = 6, metadata = { batch = "party" } } }
     PartySystem.addActor(actorParty, actor)
 
-    assertEqual(InventorySystem.getItemCount(actor, "bread"), 2, "actor dictionary inventory count preserved")
+    assertEqual(InventorySystem.getItemCount(actor, "bread"), 2, "actor list inventory count preserved")
     assertEqual(InventorySystem.getItemCount(actorParty, "bread"), 6, "party list inventory count preserved")
     assertTrue(InventorySystem.transferItem(actor, "bread", actorParty, 1) ~= nil,
         "actor inventory did not transfer to shared party cargo")

@@ -4,6 +4,7 @@ local Parties = require("src.systems.parties.party_system")
 local Knowledge = require("src.systems.knowledge.knowledge_system")
 local Personality = require("src.data.types.personality")
 local Ecs = require("src.ecs.world")
+local Injury = require("src.systems.actors.injury_system")
 local Importance = {criticalWeight = 0.5, wealthExponentBase = 2, wealthExponentGreed = 1.75,
     homeAwayPerDay = 5, homeRecoveryPerDay = 12}
 
@@ -53,7 +54,7 @@ local function healthRatio(actor)
     local maximum = Recovery.maxHealth(actor)
     return maximum > 0 and math.max(0, math.min(1, (actor.hp or maximum) / maximum)) or 1
 end
-function Importance.recovery(goal, actor, party)
+function Importance.recoveryHealth(goal, actor, party)
     local personal = Importance.health(healthRatio(actor))
     if not party or Parties.getLeader(party) ~= actor then return personal end
     local total, count, worst = 0, 0, 1
@@ -68,6 +69,19 @@ function Importance.recovery(goal, actor, party)
     -- Only HP below 30% adds critical urgency; party size never multiplies it.
     local critical = 100 * math.max(0, (0.3 - worst) / 0.3)
     return math.max(personal, average + (100 - average) * Importance.criticalWeight * critical / 100)
+end
+function Importance.recovery(goal, actor, party)
+    local urgency = Recovery.isLiving(actor) and Injury.importance(actor) or 0
+    if party and Parties.getLeader(party) == actor then
+        local total, count = 0, 0
+        for _, member in ipairs(party.actors or {}) do
+            if Recovery.isLiving(member) then
+                total, count = total + Injury.importance(member), count + 1
+            end
+        end
+        if count > 0 then urgency = math.max(urgency, total / count) end
+    end
+    return Importance.clamp(Importance.recoveryHealth(goal, actor, party) + urgency)
 end
 function Importance.wealth(goal, actor, party)
     local target = goal.amount or 10000

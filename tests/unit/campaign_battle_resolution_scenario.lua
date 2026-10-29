@@ -37,7 +37,7 @@ local function fixture(player, detached)
             actor.stats.attack, actor.stats.defense = 10, 10
             actor.equipment = {offHand = "wooden_shield"}
             actor.itemDurability = {wooden_shield = 5}
-            actor.inventory = {iron_sword = 1}
+            actor.inventory = {{id = "iron_sword", quantity = 1}}
             actor.statusEffects = {}
             actor:give("memory")
             Parties.addActor(party, actor)

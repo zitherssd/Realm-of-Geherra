@@ -6,6 +6,7 @@ return {
         id = "gaia_wild_giant",
         name = "Wild Giant",
         type = "gaia_giants",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/wild_giant_idle.png",
         stats = {
             health = 46,
@@ -24,6 +25,7 @@ return {
         id = "gaia_cyclops",
         name = "Cyclops",
         type = "gaia_giants",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/cyclops_idle.png",
         stats = {
             health = 42,
@@ -42,6 +44,7 @@ return {
         id = "gaia_giant_chieftain_commander",
         name = "Giant Chieftain",
         type = "gaia_giants",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/giant_chieftain_commander_idle.png",
         stats = {
             health = 52,
@@ -60,6 +63,7 @@ return {
         id = "gaia_cyclops_commander",
         name = "Cyclops",
         type = "gaia_giants",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/cyclops_commander_idle.png",
         stats = {
             health = 47,
@@ -78,6 +82,7 @@ return {
         id = "gaia_cyclops_smith_commander",
         name = "Cyclops Smith",
         type = "gaia_giants",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/cyclops_smith_commander_idle.png",
         stats = {
             health = 47,
@@ -96,6 +101,7 @@ return {
         id = "gaia_elder_cyclops_commander",
         name = "Elder Cyclops",
         type = "gaia_giants",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/elder_cyclops_commander_idle.png",
         stats = {
             health = 63,
@@ -114,6 +120,7 @@ return {
         id = "gaia_giant_shepherd",
         name = "Giant Shepherd",
         type = "gaia_giants",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/giant_shepherd_idle.png",
         stats = {
             health = 47,
@@ -132,6 +139,7 @@ return {
         id = "gaia_earth_seer",
         name = "Earth Seer",
         type = "gaia_giants",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/earth_seer_idle.png",
         stats = {
             health = 18,

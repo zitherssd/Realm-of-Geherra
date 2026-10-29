@@ -4,6 +4,7 @@ return {
     -- Gaia monster 5936; source sprite: dire_wolf.
     ["gaia_dire_wolf"] = {
         id = "gaia_dire_wolf",
+        injuryProfile = "quadruped",
         name = "Dire Wolf",
         type = "gaia_animals",
         sprite = "src/assets/sprites/units/gaia/dire_wolf_idle.png",
@@ -22,6 +23,7 @@ return {
     -- Gaia monster 5937; source sprite: giant_boar.
     ["gaia_giant_boar"] = {
         id = "gaia_giant_boar",
+        injuryProfile = "quadruped",
         name = "Giant Boar",
         type = "gaia_animals",
         sprite = "src/assets/sprites/units/gaia/giant_boar_idle.png",
@@ -40,6 +42,7 @@ return {
     -- Gaia monster 5938; source sprite: great_stag.
     ["gaia_great_stag"] = {
         id = "gaia_great_stag",
+        injuryProfile = "quadruped",
         name = "Great Stag",
         type = "gaia_animals",
         sprite = "src/assets/sprites/units/gaia/great_stag_idle.png",
@@ -58,6 +61,7 @@ return {
     -- Gaia monster 5939; source sprite: cave_bear.
     ["gaia_cave_bear"] = {
         id = "gaia_cave_bear",
+        injuryProfile = "quadruped",
         name = "Cave Bear",
         type = "gaia_animals",
         sprite = "src/assets/sprites/units/gaia/cave_bear_idle.png",
@@ -94,6 +98,7 @@ return {
     -- Gaia monster 5941; source sprite: horned_lion.
     ["gaia_horned_lion"] = {
         id = "gaia_horned_lion",
+        injuryProfile = "quadruped",
         name = "Horned Lion",
         type = "gaia_animals",
         sprite = "src/assets/sprites/units/gaia/horned_lion_idle.png",

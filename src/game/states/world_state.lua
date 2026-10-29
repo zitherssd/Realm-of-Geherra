@@ -437,7 +437,7 @@ function WorldState.update(dt)
     updateHoveredEncounter()
 
     CampaignRuntime.update(elapsedWorldSeconds, WorldState.currentMap, playerParty,
-        WorldState.isResting, recoveryReservations)
+        WorldState.isResting, recoveryReservations, elapsedWorldHours)
     if startPendingRaidBattle() then
         return
     end
@@ -723,7 +723,7 @@ function WorldState.draw()
     end
 
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.printf("WASD: move | I: inventory | L: quests | F1: debug | F2: events | F3: services", 0, love.graphics.getHeight() - 30, love.graphics.getWidth() - 20, "right")
+    love.graphics.printf("WASD: move | I: inventory | P: deployment | L: quests | F1: debug | F2: events | F3: services", 0, love.graphics.getHeight() - 30, love.graphics.getWidth() - 20, "right")
 
     -- Draw location interaction hint
     if WorldState.nearbyLocation then
@@ -798,6 +798,10 @@ function WorldState.mousepressed(x, y, button)
 end
 
 function WorldState.keypressed(key, isRepeat)
+    if key == "p" and not isRepeat and not WorldState.isResting then
+        StateManager.push("party_deployment")
+        return true
+    end
     if key == "f3" then
         if not isRepeat then
             WorldState.serviceViewer = not WorldState.serviceViewer and ServiceViewer.new(EcsWorld.campaign, WorldState.currentMap) or nil

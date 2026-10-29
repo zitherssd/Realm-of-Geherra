@@ -6,6 +6,7 @@ return {
         id = "gaia_forest_troll",
         name = "Forest Troll",
         type = "gaia_trolls",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/forest_troll_idle.png",
         stats = {
             health = 26,
@@ -24,6 +25,7 @@ return {
         id = "gaia_moss_troll",
         name = "Moss Troll",
         type = "gaia_trolls",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/moss_troll_idle.png",
         stats = {
             health = 40,
@@ -42,6 +44,7 @@ return {
         id = "gaia_troll_shaman",
         name = "Troll Shaman",
         type = "gaia_trolls",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/troll_shaman_idle.png",
         stats = {
             health = 26,

@@ -2,6 +2,7 @@
 
 local BattlefieldRemainsSystem = require("src.systems.battlefield.battlefield_remains_system")
 local InventorySystem = require("src.systems.items.inventory_system")
+local Equipment = require("src.systems.items.equipment_system")
 
 local LootApplication = {}
 
@@ -52,7 +53,7 @@ local function appendItem(inventory, item, durabilityRemaining)
     if durabilityRemaining ~= nil then
         copy.durabilityRemaining = durabilityRemaining
     end
-    inventory[#inventory + 1] = copy
+    assert(InventorySystem.addItem({inventory = inventory}, copy), "Invalid loot item")
 end
 
 local function validateResource(resource, partyIds, label)
@@ -101,13 +102,21 @@ local function collectActorResourceTotals(resources, totals, partiesByActorId, b
             end
             local kind = resource.sourceKind
             if kind == "inventory" then
-                local itemId = resource.item.id
-                actorTotals.inventory[itemId] = (actorTotals.inventory[itemId] or 0) +
+                local index = resource.sourceInventoryIndex
+                local original = (source.actor.inventory or {})[index]
+                if not original or not sameItemData(original, resource.item) then
+                    error("Actor loot metadata does not match its source stack", 3)
+                end
+                actorTotals.inventory[index] = (actorTotals.inventory[index] or 0) +
                     (resource.item.quantity or 1)
             elseif kind == "equipment" then
                 if type(resource.sourceSlot) ~= "string" or
                     actorTotals.equipment[resource.sourceSlot] then
                     error("Loot has duplicate or invalid equipment slot data", 3)
+                end
+                local original = Equipment.getEquippedItem(source.actor, resource.sourceSlot)
+                if not original or not sameItemData(original, resource.item) then
+                    error("Equipment loot metadata does not match its source slot", 3)
                 end
                 actorTotals.equipment[resource.sourceSlot] = resource.item.id
             else
@@ -177,13 +186,13 @@ local function validateResourceAccounting(lootResult, partiesById, battleResult,
         local actorResult = battleResult.actors[actorId]
         if actorResult and actorResult.defeated then
             local actual = actorTotals[actorId] or {inventory = {}, equipment = {}}
-            for itemId, quantity in pairs(source.actor.inventory or {}) do
-                if quantity > 0 and actual.inventory[itemId] ~= quantity then
+            for index, item in ipairs(source.actor.inventory or {}) do
+                if actual.inventory[index] ~= (item.quantity or 1) then
                     error("Loot does not conserve defeated actor inventory", 3)
                 end
             end
-            for itemId in pairs(actual.inventory) do
-                if ((source.actor.inventory or {})[itemId] or 0) == 0 then
+            for index in pairs(actual.inventory) do
+                if not (source.actor.inventory or {})[index] then
                     error("Loot references unknown defeated actor inventory", 3)
                 end
             end
@@ -282,6 +291,7 @@ function LootApplication.prepare(lootResult, context)
             error("Encounter parties require actor rosters and item-list inventories", 2)
         end
         if partiesById[party.id] then error("Encounter party IDs must be unique", 2) end
+        if not InventorySystem.isValid(party.inventory) then error("Invalid party inventory", 2) end
         partiesById[party.id] = party
         partyIds[party.id] = true
         local state = lootResult.partyStates and lootResult.partyStates[party.id]
@@ -291,6 +301,7 @@ function LootApplication.prepare(lootResult, context)
         local survivors = 0
         for _, actor in ipairs(party.actors) do
             if partiesByActorId[actor.id] then error("Encounter actor IDs must be unique", 2) end
+            if not InventorySystem.isValid(actor.inventory) then error("Invalid actor inventory", 2) end
             partiesByActorId[actor.id] = {party = party, actor = actor}
             local actorResult = context.battleResult.actors[actor.id]
             if type(actorResult) ~= "table" or actorResult.partyId ~= party.id then
@@ -430,7 +441,8 @@ function LootApplication.apply(plan)
         end
     end
     for _, actor in ipairs(plan.defeatedActors) do
-        for key in pairs(actor.inventory or {}) do actor.inventory[key] = nil end
+        assert(InventorySystem.replaceListContents(actor, {}))
+        for key in pairs(actor.equipmentItems or {}) do actor.equipmentItems[key] = nil end
         for key in pairs(actor.equipment or {}) do actor.equipment[key] = nil end
         for key in pairs(actor.itemDurability or {}) do actor.itemDurability[key] = nil end
     end

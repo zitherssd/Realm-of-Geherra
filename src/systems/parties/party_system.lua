@@ -4,6 +4,7 @@
 local InventorySystem = require("src.systems.items.inventory_system")
 
 local PartySystem = {}
+local Injury = require("src.systems.actors.injury_system")
 
 -- Pixels/second for a party whose average world-map speed stat is 10.
 PartySystem.worldSpeed = 80
@@ -35,9 +36,13 @@ function PartySystem.removeActor(party, actor)
     for i, a in ipairs(party.actors) do
         if a == actor then
             table.remove(party.actors, i)
+            require("src.game.battle.squads").reconcile(party)
 
             if party.leaderId == actor.id then
                 party.leaderId = party.actors[1] and party.actors[1].id or nil
+            end
+            if actor.__world and actor.__world.injuryTreatments then
+                require("src.systems.actors.injury_treatment").update(0, actor.__world)
             end
             return true
         end
@@ -148,6 +153,7 @@ function PartySystem.removeFromParty(party, actorId)
     for i, actor in ipairs(party.actors) do
         if actor.id == actorId then
             table.remove(party.actors, i)
+            require("src.game.battle.squads").reconcile(party)
             
             -- If removed actor was leader, assign new leader
             if party.leaderId == actorId then
@@ -156,6 +162,9 @@ function PartySystem.removeFromParty(party, actorId)
                 else
                     party.leaderId = nil
                 end
+            end
+            if actor.__world and actor.__world.injuryTreatments then
+                require("src.systems.actors.injury_treatment").update(0, actor.__world)
             end
             return true
         end
@@ -176,7 +185,7 @@ function PartySystem.getPartySpeed(party, baseSpeed, map)
     local actors = party and party.actors or {}
     local totalSpeed = 0
     for _, actor in ipairs(actors) do
-        totalSpeed = totalSpeed + (actor.stats and actor.stats.speed or 10)
+        totalSpeed = totalSpeed + Injury.stat(actor, "speed", actor.stats and actor.stats.speed or 10)
     end
     local average = #actors > 0 and totalSpeed / #actors or 10
     local speed = (baseSpeed or PartySystem.worldSpeed) * average / 16
@@ -238,7 +247,7 @@ function PartySystem.getPartySight(party)
 
     local sights = {}
     for _, actor in ipairs(party.actors) do
-        table.insert(sights, actor.sight or 0)
+        table.insert(sights, Injury.stat(actor, "sight", actor.sight or 0))
     end
     table.sort(sights, function(a, b) return a > b end)
 

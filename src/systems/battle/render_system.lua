@@ -5,7 +5,8 @@ local RenderSystem = {}
 
 local SPRITE_FEET_OFFSET_DIAMETER_RATIO = 1 / 3
 local UNIT_HEALTH_BAR_WIDTH = 40
-local UNIT_GLOBAL_VISUAL_SCALE = 1.3
+local UNIT_BASE_VISUAL_SCALE = 1.3
+local UNIT_VISUAL_SCALE_PER_SIZE = 0.08
 
 local imageCache = {}
 
@@ -93,10 +94,11 @@ local function getStatusIntensity(unit, statusId)
     return 0
 end
 
-local function getActorSizeScale(actor)
+local function getActorRenderScale(actor)
     local size = (actor and actor.size) or 3
-    local scale = 1.0 + ((size - 3) * 0.1)
-    return math.max(0.1, scale)
+    local scale = UNIT_BASE_VISUAL_SCALE * (1 + math.min(size - 3, 0) * 0.1)
+        + math.max(size - 3, 0) * UNIT_VISUAL_SCALE_PER_SIZE
+    return math.max(0.13, scale)
 end
 
 function RenderSystem.update(dt, context)
@@ -284,8 +286,7 @@ function RenderSystem.draw(context)
         local freezeIntensity = getStatusIntensity(unit, "freeze")
         local paralyzeIntensity = getStatusIntensity(unit, "paralyze")
         local collisionRadius = unit.collisionRadius or 18
-        local sizeScale = getActorSizeScale(unit.actor)
-        local renderScale = sizeScale * UNIT_GLOBAL_VISUAL_SCALE
+        local renderScale = getActorRenderScale(unit.actor)
 
             if unit.visualEffects and unit.visualEffects.shakeTime > 0 then
                 local magnitude = 3 * (unit.visualEffects.shakeTime * 4)

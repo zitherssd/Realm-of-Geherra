@@ -100,6 +100,7 @@ local function accessible(actor, context, customer)
 end
 
 function Services.isProviding(actor, context)
+    if actor and actor.__world and (actor.__world.injuryTreatments or {})[actor.id] then return false end
     local offers = false
     for _, goal in ipairs(actor.npc_goals and actor.npc_goals.goals or {}) do
         if goal.type == "provide_service" and goal.status ~= "cancelled" and goal.status ~= "invalid"
@@ -258,6 +259,7 @@ function Services.accept(id, worker, context)
     local available, reason = Services.isAvailable(id, context)
     if not available then return false, reason end
     if not Recovery.isLiving(worker) or worker.__world ~= worldFor(context) then return false, "worker_unavailable" end
+    if (worker.__world.injuryTreatments or {})[worker.id] then return false, "treatment_busy" end
     if worker.id == request.employerId then return false, "self_assignment" end
     if Services.hasObligation(worker, context) then return false, "conflicting_obligation" end
     request.status, request.assignedActorId = "assigned", worker.id

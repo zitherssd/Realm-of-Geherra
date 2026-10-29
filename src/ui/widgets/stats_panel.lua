@@ -5,6 +5,7 @@ local StatsPanel = {}
 StatsPanel.__index = StatsPanel
 
 local Items = require("src.data.items")
+local Injury = require("src.systems.actors.injury_system")
 
 -- Damage types with flat protection (innate + equipment). Mirrors
 -- systems/battle/combat_system.lua getTotalProtection.
@@ -52,6 +53,9 @@ local function buildEffectiveStats(actor)
         end
     end
 
+    for _, stat in ipairs({"attack", "defense", "speed", "battle_speed"}) do
+        effectiveStats[stat] = Injury.stat(actor, stat, effectiveStats[stat] or 0)
+    end
     return effectiveStats
 end
 
@@ -92,10 +96,6 @@ function StatsPanel:draw(actor)
     love.graphics.setColor(0.4, 0.4, 0.4, 1)
     love.graphics.rectangle("line", self.x, self.y, self.width, self.height)
 
-    love.graphics.setFont(self.titleFont)
-    love.graphics.setColor(1, 0.8, 0.2, 1)
-    love.graphics.print("Stats", self.x + 10, self.y + 10)
-
     local stats = buildEffectiveStats(actor)
     local maxHealth = actor.maxHp or stats.maxHealth or actor.maxHealth or stats.health or 0
     local currentHealth = actor.hp or maxHealth
@@ -106,17 +106,18 @@ function StatsPanel:draw(actor)
         "ATK: " .. tostring(stats.attack or 0),
         "DEF: " .. tostring(stats.defense or 0),
         "SPEED: " .. tostring(stats.speed or 0),
-        "B. SPEED: " .. tostring(stats.battle_speed or 0)
+        "B. SPEED: " .. tostring(stats.battle_speed or 0),
+        "SIGHT: " .. tostring(Injury.stat(actor, "sight", actor.sight or 0))
     }
 
     local lineHeight = 18
     local contentTop = self.y + 36 - self.scrollOffset
     local twoColumns = self.width >= 340
     local protectX = twoColumns and (self.x + self.width / 2) or (self.x + 10)
-    local protectTop = twoColumns and (self.y + 10) or contentTop + (#statLines + 2) * lineHeight
+    local protectTop = twoColumns and (self.y + 10 - self.scrollOffset) or contentTop + (#statLines + 2) * lineHeight
     self.contentHeight = twoColumns and (#statLines * lineHeight) or ((#statLines + 2 + #DAMAGE_TYPES) * lineHeight)
 
-    love.graphics.setScissor(self.x, self.y, self.width, self.height)
+    love.graphics.setScissor(self.x, self.y + 36, self.width, self.height - 36)
     love.graphics.setFont(self.bodyFont)
     love.graphics.setColor(0.9, 0.9, 0.9, 1)
     for index, line in ipairs(statLines) do
@@ -125,7 +126,7 @@ function StatsPanel:draw(actor)
 
     love.graphics.setFont(self.titleFont)
     love.graphics.setColor(1, 0.8, 0.2, 1)
-    love.graphics.print("Protections", protectX, protectTop)
+    if not twoColumns then love.graphics.print("Protections", protectX, protectTop) end
     love.graphics.setFont(self.bodyFont)
 
     local protections = buildEffectiveProtections(actor)
@@ -140,11 +141,24 @@ function StatsPanel:draw(actor)
         end
         love.graphics.print(label .. ": +" .. tostring(value), protectX + 10, rowY)
     end
+    local injuryY = twoColumns and contentTop + math.max(#statLines, #DAMAGE_TYPES) * lineHeight + 10
+        or protectTop + 24 + #DAMAGE_TYPES * lineHeight + 10
+    love.graphics.setColor(0.9, 0.9, 0.9, 1)
+    for _, line in ipairs(Injury.lines(actor)) do
+        local _, wrapped = self.bodyFont:getWrap(line, self.width - 30)
+        love.graphics.printf(line, self.x + 15, injuryY, self.width - 30)
+        injuryY = injuryY + math.max(1, #wrapped) * lineHeight
+    end
+    self.contentHeight = injuryY + self.scrollOffset - (self.y + 36)
     love.graphics.setScissor()
+    love.graphics.setFont(self.titleFont)
+    love.graphics.setColor(1, 0.8, 0.2, 1)
+    love.graphics.print("Stats", self.x + 10, self.y + 10)
+    if twoColumns then love.graphics.print("Protections", protectX, self.y + 10) end
 end
 
 function StatsPanel:wheelmoved(_, y)
-    if self.width >= 520 or self.contentHeight <= self.height - 36 then return end
+    if self.contentHeight <= self.height - 36 then return end
     local maxOffset = math.max(0, self.contentHeight - (self.height - 36))
     self.scrollOffset = math.max(0, math.min(maxOffset, self.scrollOffset - y * 20))
 end

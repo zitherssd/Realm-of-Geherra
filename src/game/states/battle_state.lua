@@ -75,9 +75,16 @@ function BattleState.enter(params)
         partyAId = playerParty.id, partyBId = enemyParty.id,
         x = playerParty.x, y = playerParty.y, state = "active"
     }
+    playerParty.activeEncounterId, enemyParty.activeEncounterId = BattleState.encounter.id, BattleState.encounter.id
 end
 
 function BattleState.exit()
+    if BattleState.encounter and BattleState.simulation then
+        for _, party in ipairs({BattleState.simulation.partyA, BattleState.simulation.partyB}) do
+            if party.activeEncounterId == BattleState.encounter.id then party.activeEncounterId = nil end
+        end
+        require("src.systems.actors.injury_treatment").update(0, BattleState.simulation.partyA.__world)
+    end
     BattleState.enemyParty = nil
     BattleState.onVictory = nil
     BattleState.onComplete = nil
@@ -176,7 +183,10 @@ function BattleState.update(dt)
                     local skillData = CombatSystem.getEffectiveSkill(playerUnit, skillId)
 
                     if skillData then
-                        if isTargetedAoeSkill(skillData) then
+                        if skillData.type == "command" then
+                            BattleContext.data.playerCommand = {type="SKILL", skillId=skillId, unitId=playerUnit.id}
+                            BattleContext.data.inputCooldown = 0.2
+                        elseif isTargetedAoeSkill(skillData) then
                             local nearestEnemy = getNearestEnemyUnit(playerUnit)
                             local defaultPoint = nearestEnemy and {x = nearestEnemy.x, y = nearestEnemy.y} or {x = playerUnit.x, y = playerUnit.y}
                             BattleContext.data.targetingMode = true

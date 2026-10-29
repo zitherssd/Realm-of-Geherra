@@ -128,7 +128,7 @@ conversion, pause/modal behavior, zero-time cleanup and reset/subscription lifec
 The implementation uses the following minimal, compatible model:
 
 - Party cargo remains a list of item tables, as in the current runtime, with ownership represented by the party entity itself.
-- Actor personal inventory remains the existing item-ID quantity map; `inventoryFormat` disambiguates empty inventories, while populated legacy inventory shapes remain recognizable.
+- Milestone 8C.5 supersedes the original actor quantity map: every owner now uses the same dense list of item instances, without `inventoryFormat`.
 - Resident NPCs remain in `location.npcs` as the independent resident roster.
 - Stationed parties are tracked only in `location.stationedParties`; there is no mirrored party location field.
 - `Map:stationParty` enforces one location per party, while adding a party to the traveling map removes its stationed membership. Party removal clears any stationed reference.
@@ -1973,3 +1973,316 @@ No committed/timed activity locks, multi-day treatment, persistent injuries, See
 fleeing, relocation, new caravan routes, passenger departure, personality evolution or full
 save/load are introduced. See [Milestone 8B report](MILESTONE_8B_REPORT.md) for the file list,
 validation results, decisions and manual playtest steps.
+
+## Milestone 8C: Persistent injuries
+
+Actors now own an `injuryProfile` ID and an `injuries` list of minimal
+`{id = "broken_leg", bodyPart = "left_leg"}` entries. Stable IDs resolve names,
+severity and effects through `src/data/injuries.lua`; injuries are independent of
+HP and runtime status effects. Rest, regeneration, settlement healing, travel,
+party membership and goal changes never remove injuries. Save/load remains future work.
+
+### Acquisition and anatomy
+
+`CombatSystem._applyBattleDamage` is the single acquisition point shared by melee,
+casts, projectiles and both interactive/headless simulations. It uses the actual
+post-protection HP delta divided by battle `maxHp`, and rolls only after positive
+damage to a surviving defender. Status damage explicitly opts out: a burn/poison
+tick is not a new hit. Invalid/nonpositive/nonfinite max HP safely skips acquisition.
+Fatal blows produce no injury; later death still takes precedence over earlier wounds.
+No hit, damage, protection or lethality formula is replaced.
+
+The configurable piecewise-linear occurrence curve in `data.injuries.occurrenceCurve`
+maps damage fractions 0, .05, .10, .20, .30, .50, .75 to probabilities 0, .005, .01,
+.03, .07, .20, .50. Above .75 remains .50. On successful occurrence a separate RNG
+draw uses `majorCurve`: fractions 0–.30 have probability 0, .50 maps to .20, and 1
+maps to 1, clamped above 1. Thus a .75 hit has .50 occurrence × .60 conditional
+major = .30 overall major chance. Otherwise the injury is minor. Combat keeps its
+existing `math.random` conventions; the shared Injury helper supports injected RNG.
+
+Profiles hold ordered weighted locations, then select compatible definitions by
+severity/category and selection weight (candidate IDs sorted for deterministic RNG):
+
+| Profile | Weighted body parts |
+|---|---|
+| humanoid | torso 30; left/right arm 15 each; left/right leg 15 each; head 10 |
+| quadruped | torso 30; head 10; front/rear left/right leg 15 each |
+| dragon | head 10; torso 30; left/right wing 10 each; left/right leg 15 each; tail 10 |
+| plant | trunk 40; left/right branch 15 each; roots 30 |
+
+Troops explicitly reference their profile in existing definition files: ogres share
+humanoid anatomy, wolves/horses use quadruped, Dragon uses dragon, and Gaia plants
+(including Walking Tree) use plant. Unsupported bird, arthropod, serpent, centaur
+and hybrid anatomies currently omit a profile and skip acquisition safely. Combat
+has no species dispatch or implicit humanoid fallback. Catalog loading validates
+weights, supported effect values and minor/major coverage for every weighted part;
+troop loading checks profile references. Invalid runtime profiles skip generation.
+
+### Conditions and effective modifiers
+
+`Injury.apply` accepts one condition per exact body part: empty accepts; minor →
+major replaces; equal severity and major → minor retain the old entry. Different
+limbs coexist. An unsuccessful worsening does not reroll the location/definition.
+Hands and claws use their parent arm/leg slot in this initial anatomy model.
+
+The initial catalog covers bruised ribs, sprained ankle, wounded arm, concussion,
+facial wound, broken leg, crushed hand, damaged eye and severe chest injury, plus
+anatomy-specific jaw/paw/torso wounds, dragon wing/claw/tail/scale conditions, and
+plant bark/trunk/limb/root conditions. Minor combat penalties are generally -1;
+major are generally -3. A broken leg multiplies movement by .6, a sprain by .85,
+and damaged eye multiplies sight by .65 with Attack -2. See the
+[8C report](MILESTONE_8C_REPORT.md) for the complete named catalog and exact values.
+All numerical effects and selection weights are in `data.injuries.definitions`.
+
+`Injury.stat` derives Attack/Defense during opposed hit resolution, leaving copied
+equipment/base stats untouched. Penalties on separate body parts add for combat;
+speed/sight multipliers multiply, with combined multipliers floored at .2 and
+effective values clamped nonnegative. PartySystem applies movement modifiers to each
+member before its existing mean-speed calculation (`worldSpeed * average / 16`),
+then existing party and terrain modifiers. Manual movement, Travel, Roam and Raid
+continue through that common speed path. Sight modifies each observer before the
+existing best-five sum; VisibilitySystem uses that result for its normal detection.
+There is no injury-specific movement or visibility simulation.
+
+Movement injury multipliers also derive effective `battle_speed` at each battle
+movement step. The existing movement/global cooldown formula uses that reduced
+value; a broken leg turns baseline 10 into 6, increasing a zero-variance movement
+cooldown from 12 to 20 ticks. Newly acquired injuries affect the next movement step.
+Stored stats and skill-specific windup/cooldown values remain unchanged. Inventory's
+`B. SPEED` display uses the same injury-adjusted value.
+
+### Battle boundary and persistence
+
+BattleUnit deep-copies actor injuries into each isolated battle world. Injury effects
+are not baked into stats during transfer, so old penalties apply exactly once and
+new conditions affect subsequent combat immediately. BattleSimulation results include
+deep-copied final injury entries. Interactive BattleState and HeadlessBattleRunner
+already converge on CampaignBattleResolution/CampaignBattleResultApplier; those
+lifecycle responsibilities remain unchanged. Headless simulation never writes
+injuries directly to campaign actors.
+
+The applier validates injury list shape, stable IDs, anatomy compatibility and body
+part uniqueness before mutations. It applies survivors' entries using the same
+worsening rule, preserving old conditions and accepting older result fixtures that
+omit injuries. Defeated actors receive no injury copy-back and leave rosters as
+before. Existing encounter application guards prevent duplicate results; repeated
+result access is a read. Battle cleanup releases transient state without sharing
+injury tables across simulations, result snapshots or campaign actors. Casualty,
+loot, caravan, raid and treasury accounting retain their established paths.
+
+### Recovery, inspection and future treatment
+
+`Importance.recoveryHealth` is the previous HP-only calculation.
+`Importance.recovery` adds persistent injury urgency: minor 8 and major 25 per part,
+capped at 100 per actor. Leaders use the greater of their personal injury urgency
+and the mean among living party members, then add it to the existing HP urgency and
+clamp to 100. Non-leaders consider their own condition. These initial injury urgency
+values live in `data.injuries.recoveryImportance`.
+
+At full group HP, injuries still produce positive, unsatisfied motivation.
+RestAndRecover becomes ineligible with `injury_treatment_unavailable`, using existing
+blocked-goal/fallback semantics, and releases its owned activity/recovery flag.
+It neither starts ineffective Rest nor travels or purchases nonexistent treatment.
+Other feasible motivations can run; with none, ordinary idle behavior resumes.
+HP damage makes recovery actionable again. When HP can improve, normal settlement
+travel/healing and rest remain available. Instant healing checks HP-only urgency
+before creating a rest attempt; RestActivity completes at full living-group HP.
+The five-point dynamic-importance threshold remains unchanged for eligible goals.
+
+Inventory's existing scrollable StatsPanel shows effective combat/speed/sight values
+and wrapped injury name/severity/body part/penalty lines. F1 actor and party-roster
+inspection expose the same readable entries, or `Injuries: none`; F2/F3 retain their
+existing behavior. No treatment interface is added.
+
+Injuries remain untreated because 8C implements acquisition and consequences only.
+8D can extend the existing actor-owned state and service/activity paths with explicit
+treatment/removal and make recovery eligible when care becomes actionable. Ordinary
+HP recovery must continue to preserve injuries. No herb economy, stock, payments,
+timers, automatic removal, incapacitation, prisoners or speculative treatment APIs
+are introduced here. The [8C report](MILESTONE_8C_REPORT.md) records file scope,
+automated coverage, baseline regression failures, decisions and manual playtest steps.
+
+
+## Milestone 8C.5: unified inventories
+
+`src/systems/items/inventory_system.lua` is the single implementation for actor
+possessions, party cargo, merchant stock, generated rewards and battlefield remains.
+Each inventory is a dense Lua list of plain item-instance tables:
+
+```lua
+local Inventory = require("src.systems.items.inventory_system")
+location.inventory = Inventory.new()
+Inventory.addItem(location, {id = "bread", quantity = 2, metadata = {batch = "north"}})
+```
+
+The owner is any table with an `inventory` field; no owner type, ECS component or
+permission check is required by the helper. Actors and parties initialize independent
+lists. Adding/removing members or replacing/killing a leader never transfers personal
+possessions or aliases shared cargo. Existing explicit merchant cargo ownership is
+retained. Location ownership requires no new implementation, but this milestone adds
+no location stock, market, capacity, gathering, treatment or economy behavior.
+
+### Shared operations
+
+- `new()` returns an empty inventory list.
+- `getInventory(owner)` returns the live list, initializing a missing list; use it for
+  listing/UI access. Callers must use mutation helpers rather than editing quantities.
+- `addItem(owner, itemOrId, quantity?)` clones the complete item and returns its row
+  index, or nil. An explicit quantity overrides the item quantity; the default is one.
+- `removeItem(owner, indexOrIdOrInstance, quantity?)` returns the removed item or nil.
+- `getItemCount(owner, itemId)` sums all matching quantities;
+  `hasItem(owner, itemId, quantity?)` checks availability (default one).
+- `transferItem(sourceOwner, indexOrIdOrInstance, targetOwner, quantity?)` checks both
+  lists and available quantity, adds an independent copy, and debits the source only
+  after acceptance. It returns a detached item snapshot or nil.
+- `transferAll(sourceOwner, targetOwner)` preflights the whole transfer, then uses
+  `transferItem`; returns true or false. Source/destination list identities survive.
+- `replaceListContents(owner, items)` commits an already prepared loot inventory in
+  place; `copyInventory`, `deepClone`, `itemSignature`, `stackable`, and `isValid`
+  support existing snapshot/planning callers.
+
+For remove/transfer, an ID chooses the first matching stack, an index chooses one row,
+and an instance must be the actual source row. Omitted quantity moves/removes that
+whole stack. Requests exceeding that stack fail even if another metadata-distinct
+stack has the same ID. Counts and availability checks aggregate across stacks.
+Quantities must be positive finite whole numbers. Existing entries with omitted
+quantity mean one; helper-created entries always have explicit quantities. Empty,
+non-string item IDs and malformed/dictionary inventories are rejected on mutation;
+there is no automatic lossy actor-map reinterpretation.
+
+### Stacking and item state
+
+Only items whose entire data matches except `quantity` merge. Nested metadata,
+enchantments, durability, definition fields and provenance fields all participate.
+Different durability or metadata always remains separate. `stackable = false` on an
+instance or definition prevents merging and creates one row per item. `instanceId`
+marks an indivisible item and prevents merging and duplicate identity within an
+inventory. Transfers clone nested data so the recipient, result snapshot, and source
+cannot mutate each other's metadata. Runtime table identity is not a persistent item
+identifier; use `instanceId` where gameplay needs identity.
+
+Actors retain `equipment[slot] = itemId` so combat, skills, slots and data definitions
+remain compatible. `equipmentItems[slot]` holds that equipped instance's additional
+state; it is equipment state, never a second cargo inventory. `EquipmentSystem`
+accepts an item instance or ID, returns the previous ID plus its item snapshot, and
+provides `getEquippedItem`. The inventory UI consumes one item and returns the actual
+previous instance, including metadata. Equipment-to-equipment moves snapshot both
+slots first. Shield wear continues using the existing `itemDurability[itemId]` map;
+reading/unequipping the off-hand item incorporates current wear. Battle snapshots
+and result application keep their existing equipment/durability contracts, and result
+application removes state for broken slots. Breaking equipped gear never deletes a
+spare in personal cargo. Initial troop equipment is not duplicated into inventory.
+
+### Loot, remains and currency
+
+Actor loot accounting now records `sourceInventoryIndex` as party cargo already did.
+Each source stack's metadata and quantities are checked before applying the prepared
+loot plan, including same-ID variants. Equipment slots also validate their source
+metadata. Existing stolen/destroyed/retained proportions and distribution are unchanged.
+Loot plans build inventories with the shared add helper and commit via
+`replaceListContents`; encounter guards still prevent double application.
+
+A remains site owns `site.inventory`. `site.loot.gold` retains its existing currency
+role. Corpses, discovery, history, encounter links and event links remain intact;
+`history.resourceAllocations` retains original resource provenance as historical
+snapshots, never transferable stock. Dialogue and collection read `site.inventory`.
+Collection prevalidates serializable resources and gold, then calls `transferAll`.
+Compatible stacks merge just as they do for other owners. Collection clears items and
+gold while retaining corpses/history; repeated collection grants nothing.
+
+Remains serialization writes schema version 2. Restore accepts version 1 and converts
+its resource-wrapped or plain `loot.items` to the canonical list, preserving wrapper
+provenance in history and equipment durability on the item. It removes the old item
+field and publishes the restored map only after validation. This is a local remains
+snapshot migration, not full save/load or live campaign hot migration.
+
+Generated drops retain the existing `Item.new` field defaults (including value and
+weight), drop probabilities and gold rolls; the inventory helper copies them to plain
+tables and stacks them without metatable methods. Trader stock retains copied item
+definitions. PartySystem delegates existing item operations to the shared helper.
+Shop and caravan transfers keep their existing treasury rules; services currently
+transact currency rather than inventory items. Personal and party treasury stay
+separate numeric fields, and `transferGold` is unchanged. No gold item model is added.
+
+All runtime `inventoryFormat` dispatch and actor map operations are removed. Fixtures,
+NPC creation, reward/loot UI, battlefield interaction and remains readers use the list.
+The old `src/entities/item.lua` stack methods remain unused by inventory operations;
+the constructor is retained for generated drop compatibility. Direct list reads remain
+in UI/debugging, loot planning, cargo checks and regression assertions. Initialization,
+stock refresh, test setup and the shared helper still assign lists directly.
+
+## Milestone 8D: Injury treatment
+
+`src/systems/actors/injury_treatment.lua` owns persistent-injury treatment. Its shared
+`start(healer, patient, injuryEntry, inventoryOwner)`,
+`advance(treatment, elapsedWorldHours, world, encounterReservations?, rng?)`, and
+`cancel(treatment, world, reason?)` operations validate living campaign identities,
+the existing `npc_goals.capabilities.heal`, the exact injury ID/body part, resource
+availability, combat and treatment ownership. Starting consumes one `healing_herbs`
+through InventorySystem. A 12-world-hour attempt rolls `< 0.5` for success, removes
+only that injury on success, and never changes HP. Failure/cancellation loses the
+herb. Every terminal result releases availability and records a plain-data
+`lastTreatment` snapshot where participants still exist.
+
+Active records live in `world.injuryTreatments[healerId]`, not a module singleton
+or a battle world. They contain healer/patient IDs, injury ID/body part, elapsed
+and required hours, status, and automatic access policy. This registry is the only
+authority for active treatment; patient availability is derived from it, avoiding
+a second busy flag that could become stale. One healer has one record; a patient
+can appear in only one active record. ServiceSystem excludes treating providers
+from instantaneous HP services and new assignments. Automatic care also excludes
+actors with existing service obligations. The shared process has no payment,
+reward, commission-completion, primary-goal or mandatory-party requirement;
+requesters choose their physical access and inventory policy.
+
+`Treatment.update` requests free automatic care for each configured healer. It
+randomly chooses a living injured member of the healer's own current roster, then
+one compatible injury. Self-treatment is allowed, including for independent actors;
+independent healers never select other residents. The automatic caller selects
+shared party herbs before personal herbs and never borrows another actor's cargo,
+another party's stock, convoy supplies or settlement resources. Empty stock is
+checked without attempting a failing debit. Joining/leaving a party never transfers
+or aliases cargo. A treatment started within a party records that party's ID and
+cancels if either participant leaves it; independent self-treatment remains
+accessible when its healer joins a party.
+
+WorldState passes the actual hours returned by TimeSystem through the final
+`CampaignRuntime.update` argument. Treatment uses these hours directly, while all
+existing movement/HP-recovery simulation-second paths keep their current units.
+The clock currently advances `24 / 15 = 1.6` hours per real second at scale one;
+`worldHoursToSeconds` returns compressed simulation seconds, not literal hours
+times 3600. Treatment never reconstructs elapsed hours from render `dt`, the
+minute-rounded displayed clock or that conversion. Pausing/zero scale supplies
+zero hours; waiting, resting, travel and acceleration supply actual elapsed hours.
+Large updates advance all treatments together to successive completion boundaries
+before selecting further patients, so multiple healers cannot compress sequential
+attempts onto one patient. Unused hours can fund another full-duration attempt;
+at an exact completion boundary the next attempt starts on the next update.
+
+Treatment occupies no WorldActivity slot and owns no goal. Travel, Roam and primary
+goal switching continue normally. At full HP, RestAndRecover retains the 8C injury
+importance and reports `injury_treatment_pending`, `injury_treatment_in_progress`
+or `injury_treatment_unavailable` through its existing blocked-goal path. These
+background-care states never create an ineffective RestActivity or displace useful
+movement. HP damage still enables ordinary rest/settlement healing.
+
+Current actor/party encounter IDs pause progress. Interactive BattleState now
+reserves its participant parties until exit, using the same party reservation field
+as WorldEncounterSystem. Recovery's existing pre-encounter reservation snapshot also
+prevents granting treatment for the update in which a headless battle finishes.
+Both roster-removal APIs and the campaign battle-result applier revalidate active
+records at zero time. Death, campaign removal, party separation, lost capability or
+replacement/removal of the selected injury cancels care. Surviving valid treatment
+resumes after combat without lost progress. No battle-unit treatment state is copied
+back, and existing result guards still govern injury acquisition and casualties.
+
+Healing Herbs are ordinary stackable consumables, weight 0.1 and base value 5, with
+no durability or item-instance behavior. Existing elder stock carries ten through
+TraderSystem's normal stock definition/restock behavior. F1's actor inspector and
+party roster show shared/personal herb counts, healer and patient names/IDs, the
+selected injury/body part, elapsed/required world hours, combat pause and the last
+outcome. No treatment screen, triage, purchasing goal, gathering, new scheduler,
+paid injury service or commission/reward mechanism is introduced.
+
+See [Milestone 8D report](MILESTONE_8D_REPORT.md) for the implementation scope,
+automated coverage, unchanged baseline failures and manual verification steps.

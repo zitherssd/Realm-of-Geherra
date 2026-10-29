@@ -17,6 +17,7 @@ local GoalSystem = {
 local Definitions = require("src.systems.goals.goal_definitions")
 local newGoal = Definitions.create
 local Importance = require("src.systems.goals.goal_importance")
+local Treatment = require("src.systems.actors.injury_treatment")
 
 -- Shared pure read API, also used by F1. Custom definitions may supply their own rule.
 function GoalSystem.getImportance(goal, actor, party)
@@ -100,7 +101,10 @@ local function condition(goal, actor, party, map, traveling)
         return false, not goal.investigation and "awaiting_knowledge" or nil
     end
     if goal.type == "rest_and_recover" then
-        return GoalSystem.getImportance(goal, actor, party) == 0, not actor.memory and "important_actor_required" or nil
+        if not actor.memory then return false, "important_actor_required" end
+        if GoalSystem.getImportance(goal, actor, party) == 0 then return true end
+        if Importance.recoveryHealth(goal, actor, party) == 0 then return false, Treatment.recoveryState(actor, party) end
+        return false
     end
     if goal.type == "provide_service" then
         if not actor.memory then return false, "important_actor_required" end
@@ -383,6 +387,14 @@ local function updateActor(actor, party, dt, map, playerParty, traveling)
         if selected.type == "rest_and_recover" then
             selected.recovering = true
             Services.tryRecoveryHealing(actor, selected, {world = actor.__world, map = map})
+            if Importance.recoveryHealth(selected, actor, party) == 0
+                and GoalSystem.getImportance(selected, actor, party) > 0 then
+                local reason = Treatment.recoveryState(actor, party)
+                release(selected, actor, reason)
+                selected.status, selected.reason = "blocked", reason
+                state.selectedGoalIndex = nil
+                return
+            end
             if GoalSystem.getImportance(selected, actor, party) == 0 then
                 release(selected, actor, "goal_satisfied")
                 selected.status, state.selectedGoalIndex = "satisfied", nil

@@ -3,6 +3,7 @@
 
 local Concord = require("src.libs.concord")
 local IdAllocator = require("src.core.id_allocator")
+local Inventory = require("src.systems.items.inventory_system")
 
 local function partyAssemblage(e, name, leaderId, id)
     e:give("party")
@@ -18,6 +19,7 @@ local function partyAssemblage(e, name, leaderId, id)
 
     -- Party composition
     e.leaderId = leaderId  -- Reference to leader actor's id
+    e.squads = {}
     e.actors = {}          -- List of actor entities in the party
 
     -- Party state
@@ -25,8 +27,7 @@ local function partyAssemblage(e, name, leaderId, id)
     e.faction = nil
 
     -- Party resources
-    e.inventory = {}
-    e.inventoryFormat = "list"
+    e.inventory = Inventory.new()
     e.treasury = 0        -- Shared gold/currency
     e.supplies = 100       -- Food, water, equipment condition
 

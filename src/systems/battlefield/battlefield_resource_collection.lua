@@ -1,5 +1,6 @@
 local BattlefieldRemainsSystem = require("src.systems.battlefield.battlefield_remains_system")
 local PartySystem = require("src.systems.parties.party_system")
+local Inventory = require("src.systems.items.inventory_system")
 
 local BattlefieldResourceCollection = {}
 
@@ -48,28 +49,6 @@ local function findSite(map, siteId)
     return nil
 end
 
-local function validateItemList(items, label)
-    if type(items) ~= "table" then
-        error(label .. " must be a list", 3)
-    end
-
-    local count = #items
-    for key, item in pairs(items) do
-        if type(key) ~= "number" or key < 1 or key % 1 ~= 0 or key > count then
-            error(label .. " must be a dense item list", 3)
-        end
-        if type(item) ~= "table" then
-            error(label .. " entries must be item tables", 3)
-        end
-    end
-    for index = 1, count do
-        if items[index] == nil then
-            error(label .. " must be a dense item list", 3)
-        end
-    end
-    return count
-end
-
 function BattlefieldResourceCollection.collect(map, siteId, playerParty)
     local site = findSite(map, siteId)
     if not site then
@@ -82,12 +61,13 @@ function BattlefieldResourceCollection.collect(map, siteId, playerParty)
         (type(playerParty.id) ~= "string" and type(playerParty.id) ~= "number") then
         return {success = false, reason = "party_missing", items = {}, gold = 0}
     end
-    if type(site.loot) ~= "table" or type(site.loot.items) ~= "table" then
+    if type(site.loot) ~= "table" or type(site.inventory) ~= "table" then
         error("Battlefield site has invalid loot data", 2)
     end
 
-    local supplyCount = validateItemList(site.loot.items, "Battlefield supplies")
-    local inventoryCount = validateItemList(playerParty.inventory, "Player party inventory")
+    if not Inventory.isValid(site.inventory) or not Inventory.isValid(playerParty.inventory) then
+        error("Battlefield collection requires valid item-instance lists", 2)
+    end
     local partyGold = playerParty.treasury
     finiteNonNegative(partyGold, "Player treasury")
     finiteNonNegative(site.loot.gold, "Battlefield gold")
@@ -95,45 +75,22 @@ function BattlefieldResourceCollection.collect(map, siteId, playerParty)
         error("Battlefield and player treasury amounts must be whole numbers", 2)
     end
 
-    local resources = {}
-    for index = 1, supplyCount do
-        local item = site.loot.items[index]
-        if type(item) ~= "table" or item.id == nil then
-            error("Battlefield supply entries must be item instances with IDs", 2)
-        end
-        local quantity = item.quantity == nil and 1 or item.quantity
-        finiteNonNegative(quantity, "Battlefield supply quantity")
-        if quantity < 1 or quantity % 1 ~= 0 then
-            error("Battlefield supply quantity must be a positive whole number", 2)
-        end
-        resources[index] = copySerializable(item, "Battlefield supply item")
-    end
+    local resources = copySerializable(site.inventory, "Battlefield supplies")
 
     local gold = site.loot.gold
-    local newInventory = {}
-    for index = 1, inventoryCount do
-        newInventory[index] = playerParty.inventory[index]
-    end
-    for _, item in ipairs(resources) do
-        newInventory[#newInventory + 1] = item
-    end
     local newTreasury = partyGold + gold
     finiteNonNegative(newTreasury, "Collected treasury")
 
     local result = {
         success = true,
         collected = #resources > 0 or gold > 0,
-        items = copySerializable(resources, "Collected supplies"),
+        items = resources,
         gold = gold
     }
-    for index = #playerParty.inventory, 1, -1 do
-        playerParty.inventory[index] = nil
-    end
-    for index, item in ipairs(newInventory) do
-        playerParty.inventory[index] = item
+    if not Inventory.transferAll(site, playerParty) then
+        error("Unable to transfer battlefield inventory", 2)
     end
     PartySystem.addTreasury(playerParty, gold)
-    site.loot.items = {}
     site.loot.gold = 0
 
     return result

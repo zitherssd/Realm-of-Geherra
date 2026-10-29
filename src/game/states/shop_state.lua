@@ -24,7 +24,6 @@ function ShopState.enter(params)
     if not merchant.inventory then
         merchant.inventory = {}
     end
-    merchant.inventoryFormat = "list"
 
     local screen = ShopScreen.new(playerParty, merchant, function()
         StateManager.pop()

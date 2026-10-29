@@ -44,7 +44,7 @@ local function testPartialCasualtiesAndPausedState()
     local actorADead = makeActor(world, "partial-a-dead", {
         name = "A Fallen",
         troopType = "soldier",
-        inventory = {bread = 2}
+        inventory = {{id = "bread", quantity = 2}}
     })
     local actorAAlive = makeActor(world, "partial-a-alive", {name = "A Survivor"})
     local actorBDead = makeActor(world, "partial-b-dead", {
@@ -114,7 +114,7 @@ local function testPartialCasualtiesAndPausedState()
     assert(#remains.corpses == 2, "living actors were recorded as corpses")
     assert(remains.corpses[1].actorId == actorADead.id and
         remains.corpses[2].actorId == actorBDead.id, "corpse actor IDs were not preserved")
-    assert(remains.loot.gold == 0 and #remains.loot.items == 0,
+    assert(remains.loot.gold == 0 and #remains.inventory == 0,
         "surviving parties' retained resources were incorrectly abandoned")
     local retainedBread, retainedSword = false, false
     for _, item in ipairs(partyA.inventory) do
@@ -154,7 +154,7 @@ local function testEliminatedPartyResourcesAndNonRaidEncounter()
         species = "human",
         race = "riverfolk",
         factions = {watch = true},
-        inventory = {bread = 1}
+        inventory = {{id = "bread", quantity = 1}}
     })
     local winner = makeParty(world, map, "nonraid-winner-party", {winnerActor})
     local defeated = makeParty(world, map, "nonraid-defeated-party", {deadActor})
@@ -200,9 +200,9 @@ local function testEliminatedPartyResourcesAndNonRaidEncounter()
         "corpse identity and affiliations were not preserved")
     assert(corpse.factions[1] == "watch", "actor faction affiliations were omitted")
     assert(site.loot.gold == 50, "retained gold from an eliminated party was lost")
-    assert(#site.loot.items == 1 and site.loot.items[1].item.id == "spice" and
-        site.loot.items[1].item.quantity == 10 and
-        site.loot.items[1].item.metadata.seal.intact,
+    assert(#site.inventory == 1 and site.inventory[1].id == "spice" and
+        site.inventory[1].quantity == 10 and
+        site.inventory[1].metadata.seal.intact,
         "eliminated party item metadata or quantity was not preserved")
     assert(winner.treasury == 25,
         "ordinary combat transferred gold despite plunder being disallowed")
@@ -218,7 +218,7 @@ local function testEliminatedPartyResourcesAndNonRaidEncounter()
     local restored = BattlefieldRemainsSystem.getAll(restoredMap)
     assert(#restored == 1 and restored[1].id == site.id and
         restored[1].corpses[1].actorId == corpse.actorId and
-        restored[1].loot.items[1].item.metadata.seal.intact,
+        restored[1].inventory[1].metadata.seal.intact,
         "battlefield remains did not survive the map-state serialization round trip")
     assert(restoredMap.nextBattlefieldRemainsSequence == map.nextBattlefieldRemainsSequence,
         "remains ID sequence was not restored")

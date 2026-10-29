@@ -94,7 +94,7 @@ end
 
 local function testPurityAndCombatPossessions()
     local _, partyA, partyB, actorA, actorB = makeParties()
-    actorB.inventory = {bread = 2}
+    actorB.inventory = {{id = "bread", quantity = 2}}
     actorB.equipment = {mainHand = "iron_sword"}
     actorB.itemDurability = {iron_sword = 9}
     local partyAInventory = {{id = "bread", quantity = 4, metadata = {quality = "fine"}}}

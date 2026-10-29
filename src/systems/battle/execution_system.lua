@@ -5,12 +5,13 @@ local Concord = require("src.libs.concord")
 local Statuses = require("src.data.statuses")
 local RangeUtils = require("src.systems.battle.range_utils")
 local CombatSystem = require("src.systems.battle.combat_system")
+local Injury = require("src.systems.actors.injury_system")
 
 local ExecutionSystem = Concord.system({pool = {"battleUnit"}})
 
 local WORLD_RANGE_SCALE = 42
-local PUSH_FACTOR = 0.35
-local PUSH_BACK_FACTOR = 0.25
+-- Provisional M1 calibration; displacement is local, never propagated to neighbors.
+local MOVEMENT = {substep = 2, displacementSizeGap = 1, yieldPerMove = 18, allySqueeze = 0.8}
 local MIN_DIST_EPSILON = 0.001
 
 local function isFireballProjectile(skillData)
@@ -84,49 +85,126 @@ local function applyOnHitStatuses(targetUnit, skillData)
     end
 end
 
-local function resolveSoftPush(movingUnit, context)
-    local moved = false
-    local units = context.data.unitList
+-- shortcut: allies retain up to 20% compression at rest; add recovery if playtests need wider ranks.
+local function contactDistance(a, b)
+    local distance = (a.collisionRadius or 0) + (b.collisionRadius or 0)
+    return a.team == b.team and distance * MOVEMENT.allySqueeze or distance
+end
 
-    for _, other in ipairs(units) do
-        if other ~= movingUnit and other.hp > 0 then
-            local dx = other.x - movingUnit.x
-            local dy = other.y - movingUnit.y
-            local distSq = dx * dx + dy * dy
-            local minDist = (movingUnit.collisionRadius or 0) + (other.collisionRadius or 0)
-            local minDistSq = minDist * minDist
+local function canOccupy(unit, context, ignore)
+    for _, other in ipairs(context.data.unitList) do
+        if other ~= unit and other ~= ignore and other.hp > 0 then
+            local dx, dy = unit.x - other.x, unit.y - other.y
+            local reach = contactDistance(unit, other)
+            if dx * dx + dy * dy < reach * reach - MIN_DIST_EPSILON then return false, other end
+        end
+    end
+    return true
+end
 
-            if distSq > MIN_DIST_EPSILON and distSq < minDistSq then
-                local dist = math.sqrt(distSq)
-                local overlap = minDist - dist
-                local nx = dx / dist
-                local ny = dy / dist
-
-                other.x = other.x + nx * overlap * PUSH_FACTOR
-                other.y = other.y + ny * overlap * PUSH_FACTOR
-                movingUnit.x = movingUnit.x - nx * overlap * PUSH_BACK_FACTOR
-                movingUnit.y = movingUnit.y - ny * overlap * PUSH_BACK_FACTOR
-
-                clampUnitToBounds(other, context)
-                clampUnitToBounds(movingUnit, context)
-                moved = true
-            elseif distSq <= MIN_DIST_EPSILON then
-                local nx = (math.random() - 0.5)
-                local ny = (math.random() - 0.5)
-                local nLen = math.sqrt(nx * nx + ny * ny)
-                if nLen > MIN_DIST_EPSILON then
-                    nx = nx / nLen
-                    ny = ny / nLen
-                    other.x = other.x + nx * 2
-                    other.y = other.y + ny * 2
-                    clampUnitToBounds(other, context)
+local function moveWithCollisions(unit, nx, ny, distance, context)
+    local yielded = {}
+    local steps = math.ceil(distance / MOVEMENT.substep)
+    for _ = 1, steps do
+        local oldX, oldY = unit.x, unit.y
+        unit.x, unit.y = oldX + nx * distance / steps, oldY + ny * distance / steps
+        clampUnitToBounds(unit, context)
+        local changes = {}
+        for _, other in ipairs(context.data.unitList) do
+            if other ~= unit and other.hp > 0 then
+                local dx, dy = other.x - unit.x, other.y - unit.y
+                local reach = contactDistance(unit, other)
+                if dx * dx + dy * dy < reach * reach - MIN_DIST_EPSILON then
+                    local size = (unit.actor and unit.actor.size) or 3
+                    local otherSize = (other.actor and other.actor.size) or 3
+                    local larger = size >= otherSize + MOVEMENT.displacementSizeGap
+                    local canYield = larger or (unit.team == other.team and
+                        size <= otherSize + MOVEMENT.displacementSizeGap)
+                    if canYield then
+                        local x, y = other.x, other.y
+                        -- Yield sideways to let a walker pass, with a deterministic tie break.
+                        local side = dx * -ny + dy * nx >= 0 and 1 or -1
+                        local lateral = dx * -ny + dy * nx
+                        local forward = dx * nx + dy * ny
+                        local shift = math.sqrt(math.max(0, reach * reach - forward * forward)) - math.abs(lateral)
+                        shift = math.min(shift + 0.001, MOVEMENT.yieldPerMove - (yielded[other] or 0))
+                        other.x, other.y = x - ny * side * shift, y + nx * side * shift
+                        clampUnitToBounds(other, context)
+                        if canOccupy(other, context, unit) then
+                            changes[#changes + 1] = {unit = other, x = x, y = y, shift = shift}
+                        else
+                            other.x, other.y = x, y
+                        end
+                    end
                 end
-                moved = true
+            end
+        end
+        local clear, blocker = canOccupy(unit, context)
+        if not clear then
+            unit.x, unit.y = oldX, oldY
+            for _, change in ipairs(changes) do change.unit.x, change.unit.y = change.x, change.y end
+            return blocker
+        end
+        for _, change in ipairs(changes) do
+            yielded[change.unit] = (yielded[change.unit] or 0) + change.shift
+        end
+    end
+end
+
+local function blocksSegment(unit, other, x, y)
+    local dx,dy = x-unit.x,y-unit.y
+    local lengthSq = dx*dx+dy*dy
+    local t = lengthSq > 0 and math.max(0,math.min(1,
+        ((other.x-unit.x)*dx+(other.y-unit.y)*dy)/lengthSq)) or 0
+    local ox,oy = unit.x+t*dx-other.x,unit.y+t*dy-other.y
+    return ox*ox+oy*oy < contactDistance(unit,other)^2-MIN_DIST_EPSILON
+end
+
+local function clearPosition(unit, context, x, y)
+    local width,height = getBounds(context)
+    local r = unit.collisionRadius or 0
+    if x < r or y < r or x > width-r or y > height-r then return false end
+    for _, other in ipairs(context.data.unitList) do
+        if other ~= unit and other.hp > 0 and
+            (x-other.x)^2+(y-other.y)^2 < contactDistance(unit,other)^2-MIN_DIST_EPSILON then return false end
+    end
+    return true
+end
+
+local function clearStep(unit, context, x, y)
+    if not clearPosition(unit,context,x,y) then return false end
+    for _, other in ipairs(context.data.unitList) do
+        if other ~= unit and other.hp > 0 and blocksSegment(unit,other,x,y) then return false end
+    end
+    return true
+end
+
+local function bypassDirection(unit, context, bypass, distance, targetX, targetY)
+    local blocker = bypass.blocker
+    local rx,ry = unit.x-blocker.x,unit.y-blocker.y
+    local radius = math.sqrt(rx*rx+ry*ry)
+    if radius < MIN_DIST_EPSILON then return end
+    rx,ry = rx/radius,ry/radius
+    local bestX,bestY,bestSide,bestScore
+    local sides = bypass.side and {bypass.side} or {1,-1}
+    for _, side in ipairs(sides) do
+        local reach = contactDistance(unit,blocker)+distance+2
+        local flankClear = bypass.side or clearPosition(unit,context,
+            blocker.x-ry*side*reach,blocker.y+rx*side*reach)
+        -- Tangential travel with an outward component can temporarily increase target distance.
+        for _, outward in ipairs({0.25,1}) do
+            local nx,ny = -ry*side+rx*outward,rx*side+ry*outward
+            local length = math.sqrt(nx*nx+ny*ny)
+            nx,ny = nx/length,ny/length
+            local x,y = unit.x+nx*distance,unit.y+ny*distance
+            local score = (x-targetX)^2+(y-targetY)^2
+            if flankClear and clearStep(unit,context,x,y) and (not bestScore or score < bestScore) then
+                bestX,bestY,bestSide,bestScore = nx,ny,side,score
             end
         end
     end
-
-    return moved
+    bypass.side = bestSide or bypass.side
+    return bestX,bestY
 end
 
 function ExecutionSystem._resolveAoeAtPoint(attackerUnit, skillData, targetX, targetY, context)
@@ -174,7 +252,7 @@ function ExecutionSystem:update(context)
                             effectData.tickCounter = 0
                             local dotDamage = math.max(0, math.floor(effectData.damagePerTick or 0))
                             if dotDamage > 0 and unit.hp > 0 then
-                                CombatSystem._applyBattleDamage(unit, dotDamage)
+                                CombatSystem._applyBattleDamage(unit, dotDamage, true)
                                 if context.addFloatingText then
                                     context.addFloatingText(unit.visualX, unit.visualY, tostring(dotDamage), {1, 0.45, 0.15, 1})
                                 end
@@ -230,12 +308,20 @@ function ExecutionSystem._executeMove(unit, intent, context)
     local targetY = intent.target and intent.target.y
     if not targetX or not targetY then return end
 
+    local previousGoal = unit.moveTarget
+    if not intent.avoidObstacles then unit.bypass,unit.stuckAttempts = nil,0 end
+    if not previousGoal or previousGoal.x ~= targetX or previousGoal.y ~= targetY then
+        -- Retargeting resets the stuck delay, but the same obstacle may still need the active bypass.
+        unit.stuckAttempts = 0
+    end
+
     local dx = targetX - unit.x
     local dy = targetY - unit.y
     local distSq = dx * dx + dy * dy
     local dist = math.sqrt(distSq)
 
     if dist <= MIN_DIST_EPSILON then
+        unit.stuckAttempts,unit.bypass = 0,nil
         unit.state = "idle"
         return
     end
@@ -245,10 +331,39 @@ function ExecutionSystem._executeMove(unit, intent, context)
     local nx = dx / dist
     local ny = dy / dist
 
-    unit.x = unit.x + nx * moveDist
-    unit.y = unit.y + ny * moveDist
-    unit.velocityX = nx * moveDist
-    unit.velocityY = ny * moveDist
+    local startX, startY = unit.x, unit.y
+    local bypass = unit.bypass
+    if bypass and (bypass.blocker.hp <= 0 or not blocksSegment(unit,bypass.blocker,targetX,targetY)) then
+        unit.bypass,bypass,unit.stuckAttempts = nil,nil,0
+    end
+    local blocker
+    if not intent.avoidObstacles or not bypass or bypass.remaining <= 0 then
+        blocker = moveWithCollisions(unit,nx,ny,moveDist,context)
+    end
+    local traveled = math.sqrt((unit.x-startX)^2+(unit.y-startY)^2)
+    if intent.avoidObstacles and (not bypass or bypass.remaining <= 0) then
+        local remainingDistance = math.sqrt((targetX-unit.x)^2+(targetY-unit.y)^2)
+        -- Count movement actions with less than one collision substep of progress, never cooldown ticks.
+        if dist-remainingDistance >= math.min(MOVEMENT.substep,moveDist)-MIN_DIST_EPSILON then
+            unit.stuckAttempts = 0
+        elseif not bypass then
+            unit.stuckAttempts = (unit.stuckAttempts or 0)+1
+        end
+    end
+    if intent.avoidObstacles and blocker and not bypass and unit.stuckAttempts >= 3 then
+        local reach = contactDistance(unit,blocker)
+        bypass = {blocker=blocker,
+            remaining=math.min(16,math.ceil(math.pi*reach/step)+4)}
+        unit.bypass = bypass
+    end
+    if intent.avoidObstacles and bypass and bypass.remaining > 0 then
+        local remaining = moveDist-traveled
+        local bx,by = bypassDirection(unit,context,bypass,remaining,targetX,targetY)
+        bypass.remaining = bypass.remaining-1
+        if bx then moveWithCollisions(unit,bx,by,remaining,context) end
+    end
+    unit.velocityX = unit.x - startX
+    unit.velocityY = unit.y - startY
     unit.moveTarget = {x = targetX, y = targetY}
     unit.state = "moving"
 
@@ -258,10 +373,10 @@ function ExecutionSystem._executeMove(unit, intent, context)
         unit.facing = 1
     end
 
+    if unit.squad and unit.squad.order == "hold" then unit.facing = -unit.squad.direction end
     clampUnitToBounds(unit, context)
-    resolveSoftPush(unit, context)
 
-    local battleSpeed = unit.stats.battle_speed or 10
+    local battleSpeed = Injury.stat(unit, "battle_speed", unit.stats.battle_speed or 10)
     local variance = (math.random() - 0.5) * 0.2
     local cooldownTicks = (120 * (1 + variance)) / battleSpeed
     unit.moveCooldown = cooldownTicks
@@ -271,6 +386,10 @@ end
 function ExecutionSystem._initiateSkill(unit, intent, context)
     local skillId = intent.skillId
     local skillData = CombatSystem.getEffectiveSkill(unit, skillId)
+
+    if not skillData or not unit.skills[skillId] or (unit.cooldowns[skillId] or 0) > 0 or
+        unit.globalCooldown > 0 or unit.currentCast or
+        (skillData.maxCharges and (unit.charges[skillId] or 0) <= 0) then return end
 
     if intent.target then
         if intent.target.x > unit.x then
@@ -288,6 +407,8 @@ function ExecutionSystem._initiateSkill(unit, intent, context)
             end
         end
     end
+
+    if unit.squad and unit.squad.order == "hold" then unit.facing = -unit.squad.direction end
 
     if skillData then
         local windup = skillData.windup or 0
@@ -328,6 +449,12 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
     local skillData = CombatSystem.getEffectiveSkill(unit, skillId)
     if not skillData then return end
 
+    if skillData.type == "command" then
+        if (unit.cooldowns[skillId] or 0) > 0 then return end
+        require("src.game.battle.squads").command(context, unit.team, skillData.order)
+        unit.cooldowns[skillId], unit.globalCooldown = skillData.cooldown, skillData.recovery
+        return
+    end
     local targetUnit = context.data.units[targetUnitId]
     local isTargetedAoe = skillData.type == "aoe" and skillData.targeted == true
     local castTargetX = nil

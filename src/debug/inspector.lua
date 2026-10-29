@@ -8,9 +8,12 @@ local KnowledgeText = require("src.ui.knowledge_text")
 local Services = require("src.systems.services.service_system")
 local Personality = require("src.data.types.personality")
 local Importance = require("src.systems.goals.goal_importance")
+local Treatment = require("src.systems.actors.injury_treatment")
 local Inspector = {}
 
 local function actorGoalLines(actor, add, map)
+    for _, line in ipairs(require("src.systems.actors.injury_system").lines(actor)) do add(line) end
+    for _, line in ipairs(Treatment.lines(actor)) do add(line) end
     if actor.memory then
         for _, trait in ipairs(Personality.traits) do
             add(string.format("Personality %s: %.3f", trait, Personality.get(actor, trait)))
@@ -244,6 +247,8 @@ function Inspector.lines(map, kind, id)
             add(label(actor) .. " | HP " .. tostring(actor.hp) .. "/" .. tostring(actor.maxHp)
                 .. (actor.lastRecovery and (" | Recovery: " .. actor.lastRecovery.mode) or "")
                 .. (EcsWorld.findActorById(actor.id) ~= actor and " (removed)" or ""))
+            for _, line in ipairs(require("src.systems.actors.injury_system").lines(actor)) do add(line) end
+            for _, line in ipairs(Treatment.lines(actor)) do add(line) end
         end
         add("CARGO (" .. #entity.inventory .. " stacks)")
         for _, item in ipairs(entity.inventory) do add(tostring(item.name or item.id) .. " x" .. tostring(item.quantity or 1)) end

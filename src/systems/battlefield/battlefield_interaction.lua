@@ -52,7 +52,7 @@ end
 local function buildOverviewText(site)
     local history = site.history or {}
     local participants = getParticipants(site)
-    local itemCount = #(site.loot and site.loot.items or {})
+    local itemCount = #(site.inventory or {})
     local gold = site.loot and site.loot.gold or 0
 
     return string.format(
@@ -96,7 +96,7 @@ function BattlefieldInteraction.buildDialogue(map, siteId)
         {text = "Inspect the battlefield.", action = "battlefield_inspect"}
     }
     local hasSupplies = site.loot and
-        ((site.loot.items and #site.loot.items > 0) or (site.loot.gold or 0) > 0)
+        ((site.inventory and #site.inventory > 0) or (site.loot.gold or 0) > 0)
     if hasSupplies then
         options[#options + 1] = {
             text = "Search for supplies.",
@@ -151,7 +151,7 @@ function BattlefieldInteraction.buildInspectDialogue(map, siteId)
         corpseDescriptions[#corpseDescriptions + 1] = table.concat(details, ", ")
     end
 
-    local itemDescriptions = describeItems(site.loot and site.loot.items)
+    local itemDescriptions = describeItems(site.inventory)
     local position = history.position or {}
     local lines = {
         {text = "Encounter: " .. tostring(history.encounterId or "unknown")},
@@ -169,7 +169,7 @@ function BattlefieldInteraction.buildInspectDialogue(map, siteId)
         lines[#lines + 1] = {text = "Corpses: none"}
     end
 
-    local itemDescriptions = describeItems(site.loot and site.loot.items)
+    local itemDescriptions = describeItems(site.inventory)
     if #itemDescriptions > 0 then
         for _, itemDescription in ipairs(itemDescriptions) do
             lines[#lines + 1] = {text = "Cargo: " .. itemDescription}

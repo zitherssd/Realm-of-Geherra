@@ -6,6 +6,7 @@ return {
         id = "gaia_vine_man",
         name = "Vine Man",
         type = "gaia_plants",
+        injuryProfile = "plant",
         sprite = "src/assets/sprites/units/gaia/vine_man_idle.png",
         stats = {
             health = 17,
@@ -24,6 +25,7 @@ return {
         id = "gaia_vine_animal",
         name = "Vine Animal",
         type = "gaia_plants",
+        injuryProfile = "plant",
         sprite = "src/assets/sprites/units/gaia/vine_animal_idle.png",
         stats = {
             health = 18,
@@ -42,6 +44,7 @@ return {
         id = "gaia_vine_giant",
         name = "Vine Giant",
         type = "gaia_plants",
+        injuryProfile = "plant",
         sprite = "src/assets/sprites/units/gaia/vine_giant_idle.png",
         stats = {
             health = 65,
@@ -60,6 +63,7 @@ return {
         id = "gaia_vine_king",
         name = "Vine King",
         type = "gaia_plants",
+        injuryProfile = "plant",
         sprite = "src/assets/sprites/units/gaia/vine_king_idle.png",
         stats = {
             health = 55,
@@ -78,6 +82,7 @@ return {
         id = "gaia_bramble_beast",
         name = "Bramble Beast",
         type = "gaia_plants",
+        injuryProfile = "plant",
         sprite = "src/assets/sprites/units/gaia/bramble_beast_idle.png",
         stats = {
             health = 42,
@@ -96,6 +101,7 @@ return {
         id = "gaia_walking_tree",
         name = "Walking Tree",
         type = "gaia_plants",
+        injuryProfile = "plant",
         sprite = "src/assets/sprites/units/gaia/walking_tree_idle.png",
         stats = {
             health = 105,
@@ -114,6 +120,7 @@ return {
         id = "gaia_spirit_of_thorns",
         name = "Spirit of Thorns",
         type = "gaia_plants",
+        injuryProfile = "plant",
         sprite = "src/assets/sprites/units/gaia/spirit_of_thorns_idle.png",
         stats = {
             health = 25,
@@ -132,6 +139,7 @@ return {
         id = "gaia_ancient_forest_guardian",
         name = "Ancient Forest Guardian",
         type = "gaia_plants",
+        injuryProfile = "plant",
         sprite = "src/assets/sprites/units/gaia/ancient_forest_guardian_idle.png",
         stats = {
             health = 135,

@@ -6,6 +6,7 @@ local PartySystem = require("src.systems.parties.party_system")
 local InventorySystem = require("src.systems.items.inventory_system")
 
 local CampaignBattleResultApplier = {}
+local Injury = require("src.systems.actors.injury_system")
 
 local function requireStableId(value, label)
     local valueType = type(value)
@@ -134,6 +135,7 @@ local function validateAndResolve(result, context)
                 error("EncounterResult durability requires equipment", 3)
             end
             actorsById[actor.id] = {actor = actor, party = party, result = actorResult}
+            if actorResult.injuries ~= nil then Injury.validate(actor, actorResult.injuries) end
             if actorResult.finalHp > 0 then
                 livingByPartyId[party.id] = livingByPartyId[party.id] + 1
             end
@@ -181,9 +183,15 @@ function CampaignBattleResultApplier.apply(result, context)
         end
         if entry.result.defeated then
             PartySystem.removeFromParty(entry.party, actorId)
-        elseif entry.result.equipment then
-            entry.actor.equipment = InventorySystem.deepClone(entry.result.equipment)
-            entry.actor.itemDurability = InventorySystem.deepClone(entry.result.itemDurability)
+        else
+            for _, injury in ipairs(entry.result.injuries or {}) do Injury.apply(entry.actor, injury) end
+            if entry.result.equipment then
+                entry.actor.equipment = InventorySystem.deepClone(entry.result.equipment)
+                entry.actor.itemDurability = InventorySystem.deepClone(entry.result.itemDurability)
+                for slot in pairs(entry.actor.equipmentItems or {}) do
+                    if not entry.actor.equipment[slot] then entry.actor.equipmentItems[slot] = nil end
+                end
+            end
         end
     end
 
@@ -200,6 +208,9 @@ function CampaignBattleResultApplier.apply(result, context)
         end
     end
 
+    if parties[1].__world and parties[1].__world.injuryTreatments then
+        require("src.systems.actors.injury_treatment").update(0, parties[1].__world)
+    end
     context.encounter.resultApplied = true
     for _, party in ipairs(eliminated) do
         EventBus.emit("party_killed", party.id)

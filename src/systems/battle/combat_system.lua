@@ -2,6 +2,7 @@
 -- Handle combat mechanics, damage, and attack resolution
 
 local CombatSystem = {}
+local Injury = require("src.systems.actors.injury_system")
 local DEFAULT_TARGET_SIZE_BASELINE = 3
 local DEFAULT_PROJECTILE_HIT_CHANCE = 70
 local PROJECTILE_SIZE_ABOVE_BASE_BONUS = 5
@@ -32,8 +33,8 @@ function CombatSystem.rollAttack(attacker, defender, skill)
     local attStats = attacker.stats or {}
     local defStats = defender.stats or {}
 
-    local attack = attStats.attack or 10
-    local defense = defStats.defense or 0
+    local attack = Injury.stat(attacker, "attack", attStats.attack or 10)
+    local defense = Injury.stat(defender, "defense", defStats.defense or 0)
     local shieldDefense = CombatSystem._getShieldDefense(defender)
 
     -- Attack side: two exploding d8s
@@ -184,9 +185,12 @@ function CombatSystem._determineMissAction(hasShield, wouldHitWithoutShield)
 end
 
 -- Private function for battle context
-function CombatSystem._applyBattleDamage(unit, damage)
+function CombatSystem._applyBattleDamage(unit, damage, isStatusDamage)
     -- BattleUnit uses .hp, not .stats.health
+    local previousHp = unit.hp
     unit.hp = math.max(0, unit.hp - damage)
+    -- Status ticks are not individual damaging hits.
+    if not isStatusDamage then Injury.fromDamage(unit, previousHp - unit.hp) end
     return unit.hp <= 0
 end
 
@@ -217,14 +221,7 @@ function CombatSystem.applyBlockDurabilityLoss(defender)
         defender.equipment.offHand = nil
         defender.itemDurability[shieldId] = nil
         
-        -- Remove the item from inventory if it exists there
-        if defender.inventory then
-            for i = #defender.inventory, 1, -1 do
-                if defender.inventory[i] == shieldId then
-                    table.remove(defender.inventory, i)
-                end
-            end
-        end
+        if defender.equipmentItems then defender.equipmentItems.offHand = nil end
     end
 end
 

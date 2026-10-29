@@ -6,6 +6,7 @@ return {
         id = "gaia_satyr_unarmed",
         name = "Satyr (unarmed)",
         type = "gaia_satyrs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/satyr_unarmed_idle.png",
         stats = {
             health = 12,
@@ -24,6 +25,7 @@ return {
         id = "gaia_satyr_spear",
         name = "Satyr (spear)",
         type = "gaia_satyrs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/satyr_spear_idle.png",
         stats = {
             health = 12,
@@ -42,6 +44,7 @@ return {
         id = "gaia_satyr_sneak",
         name = "Satyr Sneak",
         type = "gaia_satyrs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/satyr_sneak_idle.png",
         stats = {
             health = 12,
@@ -60,6 +63,7 @@ return {
         id = "gaia_satyr_hoplite",
         name = "Satyr Hoplite",
         type = "gaia_satyrs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/satyr_hoplite_idle.png",
         stats = {
             health = 14,
@@ -78,6 +82,7 @@ return {
         id = "gaia_armored_satyr_hoplite",
         name = "Armored Satyr Hoplite",
         type = "gaia_satyrs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/armored_satyr_hoplite_idle.png",
         stats = {
             health = 14,
@@ -96,6 +101,7 @@ return {
         id = "gaia_satyr_commander",
         name = "Satyr",
         type = "gaia_satyrs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/satyr_commander_idle.png",
         stats = {
             health = 16,
@@ -114,6 +120,7 @@ return {
         id = "gaia_satyr_hoplite_commander",
         name = "Satyr Hoplite",
         type = "gaia_satyrs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/satyr_hoplite_commander_idle.png",
         stats = {
             health = 16,
@@ -132,6 +139,7 @@ return {
         id = "gaia_satyr_sage_commander",
         name = "Satyr Sage",
         type = "gaia_satyrs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/satyr_sage_commander_idle.png",
         stats = {
             health = 12,
@@ -150,6 +158,7 @@ return {
         id = "gaia_satyr_shaman_commander",
         name = "Satyr Shaman",
         type = "gaia_satyrs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/satyr_shaman_commander_idle.png",
         stats = {
             health = 12,
@@ -168,6 +177,7 @@ return {
         id = "gaia_satyr_oracle_commander",
         name = "Satyr Oracle",
         type = "gaia_satyrs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/satyr_oracle_commander_idle.png",
         stats = {
             health = 12,
@@ -186,6 +196,7 @@ return {
         id = "gaia_silenus_commander",
         name = "Silenus",
         type = "gaia_satyrs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/silenus_commander_idle.png",
         stats = {
             health = 18,
@@ -204,6 +215,7 @@ return {
         id = "gaia_silenus_sage_commander",
         name = "Silenus Sage",
         type = "gaia_satyrs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/silenus_sage_commander_idle.png",
         stats = {
             health = 18,

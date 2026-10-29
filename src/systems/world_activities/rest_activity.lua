@@ -25,7 +25,7 @@ function Rest.update(party, activity, dt)
         return "failed", "rest_actor_unavailable"
     end
     if actor.activeEncounterId then return end
-    if Importance.recovery(nil, actor, party) == 0 then return "completed", "recovered" end
+    if Importance.recoveryHealth(nil, actor, party) == 0 then return "completed", "recovered" end
     -- Recovery.update heals the entire party once, using the shared rest bonus.
 end
 

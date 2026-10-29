@@ -1,6 +1,15 @@
 -- Consumables item definitions.
 
 return {
+    ["healing_herbs"] = {
+        id = "healing_herbs",
+        name = "Healing Herbs",
+        type = "consumable",
+        description = "Common medicinal herbs used to treat persistent injuries",
+        weight = 0.1,
+        value = 5,
+        stackable = true,
+    },
     ["bread"] = {
         id = "bread",
         name = "Loaf of Bread",

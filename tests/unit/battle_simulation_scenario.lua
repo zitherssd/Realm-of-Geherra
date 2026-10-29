@@ -129,10 +129,13 @@ local function testInteractiveBattle()
         assert(simulation.partyA == playerParty and simulation.partyB == enemyParty)
         assert(context.data.selectedUnitId == playerActor.id, "interactive player unit was not selected")
 
+        assert(not BattleState.deploying and context.data.tick == 0)
+        BattleState.draw()
+        local initialX = playerUnit.x
         Input.keypressed("d")
         BattleState.update(0.05)
         Input.keyreleased("d")
-        assert(playerUnit.x > 180, "player movement command did not execute")
+        assert(playerUnit.x > initialX, "player movement command did not execute")
 
         playerUnit.x = 500
         playerUnit.y = 200

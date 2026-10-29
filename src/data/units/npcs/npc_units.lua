@@ -6,6 +6,7 @@ return {
         id = "player",
         name = "Player",
         type = "player",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/commander.png",
         stats = {
             health = 25,
@@ -48,6 +49,7 @@ return {
         id = "companion",
         name = "Companion",
         type = "companion",
+        injuryProfile = "humanoid",
         tags = {
             "companion",
         },
@@ -72,6 +74,7 @@ return {
         id = "elder",
         name = "Elder",
         type = "elder",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/elder.png",
         stats = {
             health = 25,
@@ -88,6 +91,10 @@ return {
         sellPriceFactor = 0.3,
         restockIntervalDays = 15,
         stock = {
+            {
+                id = "healing_herbs",
+                quantity = 10,
+            },
             {
                 id = "bread",
                 quantity = 6,
@@ -111,6 +118,7 @@ return {
         id = "trader",
         name = "Trader",
         type = "trader",
+        injuryProfile = "humanoid",
         tags = {
             "civilian",
             "merchant",
@@ -163,6 +171,7 @@ return {
         id = "debug_trader",
         name = "Debug Trader",
         type = "debug_trader",
+        injuryProfile = "humanoid",
         tags = {
             "civilian",
             "merchant",
@@ -185,6 +194,7 @@ return {
         id = "tavern_keeper",
         name = "Tavern Keeper",
         type = "tavern_keeper",
+        injuryProfile = "humanoid",
         tags = {
             "civilian",
             "inn",

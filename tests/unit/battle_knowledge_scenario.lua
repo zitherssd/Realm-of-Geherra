@@ -79,7 +79,7 @@ local function testStarterBattleAndDiscovery()
         battlefieldId = hiddenId, subjectIds = {hiddenId}, x = 20000, y = 20000, participants = {}
     })
     map:addBattlefieldRemains({id = hiddenId, history = {position = {x = 20000, y = 20000},
-        encounterId = hiddenEncounter, eventId = hidden.id}, corpses = {}, loot = {items = {}, gold = 0}})
+        encounterId = hiddenEncounter, eventId = hidden.id}, corpses = {}, inventory = {}, loot = {gold = 0}})
     observer.x, observer.y = site.history.position.x, site.history.position.y
     Visibility.update(player, map)
     fullyKnown(observer, event.id, world)
@@ -106,7 +106,7 @@ local function testStarterBattleAndDiscovery()
     fullyKnown(distant, event.id, world)
     fullyKnown(distantActor, event.id, world)
     -- Depleting resources never changes historical knowledge.
-    restored.corpses, restored.loot = {}, {items = {}, gold = 0}
+    restored.corpses, restored.inventory, restored.loot = {}, {}, {gold = 0}
     for _ = 1, 3 do Visibility.update(player, map) end
     assert(Events.count(world) == 2)
     fullyKnown(observer, event.id, world)

@@ -1,7 +1,8 @@
 -- Resolves potential battle rewards into a serializable plan without applying
 -- any campaign mutations.
 
-local Items = require("src.data.items")
+local Inventory = require("src.systems.items.inventory_system")
+local Equipment = require("src.systems.items.equipment_system")
 local LootResult = require("src.systems.items.loot_result")
 
 local LootResolver = {
@@ -72,6 +73,7 @@ local function validateParties(partyA, partyB, battleResult)
         end
         local treasury = party.treasury or 0
         requireQuantity(treasury, "Party treasury")
+        if not Inventory.isValid(party.inventory) then error("Party inventory must be an item-instance list", 3) end
         for index, item in ipairs(party.inventory) do
             if type(item) ~= "table" or item.id == nil then
                 error("Party inventory entries must be item tables with IDs", 3)
@@ -203,32 +205,14 @@ local function appendResource(
     }
 end
 
-local function actorItemSnapshot(itemId, quantity, actor, sourceKind, sourceSlot)
-    local item = Items[itemId] and copySerializable(Items[itemId], "Item definition") or {id = itemId}
-    item.quantity = quantity
-    local durabilityRemaining
-    if sourceKind == "equipment" and actor.itemDurability then
-        durabilityRemaining = actor.itemDurability[itemId]
-    end
-    return item, durabilityRemaining
-end
-
 local function appendActorPossessions(result, party, actor, disposition, recipientPartyId, actorResult)
     local target = disposition == "combatLoot" and result.combatLoot or result.retainedResources.items
     local inventory = actor.inventory or {}
-    if type(inventory) ~= "table" then
-        error("Actor inventory must use the item-ID-to-quantity map", 3)
-    end
-    for itemId, quantity in pairs(inventory) do
-        requireStableId(itemId, "Actor inventory item")
-        requireQuantity(quantity, "Actor inventory quantity")
-        if quantity > 0 then
-            local item = actorItemSnapshot(itemId, quantity, actor, "inventory")
-            appendResource(target, party.id, item, actor.id, "inventory")
-            if disposition == "combatLoot" then
-                target[#target].recipientPartyId = recipientPartyId
-            end
-        end
+    if not Inventory.isValid(inventory) then error("Actor inventory must be an item-instance list", 3) end
+    for index, original in ipairs(inventory) do
+        local item = copyItem(original, original.quantity or 1)
+        appendResource(target, party.id, item, actor.id, "inventory", nil, index)
+        if disposition == "combatLoot" then target[#target].recipientPartyId = recipientPartyId end
     end
 
     local equipment = actor.equipment or {}
@@ -238,7 +222,8 @@ local function appendActorPossessions(result, party, actor, disposition, recipie
     for slot, itemId in pairs(equipment) do
         requireStableId(itemId, "Equipped item")
         local snapshot = actorResult and actorResult.equipment and actorResult or actor
-        local item, durabilityRemaining = actorItemSnapshot(itemId, 1, snapshot, "equipment", slot)
+        local item = copySerializable(Equipment.getEquippedItem(actor, slot), "Equipment instance")
+        local durabilityRemaining = snapshot.itemDurability and snapshot.itemDurability[itemId]
         local broken = actorResult and actorResult.equipment and not actorResult.equipment[slot]
         local equipmentTarget = broken and result.destroyedResources.items or target
         appendResource(equipmentTarget, party.id, item, actor.id, "equipment", slot)

@@ -58,7 +58,7 @@ local function hydrate(world, archetypeId, definition, context, overrides)
     end
     if definition.dialogueId then npc.dialogueId = definition.dialogueId end
     if troop.stock then
-        npc.inventory, npc.inventoryFormat = Trader.buildStockInventory(troop), "list"
+        npc.inventory = Trader.buildStockInventory(troop)
         npc.buysFromPlayers, npc.sellPriceFactor = troop.buysFromPlayers, troop.sellPriceFactor
         npc.restockIntervalDays = troop.restockIntervalDays
         if npc.restockIntervalDays then npc.lastStockRefreshDay = 0 end

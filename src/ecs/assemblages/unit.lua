@@ -7,6 +7,7 @@
 local Concord = require("src.libs.concord")
 local TroopsData = require("src.data.troops")
 local IdAllocator = require("src.core.id_allocator")
+local Inventory = require("src.systems.items.inventory_system")
 
 local function unitAssemblage(e, troopType, id)
     local allocator = IdAllocator.forWorld(e.__world)
@@ -16,6 +17,7 @@ local function unitAssemblage(e, troopType, id)
         e.id = allocator:allocate("actor")
     end
     e.troopType = troopType or "soldier"
+    e.injuries = {}
     e:give("unit")
 
     e.x, e.y = 0, 0
@@ -41,8 +43,7 @@ local function unitAssemblage(e, troopType, id)
         "mainHand", "offHand", "rangedWeapon", "head", "body", "hands", "feet"
     }
     e.treasury = 0 -- Personal gold; party members transact through their party treasury.
-    e.inventory = {}
-    e.inventoryFormat = "map"
+    e.inventory = Inventory.new()
     e.equipment = {}
     e.skills = {
         ["attack"] = {learned = true} -- Default basic attack
@@ -79,6 +80,8 @@ local function unitAssemblage(e, troopType, id)
     -- Load definition from data
     local data = TroopsData[e.troopType]
     if data then
+        e.injuryProfile = data.injuryProfile
+        e.heightMultiplier = data.heightMultiplier
         -- Reuse existing character template conventions. A troop's display name
         -- or appointment as leader alone does not make it an important character.
         if data.type == "player" or data.type == "companion" then e:give("memory") end

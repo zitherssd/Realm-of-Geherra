@@ -126,7 +126,7 @@ local function testSearch()
     end
     local hidden = battle(world, "hidden-party", 1800)
     map:addBattlefieldRemains({id = hidden.battlefieldId, history = {position = {x = 1800, y = 500},
-        encounterId = hidden.encounterId, eventId = hidden.id}, corpses = {}, loot = {items = {}, gold = 0}})
+        encounterId = hidden.encounterId, eventId = hidden.id}, corpses = {}, inventory = {}, loot = {gold = 0}})
     Goals.configure(actor, {query("hidden-party")})
     assert(Activities.start(party, "search", params, map))
     assert(not Activities.start(party, "travel", {}, map), "Search lost activity ownership")
@@ -162,7 +162,7 @@ local function testSearch()
     local nearby = battle(world, "nearby-party", party.x)
     local nearbyGoal = Goals.addGoal(actor, query("nearby-party"))
     map:addBattlefieldRemains({id = nearby.battlefieldId, history = {position = {x = party.x, y = party.y},
-        encounterId = nearby.encounterId, eventId = nearby.id}, corpses = {}, loot = {items = {}, gold = 0}})
+        encounterId = nearby.encounterId, eventId = nearby.id}, corpses = {}, inventory = {}, loot = {gold = 0}})
     Visibility.update(party, map)
     Goals.update(1, map)
     assert(nearbyGoal.status == "satisfied" and actor.npc_goals.goals[1].status ~= "satisfied")
@@ -202,7 +202,7 @@ local function testNpcPhysicalDiscovery()
     map:addParty(distant)
     local event = battle(world, "observed-party", 600)
     local site = {id = event.battlefieldId, profile = 0, history = {position = {x = 600, y = 500},
-        encounterId = event.encounterId, eventId = event.id}, corpses = {}, loot = {items = {}, gold = 0}}
+        encounterId = event.encounterId, eventId = event.id}, corpses = {}, inventory = {}, loot = {gold = 0}}
     map:addBattlefieldRemains(site)
     local goal = Goals.configure(actor, {query("observed-party")}).goals[1]
     Visibility.update(player, map)

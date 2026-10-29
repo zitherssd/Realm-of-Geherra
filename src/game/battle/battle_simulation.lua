@@ -16,25 +16,44 @@ local WORLD_BOUNDS = {
     height = 546
 }
 
-local function addPartyUnits(simulation, party, team, isControlled, startX, direction)
+local function addPartyUnits(simulation, party, team, isControlled)
     if not party or not party.actors then return end
 
-    local startY = 120
-    local spacingX = 72
-    local spacingY = 78
-
-    for i, actor in ipairs(party.actors) do
-        local x = startX + direction * math.floor((i - 1) / 5) * spacingX
-        local y = startY + ((i - 1) % 5) * spacingY
-        local unit = BattleUnit.create(simulation.world, actor, x, y, team)
-        BattleUnitSystem.snapToWorld(unit)
+    local Squads = require("src.game.battle.squads")
+    local layouts = Squads.layout(party)
+    local byId, leader = {}, nil
+    for _, actor in ipairs(party.actors) do
+        local unit = BattleUnit.create(simulation.world, actor, 0, 0, team)
         simulation.context.addUnit(unit)
-
-        if isControlled and i == 1 then
-            simulation.context.data.selectedUnitId = unit.id
-            simulation.context.data.playerUnit = unit
+        byId[actor.id] = unit
+        if actor.id == party.leaderId then leader = unit end
+    end
+    leader = leader or byId[party.actors[1] and party.actors[1].id]
+    if not leader then return end
+    leader.x, leader.y = team == "player" and 500 or 760, 273
+    if isControlled then
+        simulation.context.data.selectedUnitId = leader.id
+        simulation.context.data.playerUnit = leader
+        for _, id in ipairs({"on_me", "charge"}) do
+            leader.skills[id] = {level = 1}
+            table.insert(leader.skillList, id)
         end
     end
+    for i, layout in ipairs(layouts) do
+        local config, circles, members = layout.config, layout.circles, {}
+        for _, actor in ipairs(layout.members) do members[#members+1] = byId[actor.id] end
+        local squad = {id=i, config=config, members=members, leader=leader,
+            team=team, direction=team == "player" and 1 or -1,
+            offsetX=(config.x-500)*(team == "player" and 1 or -1),
+            order=isControlled and "hold" or "charge"}
+        table.insert(simulation.context.data.squads, squad)
+        for j, unit in ipairs(members) do
+            local c = circles[j]
+            unit.x = team == "player" and c.x or WORLD_BOUNDS.width-c.x
+            unit.y, unit.squad = c.y, squad
+        end
+    end
+    for _, unit in pairs(byId) do BattleUnitSystem.snapToWorld(unit) end
 end
 
 function BattleSimulation.new(partyA, partyB, controlPartyA)
@@ -47,8 +66,9 @@ function BattleSimulation.new(partyA, partyB, controlPartyA)
 
     simulation.world:addSystems(DecisionSystem, ExecutionSystem)
 
-    addPartyUnits(simulation, partyA, "player", controlPartyA == true, 180, 1)
-    addPartyUnits(simulation, partyB, "enemy", false, WORLD_BOUNDS.width - 180, -1)
+    simulation.context.data.squads = {}
+    addPartyUnits(simulation, partyA, "player", controlPartyA == true)
+    addPartyUnits(simulation, partyB, "enemy", false)
 
     return simulation
 end
@@ -105,6 +125,7 @@ local function addActorResults(result, party, unitsByActorId)
             maxHp = battleUnit and battleUnit.maxHp or maxHp,
             statusEffects = InventorySystem.deepClone(battleUnit and battleUnit.statusEffects or actor.statusEffects or {}),
             defeated = finalHp <= 0,
+            injuries = InventorySystem.deepClone(battleUnit and battleUnit.injuries or actor.injuries or {}),
             equipment = InventorySystem.deepClone(battleUnit and battleUnit.equipment or actor.equipment or {}),
             itemDurability = InventorySystem.deepClone(battleUnit and battleUnit.itemDurability or actor.itemDurability or {})
         }

@@ -17,10 +17,8 @@ local function makeSite(id, x, y, discovered)
         discovered = discovered or false,
         currentlyVisible = false,
         profile = 0,
-        loot = {
-            items = {{id = "sealed_crate", quantity = 2, metadata = {grade = "rare"}}},
-            gold = 12
-        },
+        inventory = {{id = "sealed_crate", quantity = 2, metadata = {grade = "rare"}}},
+        loot = {gold = 12},
         corpses = {{
             actorId = "fallen-guard",
             name = "Mira",
@@ -108,7 +106,7 @@ local function testDialogueContentAndConditionalOptions()
             "Inspect omitted stored battlefield detail: " .. expected)
     end
 
-    site.loot.items = {}
+    site.inventory = {}
     site.loot.gold = 0
     site.corpses = {}
     local emptyDialogue = BattlefieldInteraction.buildDialogue(map, site.id)
@@ -117,10 +115,10 @@ local function testDialogueContentAndConditionalOptions()
     assert(#emptyDialogue.lines[1].options == 2,
         "empty site should only offer Inspect and Leave")
 
-    local unchangedItemCount = #site.loot.items
+    local unchangedItemCount = #site.inventory
     local unavailable = BattlefieldInteraction.buildUnavailableDialogue(map, site.id, "bury")
     assert(unavailable.lines[1].text:find("not implemented", 1, true) and
-        #site.loot.items == unchangedItemCount,
+        #site.inventory == unchangedItemCount,
         "placeholder action implied success or changed remains")
 end
 
@@ -199,7 +197,7 @@ local function testCollectCargoGoldAndIdempotence()
     local map = Map.new("battlefield-collection")
     local site = makeSite("collection-site", 0, 0)
     site.discovered = true
-    site.loot.items = {
+    site.inventory = {
         {id = "healing_herb", quantity = 3, metadata = {quality = "rare", seal = {intact = true}}},
         {id = "healing_herb", quantity = 2, metadata = {quality = "common"}}
     }
@@ -208,7 +206,7 @@ local function testCollectCargoGoldAndIdempotence()
     local party = makePlayerParty()
     local partyInventory = party.inventory
     local corpses = site.corpses
-    local sourceItems = site.loot.items
+    local sourceItems = {unpack(site.inventory)}
 
     local wasPaused = TimeSystem.isPaused()
     TimeSystem.setPaused(true)
@@ -216,26 +214,26 @@ local function testCollectCargoGoldAndIdempotence()
     local result = BattlefieldInteraction.collectSupplies(map, site.id, party)
     assert(result.success and result.collected and #result.items == 2 and result.gold == 17,
         "collection did not return all abandoned resources")
-    assert(#party.inventory == 3 and party.treasury == 22,
+    assert(#party.inventory == 2 and party.treasury == 22,
         "cargo or gold was not fully transferred")
     assert(party.inventory == partyInventory, "collection replaced the inventory table")
-    assert(party.inventory[2].id == party.inventory[3].id and
-        party.inventory[2].quantity == 3 and party.inventory[3].quantity == 2,
-        "same-ID cargo stacks were merged")
+    assert(party.inventory[1].id == party.inventory[2].id and
+        party.inventory[1].quantity == 3 and party.inventory[2].quantity == 3,
+        "compatible supplies did not merge or metadata-distinct supplies were combined")
     assert(party.inventory[2].metadata.quality == "rare" and
         party.inventory[2].metadata.seal.intact and
-        party.inventory[3].metadata.quality == "common",
+        party.inventory[1].metadata.quality == "common",
         "item metadata or variant identity was lost")
     assert(party.inventory[2] ~= sourceItems[1] and
         party.inventory[2].metadata ~= sourceItems[1].metadata,
         "collected items retained references to battlefield resources")
-    assert(#site.loot.items == 0 and site.loot.gold == 0 and site.corpses == corpses,
+    assert(#site.inventory == 0 and site.loot.gold == 0 and site.corpses == corpses,
         "collection did not clear only cargo and gold")
     assert(TimeSystem.getDay() == beforeDay and TimeSystem.getHour() == beforeHour and
         TimeSystem.isPaused(), "collection advanced or unpaused world time")
 
     local repeated = BattlefieldResourceCollection.collect(map, site.id, party)
-    assert(repeated.success and not repeated.collected and #party.inventory == 3 and
+    assert(repeated.success and not repeated.collected and #party.inventory == 2 and
         party.treasury == 22, "repeated collection duplicated resources")
     local resultDialogue = BattlefieldInteraction.buildCollectionDialogue(result)
     local resultText = {}
@@ -259,15 +257,15 @@ local function testGoldOnlyItemOnlyAndEmptySites()
     local map = Map.new("battlefield-collection-cases")
     local goldOnly = makeSite("gold-only", 0, 0)
     goldOnly.discovered = true
-    goldOnly.loot.items = {}
+    goldOnly.inventory = {}
     goldOnly.loot.gold = 7
     local itemOnly = makeSite("item-only", 1, 1)
     itemOnly.discovered = true
-    itemOnly.loot.items = {{id = "bandage", quantity = 4, metadata = {clean = true}}}
+    itemOnly.inventory = {{id = "bandage", quantity = 4, metadata = {clean = true}}}
     itemOnly.loot.gold = 0
     local empty = makeSite("empty", 2, 2)
     empty.discovered = true
-    empty.loot.items = {}
+    empty.inventory = {}
     empty.loot.gold = 0
     map:addBattlefieldRemains(goldOnly)
     map:addBattlefieldRemains(itemOnly)
@@ -295,7 +293,7 @@ local function testInvalidCollectionDoesNotPartiallyMutate()
     local map = Map.new("battlefield-invalid-collection")
     local site = makeSite("invalid-site", 0, 0)
     site.discovered = true
-    site.loot.items = {
+    site.inventory = {
         {id = "valid-item", quantity = 1},
         {id = "invalid-item", quantity = 1, metadata = {callback = function() end}}
     }
@@ -307,7 +305,7 @@ local function testInvalidCollectionDoesNotPartiallyMutate()
         BattlefieldResourceCollection.collect(map, site.id, party)
     end)
     assert(not ok and party.inventory == inventory and party.treasury == initialGold and
-        #site.loot.items == 2 and site.loot.gold == 12,
+        #site.inventory == 2 and site.loot.gold == 12,
         "invalid resources caused a partial collection")
 
     local missing = BattlefieldResourceCollection.collect(map, "removed-site", party)
@@ -360,7 +358,7 @@ local function testSearchDialogueActionAndUpdatedOptions()
     local map = Map.new("battlefield-search-dialogue")
     local site = makeSite("search-dialogue-site", 0, 0)
     site.discovered = true
-    site.loot.items = {{id = "travel_ration", quantity = 2}}
+    site.inventory = {{id = "travel_ration", quantity = 2}}
     site.loot.gold = 3
     map:addBattlefieldRemains(site)
     local previousMap = GameContext.data.currentMap

@@ -6,6 +6,7 @@ return {
         id = "gaia_dryad_commander",
         name = "Dryad",
         type = "gaia_nymphs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/dryad_commander_idle.png",
         stats = {
             health = 11,
@@ -24,6 +25,7 @@ return {
         id = "gaia_naiad_commander",
         name = "Naiad",
         type = "gaia_nymphs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/naiad_commander_idle.png",
         stats = {
             health = 10,
@@ -42,6 +44,7 @@ return {
         id = "gaia_oread_commander",
         name = "Oread",
         type = "gaia_nymphs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/oread_commander_idle.png",
         stats = {
             health = 10,
@@ -60,6 +63,7 @@ return {
         id = "gaia_hamadryad_commander",
         name = "Hamadryad",
         type = "gaia_nymphs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/hamadryad_commander_idle.png",
         stats = {
             health = 110,
@@ -78,6 +82,7 @@ return {
         id = "gaia_forest_mother",
         name = "Forest Mother",
         type = "gaia_nymphs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/forest_mother_idle.png",
         stats = {
             health = 35,

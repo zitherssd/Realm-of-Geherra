@@ -6,6 +6,7 @@ return {
         id = "bandit",
         name = "Bandit",
         type = "bandit",
+        injuryProfile = "humanoid",
         sprite = {
             "src/assets/sprites/units/bandit2.png",
             "src/assets/sprites/units/bandit3.png",
@@ -43,6 +44,7 @@ return {
         id = "soldier",
         name = "Soldier",
         type = "soldier",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/heavyinfantry.png",
         stats = {
             health = 24,
@@ -69,6 +71,7 @@ return {
         id = "knight",
         name = "Knight",
         type = "knight",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/knight.png",
         stats = {
             health = 45,
@@ -102,6 +105,7 @@ return {
         id = "war_dog",
         name = "War Dog",
         type = "beast",
+        injuryProfile = "quadruped",
         tags = {
             "companion",
         },
@@ -132,6 +136,7 @@ return {
         id = "wolf",
         name = "Wolf",
         type = "beast",
+        injuryProfile = "quadruped",
         tags = {
             "beast",
             "hostile_wildlife",
@@ -164,6 +169,7 @@ return {
         id = "bear",
         name = "Bear",
         type = "beast",
+        injuryProfile = "quadruped",
         tags = {
             "beast",
             "hostile_wildlife",
@@ -197,6 +203,7 @@ return {
         id = "skeleton_sword",
         name = "Skeleton",
         type = "undead",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/skeleton.png",
         stats = {
             health = 15,
@@ -229,6 +236,7 @@ return {
         id = "skeleton_spear",
         name = "Skeleton",
         type = "undead",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/skeleton_spear.png",
         stats = {
             health = 15,
@@ -261,6 +269,7 @@ return {
         id = "peasant",
         name = "Peasant",
         type = "peasant",
+        injuryProfile = "humanoid",
         sprite = {
             "src/assets/sprites/units/town.png",
             "src/assets/sprites/units/town2.png",
@@ -290,6 +299,7 @@ return {
         id = "ogre",
         name = "Ogre",
         type = "ogre",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/ogre.png",
         stats = {
             health = 105,
@@ -322,18 +332,19 @@ return {
         id = "dragon",
         name = "Dragon",
         type = "dragon",
+        injuryProfile = "dragon",
         sprite = "src/assets/sprites/units/dragon.png",
         stats = {
             health = 250,
-            attack = 100,
-            defense = 100,
-            speed = 8,
-            battle_speed = 15,
+            attack = 15,
+            defense = 10,
+            speed = 12,
+            battle_speed = 8,
         },
         size = 8,
         equipment = {},
         skills = {
-            "fireball",
+            --"fireball",
         },
         innateProtections = {
             slashing = 2,

@@ -36,6 +36,10 @@ function BattleContext.new(bounds)
 
     function context.addUnit(battleUnit)
         if not battleUnit then return end
+        local r = battleUnit.collisionRadius or 0
+        local bounds = context.data.bounds
+        battleUnit.x = math.max(r, math.min(bounds.width - r, battleUnit.x))
+        battleUnit.y = math.max(r, math.min(bounds.height - r, battleUnit.y))
         context.data.units[battleUnit.id] = battleUnit
         table.insert(context.data.unitList, battleUnit)
     end

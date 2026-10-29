@@ -12,6 +12,7 @@ local Services = require("src.systems.services.service_system")
 local Caravans = require("src.systems.services.caravan_system")
 local Investigations = require("src.systems.services.investigation_system")
 local Recovery = require("src.systems.actors.recovery")
+local Treatment = require("src.systems.actors.injury_treatment")
 local PartyAiSystem = require("src.systems.parties.party_ai_system")
 
 local CampaignRuntime = {}
@@ -68,7 +69,9 @@ function CampaignRuntime.updateGoals(elapsedWorldSeconds, map, playerParty)
     Investigations.updateWork({world = world, map = map})
 end
 
-function CampaignRuntime.update(elapsedWorldSeconds, map, playerParty, isResting, recoveryReservations)
+function CampaignRuntime.update(elapsedWorldSeconds, map, playerParty, isResting, recoveryReservations, elapsedWorldHours)
+    -- Treatment takes actual game hours; movement/recovery retain their existing simulation-second units.
+    Treatment.update(elapsedWorldHours or 0, EcsWorld.campaign, recoveryReservations)
     if elapsedWorldSeconds > 0 then
         CampaignRuntime.updateGoals(elapsedWorldSeconds, map, playerParty)
         Recovery.update(elapsedWorldSeconds, map, playerParty, isResting, recoveryReservations)

@@ -6,6 +6,7 @@ return {
         id = "gaia_minotaur_naked",
         name = "Minotaur (naked)",
         type = "gaia_minotaurs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/minotaur_naked_idle.png",
         stats = {
             health = 25,
@@ -24,6 +25,7 @@ return {
         id = "gaia_minotaur_warhammer",
         name = "Minotaur (warhammer)",
         type = "gaia_minotaurs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/minotaur_warhammer_idle.png",
         stats = {
             health = 25,
@@ -42,6 +44,7 @@ return {
         id = "gaia_minotaur_battleaxe",
         name = "Minotaur (battleaxe)",
         type = "gaia_minotaurs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/minotaur_battleaxe_idle.png",
         stats = {
             health = 25,
@@ -60,6 +63,7 @@ return {
         id = "gaia_minotaur_warrior_warhammer",
         name = "Minotaur Warrior (warhammer)",
         type = "gaia_minotaurs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/minotaur_warrior_warhammer_idle.png",
         stats = {
             health = 25,
@@ -78,6 +82,7 @@ return {
         id = "gaia_minotaur_warrior_battleaxe",
         name = "Minotaur Warrior (battleaxe)",
         type = "gaia_minotaurs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/minotaur_warrior_battleaxe_idle.png",
         stats = {
             health = 25,
@@ -96,6 +101,7 @@ return {
         id = "gaia_minotaur_commander",
         name = "Minotaur",
         type = "gaia_minotaurs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/minotaur_commander_idle.png",
         stats = {
             health = 27,
@@ -114,6 +120,7 @@ return {
         id = "gaia_minotaur_warrior_commander",
         name = "Minotaur Warrior",
         type = "gaia_minotaurs",
+        injuryProfile = "humanoid",
         sprite = "src/assets/sprites/units/gaia/minotaur_warrior_commander_idle.png",
         stats = {
             health = 29,

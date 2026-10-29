@@ -66,6 +66,16 @@ function GameInitializer.beginNewGame(options)
     PartySystem.addActor(playerParty, player)
     PartySystem.addActor(playerParty, Unit.create(world, "companion"))
     PartySystem.addActor(playerParty, Unit.create(world, "pelas_youth"))
+    PartySystem.addActor(playerParty, Unit.create(world, "pelas_youth"))
+    PartySystem.addActor(playerParty, Unit.create(world, "pelas_tribesman"))
+    PartySystem.addActor(playerParty, Unit.create(world, "pelas_tribesman"))
+    PartySystem.addActor(playerParty, Unit.create(world, "pelas_tribesman"))
+    PartySystem.addActor(playerParty, Unit.create(world, "pelas_tribesman"))
+    PartySystem.addActor(playerParty, Unit.create(world, "pelas_tribesman"))
+    PartySystem.addActor(playerParty, Unit.create(world, "pelas_tribesman"))
+    PartySystem.addActor(playerParty, Unit.create(world, "pelas_tribesman"))
+    PartySystem.addActor(playerParty, Unit.create(world, "pelas_tribesman"))
+    PartySystem.addActor(playerParty, Unit.create(world, "pelas_tribesman"))
     PartySystem.addActor(playerParty, Unit.create(world, "pelas_tribesman"))
     PartySystem.addActor(playerParty, Unit.create(world, "pelas_skirmisher"))
     PartySystem.addTreasury(playerParty, 50)
@@ -113,11 +123,10 @@ function GameInitializer.finalizeNewGame(map, locations)
 
         -- Stock the trader with every item from the catalog
         debugTrader.inventory = {}
-        debugTrader.inventoryFormat = "list"
         for _, def in pairs(Items) do
             local item = InventorySystem.deepClone(def)
             item.quantity = DEBUG_TRADER_STOCK_QTY
-            table.insert(debugTrader.inventory, item)
+            InventorySystem.addItem(debugTrader, item)
         end
 
         LocationSystem.addNPC(starterLocation, debugTrader)
@@ -169,11 +178,26 @@ function GameInitializer._createStarterParties(map)
     
     -- Add members
     PartySystem.addActor(banditParty, banditLeader)
+    PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bear"))
+    PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
+    PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
+    PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "ogre"))
+    PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bear"))
+    PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
+    PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
+    PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
+    PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "ogre"))
     PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
     PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
     PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
     PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
     PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
+    PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
+    PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
+    PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
+    PartySystem.addActor(banditParty, Unit.create(EcsWorld.campaign, "bandit"))
+
+
 
     
     map:addParty(banditParty)

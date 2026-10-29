@@ -37,7 +37,7 @@ local function createParty(world, map, location, id, troopType, config)
     local actor = Unit.create(world, troopType or "soldier", id .. "-leader")
     actor.dialogueId = config.dialogueId
     actor.sight = config.sight or 0
-    actor.inventory = config.personalInventory or {bread = 2}
+    actor.inventory = config.personalInventory or {{id = "bread", quantity = 2}}
     actor.equipment.mainHand = "iron_sword"
 
     local party = Party.create(world, config.name or id, actor.id, id)

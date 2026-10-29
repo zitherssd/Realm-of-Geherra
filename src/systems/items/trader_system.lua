@@ -20,9 +20,7 @@ function TraderSystem.buildStockInventory(troopDef)
     for _, entry in ipairs(troopDef.stock) do
         local itemDef = Items[entry.id]
         if itemDef then
-            local copy = InventorySystem.deepClone(itemDef)
-            copy.quantity = entry.quantity or 1
-            table.insert(inventory, copy)
+            assert(InventorySystem.addItem({inventory = inventory}, itemDef, entry.quantity or 1), "Invalid trader stock")
         end
     end
 
@@ -46,7 +44,6 @@ function TraderSystem.maybeRefreshStock(npc)
 
     local troopDef = TroopsData[npc.troopType]
     npc.inventory = TraderSystem.buildStockInventory(troopDef)
-    npc.inventoryFormat = "list"
     npc.lastStockRefreshDay = currentDay
 end
 

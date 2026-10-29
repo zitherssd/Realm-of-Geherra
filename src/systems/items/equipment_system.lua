@@ -3,6 +3,7 @@
 
 local EquipmentSystem = {}
 local Items = require("src.data.items")
+local Inventory = require("src.systems.items.inventory_system")
 
 local function itemSupportsSlot(item, slot)
     if not item then return false end
@@ -56,32 +57,45 @@ function EquipmentSystem.canEquip(actor, itemId, slot)
     return true, nil
 end
 
-function EquipmentSystem.equip(actor, itemId, slot)
-    if not actor.equipment then
-        actor.equipment = {}
+-- Slots retain their existing item-ID references; instance state travels with the slot.
+function EquipmentSystem.getEquippedItem(actor, slot)
+    local id = actor.equipment and actor.equipment[slot]
+    if not id then return nil end
+    local stored = actor.equipmentItems and actor.equipmentItems[slot]
+    if stored and stored.id ~= id then stored = nil end
+    local item = Inventory.deepClone(stored or Items[id] or {id = id})
+    item.quantity = 1
+    if (slot == "offHand" or not stored) and actor.itemDurability and actor.itemDurability[id] ~= nil then
+        item.durabilityRemaining = actor.itemDurability[id]
     end
+    return item
+end
 
+function EquipmentSystem.equip(actor, itemSpec, slot)
+    local itemId = type(itemSpec) == "table" and itemSpec.id or itemSpec
     local ok, err = EquipmentSystem.canEquip(actor, itemId, slot)
-    if not ok then
-        return false, err
-    end
-    
-    -- Unequip previous item if any
-    local previousItemId = nil
-    if actor.equipment[slot] then
-        previousItemId = EquipmentSystem.unequip(actor, slot)
-    end
-    
+    if not ok then return false, err end
+    local previousId, previousItem = EquipmentSystem.unequip(actor, slot)
+    actor.equipment = actor.equipment or {}
+    actor.equipmentItems = actor.equipmentItems or {}
+    local item = Inventory.deepClone(type(itemSpec) == "table" and itemSpec or Items[itemId])
+    item.quantity = 1
     actor.equipment[slot] = itemId
-    return previousItemId
+    actor.equipmentItems[slot] = item
+    actor.itemDurability = actor.itemDurability or {}
+    if slot == "offHand" then actor.itemDurability[itemId] = item.durabilityRemaining end
+    return previousId, previousItem
 end
 
 function EquipmentSystem.unequip(actor, slot)
-    if not actor.equipment then return end
-    
-    local itemId = actor.equipment[slot]
+    local item = EquipmentSystem.getEquippedItem(actor, slot)
+    if not item then return nil end
     actor.equipment[slot] = nil
-    return itemId
+    if actor.equipmentItems then actor.equipmentItems[slot] = nil end
+    if actor.itemDurability and (slot == "offHand" or actor.equipment.offHand ~= item.id) then
+        actor.itemDurability[item.id] = nil
+    end
+    return item.id, item
 end
 
 function EquipmentSystem.getEquipped(actor, slot)
