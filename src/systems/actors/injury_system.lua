@@ -1,3 +1,4 @@
+local Conditions = require("src.systems.actors.conditions")
 local Data = require("src.data.injuries")
 local Injury = {}
 local rank = {minor = 1, major = 2}
@@ -51,11 +52,12 @@ function Injury.apply(actor, entry)
         if old.bodyPart == entry.bodyPart then
             local previous = Injury.definition(actor, old)
             if previous and rank[previous.severity] >= rank[definition.severity] then return false end
-            actor.injuries[index] = {id = entry.id, bodyPart = entry.bodyPart}
+            Conditions.remove(actor, old.id, old.bodyPart)
+            Conditions.insertInjury(actor, entry)
             return true
         end
     end
-    actor.injuries[#actor.injuries + 1] = {id = entry.id, bodyPart = entry.bodyPart}
+    Conditions.insertInjury(actor, entry)
     return true
 end
 
@@ -87,31 +89,11 @@ function Injury.fromDamage(unit, actualDamage, rng)
 end
 
 function Injury.effects(actor)
-    local effects = {attack = 0, defense = 0, movementSpeedMultiplier = 1, sightMultiplier = 1}
-    local seen = {}
-    for _, entry in ipairs(actor.injuries or {}) do
-        local definition = Injury.definition(actor, entry)
-        if definition and not seen[entry.bodyPart] then
-            seen[entry.bodyPart] = true
-            for effect, value in pairs(definition.effects) do
-                if effect == "attack" or effect == "defense" then
-                    effects[effect] = effects[effect] + value
-                else
-                    effects[effect] = effects[effect] * value
-                end
-            end
-        end
-    end
-    effects.movementSpeedMultiplier = math.max(0.2, effects.movementSpeedMultiplier)
-    effects.sightMultiplier = math.max(0.2, effects.sightMultiplier)
-    return effects
+    return Conditions.effects(actor, true)
 end
 
 function Injury.stat(actor, stat, base)
-    local effects = Injury.effects(actor)
-    if stat == "speed" or stat == "battle_speed" then return math.max(0, base * effects.movementSpeedMultiplier) end
-    if stat == "sight" then return math.max(0, base * effects.sightMultiplier) end
-    return math.max(0, base + (effects[stat] or 0))
+    return Conditions.modify(actor, stat, base)
 end
 
 function Injury.importance(actor)

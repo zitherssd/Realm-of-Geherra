@@ -21,7 +21,7 @@ local MAX_FRAME_SKIP = 5
 local BattleContext
 
 local function isTargetedAoeSkill(skillData)
-    return skillData and skillData.type == "aoe" and skillData.targeted == true
+    return skillData and skillData.aoe ~= nil
 end
 
 local function worldToScreen(context, worldX, worldY)
@@ -198,7 +198,9 @@ function BattleState.update(dt)
                             local minDist = math.huge
 
                             for _, other in ipairs(BattleContext.data.unitList) do
-                                if other.team ~= playerUnit.team and other.hp > 0 then
+                                if other.hp > 0 and not other.escaped and
+                                    ((skillData.healing and other.team == playerUnit.team and other.hp < other.maxHp) or
+                                    (not skillData.healing and other.team ~= playerUnit.team)) then
                                     local effectiveRange = RangeUtils.effectiveSkillRange(playerUnit, other, skillData)
                                     local rangeSq = effectiveRange * effectiveRange
 

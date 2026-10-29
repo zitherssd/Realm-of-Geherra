@@ -107,6 +107,7 @@ local function resolveOutcome(partyA, partyB, battleResult)
     local actorsById = {}
     local livingByParty = {[partyA.id] = 0, [partyB.id] = 0}
     local survivingByParty = {[partyA.id] = 0, [partyB.id] = 0}
+    local tacticalSurvivors = {[partyA.id] = 0, [partyB.id] = 0}
     for _, party in ipairs({partyA, partyB}) do
         for _, actor in ipairs(party.actors) do
             if actorsById[actor.id] then
@@ -130,7 +131,17 @@ local function resolveOutcome(partyA, partyB, battleResult)
             if actorResult.finalHp > 0 then
                 survivingByParty[party.id] = survivingByParty[party.id] + 1
             end
-            if hp > 0 and not actorResult.escaped then
+            local tacticalHp = actorResult.tacticalHp or hp
+            local tacticalEscaped = actorResult.escaped
+            if actorResult.tacticalHp ~= nil then
+                assert(type(tacticalHp) == "number" and tacticalHp == tacticalHp and tacticalHp >= 0 and tacticalHp < math.huge,
+                    "Invalid tactical HP")
+                assert(type(actorResult.tacticalEscaped) == "boolean", "Invalid tactical escape status")
+                assert(tacticalHp > 0 or hp == 0, "Settlement cannot revive casualties")
+                tacticalEscaped = actorResult.tacticalEscaped
+            end
+            if tacticalHp > 0 then tacticalSurvivors[party.id] = tacticalSurvivors[party.id] + 1 end
+            if tacticalHp > 0 and not tacticalEscaped then
                 livingByParty[party.id] = livingByParty[party.id] + 1
             end
         end
@@ -162,7 +173,7 @@ local function resolveOutcome(partyA, partyB, battleResult)
             if livingByParty[partyA.id] ~= 0 or livingByParty[partyB.id] ~= 0 then
                 error("Draw result must leave no surviving actors", 3)
             end
-        elseif survivingByParty[partyA.id] == 0 or survivingByParty[partyB.id] == 0 then
+        elseif tacticalSurvivors[partyA.id] == 0 or tacticalSurvivors[partyB.id] == 0 then
             error("Timeout result must leave survivors in both parties", 3)
         end
     end

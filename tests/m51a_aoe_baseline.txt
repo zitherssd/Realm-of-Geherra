@@ -1,0 +1,26 @@
+aoe_scenario.lua:297: aoe_scenario.lua:141: Explosion not at physical interception
+stack traceback:
+	[C]: in function 'assert'
+	aoe_scenario.lua:141: in function 'projectileImpacts'
+	aoe_scenario.lua:291: in function <aoe_scenario.lua:287>
+	[C]: in function 'xpcall'
+	aoe_scenario.lua:287: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+stack traceback:
+	[C]: in function 'assert'
+	aoe_scenario.lua:297: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>

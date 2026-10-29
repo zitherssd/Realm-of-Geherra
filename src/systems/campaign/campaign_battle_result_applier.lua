@@ -1,3 +1,4 @@
+local Conditions = require("src.systems.actors.conditions")
 -- Applies a completed battle result to campaign parties. The caller owns the
 -- encounter lifecycle and supplies its encounter handle for duplicate checks.
 
@@ -162,10 +163,17 @@ local function validateAndResolve(result, context)
             end
             actorsById[actor.id] = {actor = actor, party = party, result = actorResult}
             if actorResult.injuries ~= nil then Injury.validate(actor, actorResult.injuries) end
-            if actorResult.finalHp > 0 then
-                survivingByParty[party.id] = survivingByParty[party.id] + 1
+            local tacticalHp = actorResult.tacticalHp or actorResult.finalHp
+            local tacticalEscaped = actorResult.escaped
+            if actorResult.tacticalHp ~= nil then
+                assert(type(tacticalHp) == "number" and tacticalHp == tacticalHp and tacticalHp >= 0 and tacticalHp < math.huge,
+                    "Invalid tactical HP")
+                assert(type(actorResult.tacticalEscaped) == "boolean", "Invalid tactical escape status")
+                assert(tacticalHp > 0 or actorResult.finalHp == 0, "Settlement cannot revive casualties")
+                tacticalEscaped = actorResult.tacticalEscaped
             end
-            if actorResult.finalHp > 0 and not actorResult.escaped then
+            if tacticalHp > 0 then survivingByParty[party.id] = survivingByParty[party.id] + 1 end
+            if tacticalHp > 0 and not tacticalEscaped then
                 livingByPartyId[party.id] = livingByPartyId[party.id] + 1
             end
         end
@@ -208,7 +216,7 @@ function CampaignBattleResultApplier.apply(result, context)
         entry.actor.hp = entry.result.finalHp
         if entry.result.maxHp then entry.actor.maxHp = entry.result.maxHp end
         if entry.result.statusEffects then
-            entry.actor.statusEffects = InventorySystem.deepClone(entry.result.statusEffects)
+            entry.actor.statusEffects = Conditions.persistentStatuses(entry.result)
         end
         if entry.result.defeated then
             PartySystem.removeFromParty(entry.party, actorId)

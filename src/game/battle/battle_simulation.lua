@@ -1,3 +1,4 @@
+local Conditions = require("src.systems.actors.conditions")
 -- Owns the transient ECS world and context for one battle.
 
 local BattleContext = require("src.game.battle.battle_context")
@@ -89,6 +90,7 @@ function BattleSimulation.new(partyA, partyB, controlPartyA, options)
 end
 
 function BattleSimulation:tick()
+    if self.settled then return end
     self.context.data.tick = self.context.data.tick + 1
     self.world:emit("update", self.context)
     self.context.removeDeadUnits()
@@ -107,6 +109,7 @@ local function getLivingCounts(context)
 end
 
 function BattleSimulation:getOutcome()
+    if self.settled then return self.tacticalOutcome, self.tacticalWinner end
     local context, partyA, partyB = self.context, self.partyA, self.partyB
     local partyAAlive, partyBAlive = getLivingCounts(context)
     self.resolving = partyAAlive == 0 or partyBAlive == 0
@@ -144,6 +147,8 @@ local function addActorResults(result, party, unitsByActorId)
         result.actors[actor.id] = {
             partyId = party.id,
             finalHp = finalHp,
+            tacticalHp = battleUnit and battleUnit.tacticalHp,
+            tacticalEscaped = battleUnit and battleUnit.tacticalEscaped,
             maxHp = battleUnit and battleUnit.maxHp or maxHp,
             statusEffects = InventorySystem.deepClone(battleUnit and battleUnit.statusEffects or actor.statusEffects or {}),
             defeated = finalHp <= 0,
@@ -158,7 +163,52 @@ local function addActorResults(result, party, unitsByActorId)
     end
 end
 
+-- A bounded, synchronous status-only tail; tactical time and the winner stay fixed.
+BattleSimulation.SETTLEMENT_LIMIT = 10000
+function BattleSimulation:settle(outcome, winnerPartyId)
+    if self.settled then return end
+    self.settled, self.tacticalOutcome, self.tacticalWinner = true, outcome, winnerPartyId
+    self.settlementTicks = 0
+    local units = collectBattleUnits(self.context)
+    for _, unit in pairs(units) do
+        unit.tacticalHp, unit.tacticalEscaped = unit.hp, unit.escaped == true
+        unit.intent, unit.currentCast = nil, nil
+    end
+    local function pending()
+        for _, unit in pairs(units) do
+            if unit.hp > 0 then
+                for id, entry in pairs(unit.statusEffects or {}) do
+                    if Conditions.finitePeriodic(entry, id) then return true end
+                end
+            end
+        end
+        return false
+    end
+    while self.settlementTicks < self.SETTLEMENT_LIMIT and pending() do
+        self.settlementTicks = self.settlementTicks + 1
+        for _, unit in pairs(units) do
+            if unit.hp > 0 then ExecutionSystem.tickStatuses(unit, self.context, true) end
+        end
+        Morale.process(self.context)
+        self.context.removeDeadUnits()
+    end
+    self.settlementTruncated = pending()
+    for _, unit in pairs(units) do
+        unit.statusEffects = Conditions.persistentStatuses(unit)
+    end
+    for index = #self.context.data.escaped, 1, -1 do
+        local unit = self.context.data.escaped[index]
+        if unit.hp <= 0 then
+            unit.escaped = false
+            table.remove(self.context.data.escaped, index)
+            self.context.data.casualties[#self.context.data.casualties+1] = unit
+        end
+    end
+end
+
 function BattleSimulation:buildResult(outcome, winnerPartyId)
+    self:settle(outcome, winnerPartyId)
+    outcome, winnerPartyId = self.tacticalOutcome, self.tacticalWinner
     local partyA, partyB = self.partyA, self.partyB
     local result = {
         partyAId = partyA.id,
@@ -168,7 +218,9 @@ function BattleSimulation:buildResult(outcome, winnerPartyId)
         loserPartyId = nil,
         routedPartyIds = {},
         actors = {},
-        ticks = self.context.data.tick
+        ticks = self.context.data.tick,
+        settlementTicks = self.settlementTicks,
+        settlementTruncated = self.settlementTruncated
     }
 
     for _, side in ipairs({{team="player", id=partyA.id}, {team="enemy", id=partyB.id}}) do

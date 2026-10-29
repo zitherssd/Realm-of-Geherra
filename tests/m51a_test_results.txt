@@ -1,0 +1,129 @@
+conditions_scenario: PASS
+Unified conditions foundation PASS
+conditions_scenario passed
+
+injury_scenario: PASS
+BattleState: Battle started against party ID: 'interactive-victim'
+[WorldEncounter] injury-encounter:encounter:1 started: world-injury-a vs world-injury-b
+[WorldEncounter] injury-encounter:encounter:1 completed: outcome=victory winner=world-injury-a casualties=1 duration=0.000 world-hours ticks=0
+injury_scenario passed
+
+injury_treatment_scenario: PASS
+BattleState: Battle started against party ID: 'party_2'
+[WorldEncounter] treatment:encounter:1 started: Treatment party vs Enemy
+[WorldEncounter] treatment:encounter:1 completed: outcome=timeout winner=none casualties=0 duration=10.000 world-hours ticks=0
+injury_treatment_scenario passed
+
+combat_power_scenario: PASS
+Shared combat power and threat snapshots PASS
+combat_power_scenario passed
+
+battle_movement_scenario: PASS
+battle_movement_scenario passed
+
+battle_simulation_scenario: PASS
+BattleState: Battle started against party ID: 'interactive-enemy'
+BattleState: Battle started against party ID: 'defeat-enemy'
+BattleState: Battle started against party ID: 'draw-enemy'
+battle_simulation_scenario passed
+
+headless_battle_scenario: PASS
+Sample EncounterResult: parties=strong-a/weak-b winner=strong-a outcome=victory ticks=143 defeated=true finalHp=10000
+Headless benchmark small (1 vs 1, 200 ticks, 25 runs): 1.480ms/run
+Headless benchmark moderate (5 vs 5, 200 ticks, 15 runs): 9.333ms/run
+headless_battle_scenario passed
+
+campaign_battle_result_scenario: PASS
+campaign_battle_result_scenario passed
+
+campaign_battle_resolution_scenario: PASS
+BattleState: Battle started against party ID: 'b'
+[WorldEncounter] resolution-map:encounter:1 started: a vs b
+[WorldEncounter] resolution-map:encounter:1 completed: outcome=victory winner=a casualties=3 duration=0.000 world-hours ticks=0
+BattleState: Battle started against party ID: 'b'
+[WorldEncounter] resolution-map:encounter:1 started: a vs b
+[WorldEncounter] resolution-map:encounter:1 completed: outcome=victory winner=b casualties=3 duration=0.000 world-hours ticks=0
+BattleState: Battle started against party ID: 'b'
+[WorldEncounter] resolution-map:encounter:1 started: a vs b
+[WorldEncounter] resolution-map:encounter:1 completed: outcome=draw winner=none casualties=4 duration=0.000 world-hours ticks=0
+[WorldEncounter] resolution-map:encounter:1 started: a vs b
+[WorldEncounter] resolution-map:encounter:1 completed: outcome=timeout winner=none casualties=2 duration=0.000 world-hours ticks=0
+BattleState: Battle started against party ID: 'b'
+campaign_battle_resolution_scenario passed
+
+combat_regression_scenario: FAIL
+combat_regression_scenario.lua:57: A javelin used main-hand damage
+stack traceback:
+	[C]: in function 'assert'
+	combat_regression_scenario.lua:57: in function 'testSkillDamageAndModifiers'
+	combat_regression_scenario.lua:185: in function <combat_regression_scenario.lua:178>
+	[C]: in function 'xpcall'
+	combat_regression_scenario.lua:178: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+stack traceback:
+	[C]: in function 'error'
+	combat_regression_scenario.lua:193: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+projectile_scenario: FAIL
+projectile_scenario.lua:290: archer has missing Precision
+stack traceback:
+	[C]: in function 'assert'
+	projectile_scenario.lua:290: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+projectile_presentation_scenario: PASS
+Projectile presentation, original actor anchors/scales and interpolation PASS
+projectile_presentation_scenario passed
+
+aoe_scenario: FAIL
+aoe_scenario.lua:297: aoe_scenario.lua:141: Explosion not at physical interception
+stack traceback:
+	[C]: in function 'assert'
+	aoe_scenario.lua:141: in function 'projectileImpacts'
+	aoe_scenario.lua:291: in function <aoe_scenario.lua:287>
+	[C]: in function 'xpcall'
+	aoe_scenario.lua:287: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+stack traceback:
+	[C]: in function 'assert'
+	aoe_scenario.lua:297: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+data_definitions_scenario: PASS
+data_definitions_scenario passed

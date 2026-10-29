@@ -1,7 +1,7 @@
+local EffectiveStats = require("src.systems.actors.effective_stats")
 -- Shared campaign/battle estimate; accepts ordinary actor tables without an ECS world.
 local Items = require("src.data.items")
 local Combat = require("src.systems.battle.combat_system")
-local Injury = require("src.systems.actors.injury_system")
 local CombatPower = {}
 
 function CombatPower.unit(actor)
@@ -40,12 +40,11 @@ function CombatPower.unit(actor)
     local protection = 0
     -- Mean physical protection represents armor without adding damage-type values together.
     for _, kind in ipairs({"slashing", "piercing", "blunt"}) do
-        protection = protection + (actor.protections and actor.protections[kind] or
-            Combat.getTotalProtection(actor, kind)) / 3
+        protection = protection + (EffectiveStats.protection(actor, kind)) / 3
     end
-    local attack = Injury.stat(actor, "attack", stats.attack or 10)
-    local defense = Injury.stat(actor, "defense", stats.defense or 0)
-    return hp / 20 * (attack + defense + (stats.strength or 0) / 2 +
+    local attack = EffectiveStats.get(actor, "attack", 10)
+    local defense = EffectiveStats.get(actor, "defense")
+    return hp / 20 * (attack + defense + EffectiveStats.get(actor, "strength") / 2 +
         best + 0.25 * alternative + protection / 2) / 30
 end
 

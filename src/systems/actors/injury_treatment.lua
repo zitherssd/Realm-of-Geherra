@@ -1,3 +1,4 @@
+local Conditions = require("src.systems.actors.conditions")
 local Ecs = require("src.ecs.world")
 local Injury = require("src.systems.actors.injury_system")
 local Inventory = require("src.systems.items.inventory_system")
@@ -91,7 +92,7 @@ function Treatment.advance(treatment, elapsedWorldHours, world, reserved, rng)
     if treatment.elapsedHours + 1e-9 < treatment.durationHours then return 0 end
     treatment.elapsedHours = treatment.durationHours
     local success = (rng or math.random)() < Treatment.successProbability
-    if success then table.remove(patient.injuries, index) end
+    if success then Conditions.remove(patient, patient.injuries[index].id, patient.injuries[index].bodyPart) end
     finish(treatment, world, success and "success" or "failure")
     local remaining = elapsedWorldHours - used
     return remaining > 1e-9 and remaining or 0

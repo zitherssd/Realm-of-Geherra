@@ -165,7 +165,7 @@ local function testInteractiveBattle()
         BattleState.checkBattleEnd()
         assert(lastTransition and lastTransition.name == "battle_end", "victory did not open battle-end flow")
         assert(lastTransition.params.victory == true)
-        assert(playerActor.statusEffects.burn.remaining < 50, "battle status effects were not applied to the campaign actor")
+        assert(playerActor.statusEffects.burn == nil, "Battle-only burn persisted to campaign")
         local victory = WorldEvents.getByType(campaign, "battle_ended")[1]
         assert(victory.outcome == "victory" and victory.winnerPartyId == playerParty.id)
         assert(victory.defeatedPartyIds[1] == enemyParty.id)

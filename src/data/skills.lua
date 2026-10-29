@@ -48,11 +48,11 @@ local skills = {
         id = "fireball",
         name = "Fireball",
         type = "aoe",
-        description = "Launch a fireball at a target cell",
+        description = "Launch a fireball at a battlefield position",
         damageType = "fire",
         baseDamage = 15,
         targeted = true,
-        aoe = 1,
+        aoe = {shape = "circle", radius = 33.6, eligibility = "all"},
         range = 8.0,
         windup = 40,
         cooldown = 60,
@@ -62,8 +62,9 @@ local skills = {
         },
         projectile = {
             speed = 24,
-            arc = 0,
+            arc = 35,
             style = "fireball",
+            defenseMode = "none",
         },
     },
 
@@ -93,9 +94,9 @@ local skills = {
         },
     },
 
-    arrow = {
+    ["arrow"] = {
         id="arrow", name="Arrow", type="ranged", damageType="piercing", baseDamage=10,
-        range=14, windup=20, cooldown=30,
+        range=14, windup=40, cooldown=10,
         projectile={style="arrow", speed=40, arc=25, radius=1},
     },
 
@@ -144,8 +145,8 @@ local skills = {
         damageType = "blunt",
         baseDamage = 9,
         range = 12.0,
-        windup = 20,
-        cooldown = 30,
+        windup = 30,
+        cooldown = 10,
         projectile = {
             style = "sling_stone",
             speed = 36,

@@ -124,7 +124,7 @@ local function runMode(player, winner, detached)
         local event = resolved.event
         for id, actor in pairs(actors) do
             assert(actor.hp == result.actors[id].finalHp and actor.maxHp == result.actors[id].maxHp)
-            equal(actor.statusEffects, result.actors[id].statusEffects)
+            equal(actor.statusEffects, require("src.systems.actors.conditions").persistentStatuses(result.actors[id]))
             assert(Knowledge.knows(actor, event.id, world) == not result.actors[id].defeated)
             if not result.actors[id].defeated then assert(next(actor.equipment) == nil) end
         end

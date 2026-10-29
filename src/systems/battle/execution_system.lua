@@ -1,17 +1,17 @@
+local EffectiveStats = require("src.systems.actors.effective_stats")
+local Conditions = require("src.systems.actors.conditions")
 local Projectile = require("src.game.battle.projectiles")
+local Aoe = require("src.game.battle.aoe")
 -- systems/battle/execution_system.lua
 -- Resolves intents, updates positions, and applies damage in world space.
 
 local Concord = require("src.libs.concord")
-local Statuses = require("src.data.statuses")
 local RangeUtils = require("src.systems.battle.range_utils")
 local CombatSystem = require("src.systems.battle.combat_system")
 local Morale = require("src.game.battle.morale")
-local Injury = require("src.systems.actors.injury_system")
 
 local ExecutionSystem = Concord.system({pool = {"battleUnit"}})
 
-local WORLD_RANGE_SCALE = 42
 -- Provisional M1 calibration; displacement is local, never propagated to neighbors.
 local MOVEMENT = {substep = 2, displacementSizeGap = 1, yieldPerMove = 18, allySqueeze = 0.8}
 local MIN_DIST_EPSILON = 0.001
@@ -46,44 +46,9 @@ end
 local function applyOnHitStatuses(targetUnit, skillData)
     if not targetUnit or not skillData or not skillData.onHitStatuses then return end
 
-    targetUnit.statusEffects = targetUnit.statusEffects or {}
-    for statusId, statusConfig in pairs(skillData.onHitStatuses) do
-        if type(statusId) == "number" then
-            statusId = statusConfig
-            statusConfig = Statuses[statusId]
-        end
-        local duration = 0
-
-        if type(statusConfig) == "number" then
-            duration = statusConfig
-        elseif type(statusConfig) == "table" then
-            duration = statusConfig.duration or statusConfig.remaining or statusConfig.ticks or 0
-        elseif statusConfig == true then
-            duration = 60
-        end
-
-        if duration > 0 then
-            local damagePerTick = 0
-            local tickEvery = nil
-
-            if type(statusConfig) == "table" then
-                damagePerTick = statusConfig.damagePerTick or statusConfig.damage_per_tick or 0
-                tickEvery = statusConfig.tickEvery or statusConfig.tick_every
-            end
-
-            if damagePerTick > 0 and (not tickEvery or tickEvery < 1) then
-                tickEvery = 20
-            end
-
-            targetUnit.statusEffects[statusId] = {
-                remaining = duration,
-                duration = duration,
-                sourceSkillId = skillData.id,
-                damagePerTick = damagePerTick,
-                tickEvery = tickEvery,
-                tickCounter = 0
-            }
-        end
+    for id, config in pairs(skillData.onHitStatuses) do
+        if type(id) == "number" then id, config = config, true end
+        Conditions.apply(targetUnit, id, config, skillData.id)
     end
 end
 
@@ -236,19 +201,52 @@ local function bypassDirection(unit, context, bypass, distance, targetX, targetY
     return bestX,bestY
 end
 
-function ExecutionSystem._resolveAoeAtPoint(attackerUnit, skillData, targetX, targetY, context, excluded, projectileImpact)
-    local aoeRadius = math.max(24, ((skillData.aoe or 1) * WORLD_RANGE_SCALE * 0.8))
+function ExecutionSystem._resolveAoeAtPoint(attackerUnit, skillData, targetX, targetY, context)
+    local shape = Aoe.at(attackerUnit, skillData.aoe, targetX, targetY)
+    local targets = Aoe.select(shape, context.data.unitList, attackerUnit, skillData.aoe.eligibility)
+    for _, targetUnit in ipairs(targets) do
+        local result = CombatSystem.resolveAreaEffect(attackerUnit, targetUnit, skillData)
+        ExecutionSystem.applyAttackResult(result, targetUnit, context, skillData)
+    end
+    return targets
+end
 
-    for _, targetUnit in ipairs(context.data.unitList) do
-        if (projectileImpact or targetUnit.team ~= attackerUnit.team) and targetUnit ~= excluded and targetUnit.hp > 0 and not targetUnit.escaped then
-            local dx = targetUnit.x - targetX
-            local dy = targetUnit.y - targetY
-            local distSq = dx * dx + dy * dy
-            local reach = aoeRadius + (targetUnit.collisionRadius or 0)
-            if distSq <= (reach * reach) then
-                local resolve = projectileImpact and CombatSystem.resolveProjectileAttack or CombatSystem.resolveAttack
-                local result = resolve(attackerUnit, targetUnit, skillData)
-                ExecutionSystem.applyAttackResult(result, targetUnit, context, skillData)
+-- Shared by tactical ticks and status-only settlement. Pulses never count as melee hits.
+function ExecutionSystem.tickStatuses(unit, context, finiteOnly)
+    if not Conditions.permits(unit, "cast") then unit.currentCast = nil end
+    for id, entry in pairs(unit.statusEffects or {}) do
+        if not Conditions.active(entry) then Conditions.remove(unit, id)
+        elseif not finiteOnly or Conditions.finitePeriodic(entry, id) then
+            local definition = Conditions.definition(id, entry)
+            if unit.hp > 0 and (definition.tickEvery or 0) > 0 then
+                entry.tickCounter = (entry.tickCounter or 0) + 1
+                if entry.tickCounter >= definition.tickEvery then
+                    entry.tickCounter = 0
+                    local damage = (definition.damagePerTick or 0) * (definition.stackPeriodicDamage and (entry.stacks or 1) or 1)
+                    if damage > 0 then
+                        damage = math.max(0, math.floor(damage - EffectiveStats.protection(unit, definition.damageType or "blunt")))
+                        CombatSystem._applyBattleDamage(unit, damage, true)
+                        Morale.process(context)
+                        if damage > 0 and context.addFloatingText then
+                            context.addFloatingText(unit.visualX, unit.visualY, tostring(damage), {1, 0.45, 0.15, 1})
+                        end
+                    end
+                    if unit.hp > 0 and (definition.healingPerTick or 0) > 0 then
+                        unit.hp = math.min(unit.maxHp, unit.hp + definition.healingPerTick)
+                    end
+                end
+            end
+            if definition.decayEvery then
+                entry.decayCounter = (entry.decayCounter or 0) + 1
+                if entry.decayCounter >= definition.decayEvery then
+                    entry.decayCounter = 0
+                    entry.stacks = (entry.stacks or 1) - math.max(1, math.floor((entry.stacks or 1) * 0.20))
+                    if entry.stacks <= 0 then Conditions.remove(unit, id) end
+                end
+            end
+            if entry.remaining and definition.lifetime ~= "permanent" then
+                entry.remaining = entry.remaining - 1
+                if entry.remaining <= 0 then Conditions.remove(unit, id) end
             end
         end
     end
@@ -272,34 +270,10 @@ function ExecutionSystem:update(context)
             end
         end
 
-        if unit.statusEffects then
-            for effectId, effectData in pairs(unit.statusEffects) do
-                if type(effectData) == "table" and effectData.remaining then
-                    if (effectData.damagePerTick or 0) > 0 and (effectData.tickEvery or 0) > 0 then
-                        effectData.tickCounter = (effectData.tickCounter or 0) + 1
-                        if effectData.tickCounter >= effectData.tickEvery then
-                            effectData.tickCounter = 0
-                            local dotDamage = math.max(0, math.floor(effectData.damagePerTick or 0))
-                            if dotDamage > 0 and unit.hp > 0 then
-                                CombatSystem._applyBattleDamage(unit, dotDamage, true)
-                                Morale.process(context)
-                                if context.addFloatingText then
-                                    context.addFloatingText(unit.visualX, unit.visualY, tostring(dotDamage), {1, 0.45, 0.15, 1})
-                                end
-                            end
-                        end
-                    end
-
-                    effectData.remaining = effectData.remaining - 1
-                    if effectData.remaining <= 0 then
-                        unit.statusEffects[effectId] = nil
-                    end
-                end
-            end
-        end
+        ExecutionSystem.tickStatuses(unit, context)
 
         if unit.currentCast then
-            if unit.hp <= 0 or unit.fleeing or unit.escaped then
+            if unit.hp <= 0 or unit.fleeing or unit.escaped or not Conditions.permits(unit, "cast") then
                 unit.currentCast = nil
             else
                 unit.currentCast.remaining = unit.currentCast.remaining - 1
@@ -332,7 +306,7 @@ function ExecutionSystem:update(context)
 end
 
 function ExecutionSystem._executeMove(unit, intent, context)
-    if unit.globalCooldown > 0 then return end
+    if unit.globalCooldown > 0 or not Conditions.permits(unit, "move") then return end
 
     local targetX = intent.target and intent.target.x
     local targetY = intent.target and intent.target.y
@@ -410,7 +384,7 @@ function ExecutionSystem._executeMove(unit, intent, context)
     if not unit.fleeing and unit.squad and unit.squad.order == "hold" then unit.facing = -unit.squad.direction end
     clampUnitToBounds(unit, context)
 
-    local battleSpeed = Injury.stat(unit, "battle_speed", unit.stats.battle_speed or 10)
+    local battleSpeed = EffectiveStats.get(unit, "battle_speed", 10)
     local variance = (math.random() - 0.5) * 0.2
     local cooldownTicks = (120 * (1 + variance)) / battleSpeed
     unit.moveCooldown = cooldownTicks
@@ -421,7 +395,7 @@ function ExecutionSystem._initiateSkill(unit, intent, context)
     local skillId = intent.skillId
     local skillData = CombatSystem.getEffectiveSkill(unit, skillId)
 
-    if unit.fleeing or unit.escaped or not skillData or not unit.skills[skillId] or (unit.cooldowns[skillId] or 0) > 0 or
+    if not Conditions.permits(unit, "cast") or not Conditions.permits(unit, "attack") or unit.fleeing or unit.escaped or not skillData or not unit.skills[skillId] or (unit.cooldowns[skillId] or 0) > 0 or
         unit.globalCooldown > 0 or unit.currentCast or
         (skillData.maxCharges and (unit.charges[skillId] or 0) <= 0) then return end
 
@@ -467,6 +441,7 @@ function ExecutionSystem._initiateSkill(unit, intent, context)
 end
 
 function ExecutionSystem._completeCast(unit, context)
+    if not Conditions.permits(unit, "cast") then unit.currentCast = nil end
     if not unit.currentCast then return end
 
     ExecutionSystem._executeSkillEffect(
@@ -481,6 +456,7 @@ end
 
 function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, targetPoint, context)
     local skillData = CombatSystem.getEffectiveSkill(unit, skillId)
+    if not Conditions.permits(unit, "cast") or not Conditions.permits(unit, "attack") then return end
     if not skillData or unit.fleeing or unit.escaped or unit.hp <= 0 then return end
 
     if skillData.type == "command" then
@@ -490,7 +466,7 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
         return
     end
     local targetUnit = context.data.units[targetUnitId]
-    local isTargetedAoe = skillData.type == "aoe" and skillData.targeted == true
+    local isTargetedAoe = skillData.aoe ~= nil
     local castTargetX = nil
     local castTargetY = nil
 
@@ -501,6 +477,8 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
         elseif targetUnit and targetUnit.hp > 0 and not targetUnit.escaped then
             castTargetX = targetUnit.x
             castTargetY = targetUnit.y
+        elseif skillData.aoe.shape ~= "circle" then
+            castTargetX, castTargetY = unit.x, unit.y
         end
 
         if castTargetX and castTargetY then
@@ -523,7 +501,8 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
     else
         local isValid = false
 
-        if targetUnit and targetUnit.hp > 0 and not targetUnit.escaped then
+        if targetUnit and targetUnit.hp > 0 and not targetUnit.escaped and
+            (not skillData.healing or targetUnit.team == unit.team) then
             local dx = targetUnit.x - unit.x
             local dy = targetUnit.y - unit.y
             local distSq = dx * dx + dy * dy
@@ -535,7 +514,19 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
 
         if not isValid then
             local fallbackRange = RangeUtils.effectiveSkillRange(unit, nil, skillData)
-            targetUnit = context.findNearestHostile(unit, fallbackRange)
+            if skillData.healing then
+                targetUnit = nil
+                local distance = math.huge
+                for _, ally in ipairs(context.data.unitList) do
+                    local d = (ally.x-unit.x)^2 + (ally.y-unit.y)^2
+                    local range = RangeUtils.effectiveSkillRange(unit, ally, skillData)
+                    if ally.team == unit.team and ally.hp > 0 and ally.hp < ally.maxHp and not ally.escaped and d <= range^2 and d < distance then
+                        targetUnit, distance = ally, d
+                    end
+                end
+            else
+                targetUnit = context.findNearestHostile(unit, fallbackRange)
+            end
         end
 
         if targetUnit then
@@ -593,7 +584,10 @@ function ExecutionSystem.applyAttackResult(result, target, context, skillData)
         applyOnHitStatuses(target, skillData)
 
         if context.addFloatingText then
-            context.addFloatingText(target.visualX, target.visualY, tostring(result.damage), {1, 0.2, 0.2, 1})
+            local healing = (result.healed or 0) > 0
+            context.addFloatingText(target.visualX, target.visualY,
+                healing and ("+"..result.healed) or tostring(result.damage),
+                healing and {0.2, 1, 0.2, 1} or {1, 0.2, 0.2, 1})
         end
     else
         if context.addFloatingText then
@@ -617,12 +611,23 @@ function ExecutionSystem._updateProjectiles(context)
 
             local result
             if collidedUnit then
-                result = CombatSystem.resolveProjectileAttack(proj.attackerUnit, collidedUnit, skillData)
-                ExecutionSystem.applyAttackResult(result, collidedUnit, context, skillData)
+                if skillData.aoe then
+                    result = CombatSystem.resolveProjectileContact(proj.attackerUnit, collidedUnit, skillData)
+                    if not result.hit then ExecutionSystem.applyAttackResult(result, collidedUnit, context, skillData) end
+                else
+                    result = CombatSystem.resolveProjectileAttack(proj.attackerUnit, collidedUnit, skillData)
+                    ExecutionSystem.applyAttackResult(result, collidedUnit, context, skillData)
+                end
                 if not result.hit and result.action ~= "block" then proj.visualOnly = true end
             end
 
-            if not proj.visualOnly and (not result or result.hit) and skillData and skillData.projectile and skillData.projectile.style == "fireball" and context.addVfx then
+            local areaImpact = not proj.visualOnly and skillData and skillData.aoe and
+                (reason == "ground" or (result and result.hit))
+            if areaImpact then
+                ExecutionSystem._resolveAoeAtPoint(proj.attackerUnit, skillData, tx, ty, context)
+            end
+
+            if areaImpact and isFireballProjectile(skillData) and context.addVfx then
                 context.addVfx({
                     type = "fire_explosion",
                     x = tx,
@@ -654,11 +659,6 @@ function ExecutionSystem._updateProjectiles(context)
                 context.addVfx({type="projectile_contact", x=tx, y=ty, z=proj.z,
                     projectile=proj, contactUnit=collidedUnit, time=0, duration=0.12})
             end
-            if not proj.visualOnly and skillData and skillData.type == "aoe" and skillData.targeted and
-                (reason == "ground" or (result and result.hit)) then
-                ExecutionSystem._resolveAoeAtPoint(proj.attackerUnit, skillData, tx, ty, context, collidedUnit, true)
-            end
-
             if not collidedUnit or not proj.visualOnly then table.remove(projectiles, i) end
         else
             local skillData = proj.skillData

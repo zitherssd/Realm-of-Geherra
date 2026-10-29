@@ -1,10 +1,10 @@
+local EffectiveStats = require("src.systems.actors.effective_stats")
 -- ui/widgets/stats_panel.lua
 -- Reusable actor stats panel
 
 local StatsPanel = {}
 StatsPanel.__index = StatsPanel
 
-local Items = require("src.data.items")
 local Injury = require("src.systems.actors.injury_system")
 
 -- Damage types with flat protection (innate + equipment). Mirrors
@@ -33,59 +33,18 @@ function StatsPanel.new(x, y, width, height)
 end
 
 local function buildEffectiveStats(actor)
-    local effectiveStats = {}
-    local baseStats = actor.stats or {}
-
-    for statName, value in pairs(baseStats) do
-        effectiveStats[statName] = value
+    local stats = {}
+    for key in pairs(actor.stats or {}) do stats[key] = EffectiveStats.get(actor, key) end
+    for _, key in ipairs({"attack", "defense", "strength", "precision", "speed", "battle_speed"}) do
+        stats[key] = EffectiveStats.get(actor, key)
     end
-
-    if actor.equipment then
-        for _, itemId in pairs(actor.equipment) do
-            if itemId then
-                local item = Items[itemId]
-                if item and item.stats then
-                    for statName, value in pairs(item.stats) do
-                        effectiveStats[statName] = (effectiveStats[statName] or 0) + value
-                    end
-                end
-            end
-        end
-    end
-
-    for _, stat in ipairs({"attack", "defense", "speed", "battle_speed"}) do
-        effectiveStats[stat] = Injury.stat(actor, stat, effectiveStats[stat] or 0)
-    end
-    return effectiveStats
+    return stats
 end
 
--- Total flat protection per damage type (innate + equipped items). Mirrors
--- systems/battle/combat_system.lua getTotalProtection.
 local function buildEffectiveProtections(actor)
-    local protections = {}
-    for _, damageType in ipairs(DAMAGE_TYPES) do
-        protections[damageType] = 0
-    end
-
-    local innate = actor.innateProtections or {}
-    for damageType, value in pairs(innate) do
-        protections[damageType] = (protections[damageType] or 0) + value
-    end
-
-    if actor.equipment then
-        for _, itemId in pairs(actor.equipment) do
-            if itemId then
-                local item = Items[itemId]
-                if item and item.protections then
-                    for damageType, value in pairs(item.protections) do
-                        protections[damageType] = (protections[damageType] or 0) + value
-                    end
-                end
-            end
-        end
-    end
-
-    return protections
+    local result = {}
+    for _, kind in ipairs(DAMAGE_TYPES) do result[kind] = EffectiveStats.protection(actor, kind) end
+    return result
 end
 
 function StatsPanel:draw(actor)

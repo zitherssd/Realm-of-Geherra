@@ -149,7 +149,9 @@ end
 local function defendedContinuation()
     local dice, defense = Dice.rollExploding, Combat.rollProjectileDefense
     Dice.rollExploding=function() return 1 end
-    for _,skill in ipairs({Skills.arrow,Skills.fireball}) do
+    local opposedArea={id="opposed-area",baseDamage=15,aoe=Skills.fireball.aoe,
+        projectile={style="fireball",speed=24,defenseMode="opposed"}}
+    for _,skill in ipairs({Skills.arrow,Skills.javelin_throw,opposedArea}) do
         for _,shielded in ipairs({false,true}) do
             local a,b,behind=unit("a",100,200),unit("b",300,200,"enemy"),unit("behind",340,200,"enemy")
             a.stats.precision=0 -- Equal dice give an unshielded tie, also a defense success.
@@ -161,7 +163,7 @@ local function defendedContinuation()
                 return defense(...)
             end
             local p=P.launch(a,skill,b.x,b.y,b,function() return 0.5 end)
-            if skill==Skills.fireball then p.trailParticles={} end
+            if skill==opposedArea then p.trailParticles={} end
             c.addProjectile(p)
             for _=1,30 do
                 Execution._updateProjectiles(c)
@@ -187,7 +189,7 @@ local function defendedContinuation()
     end
     -- A shield alone turning a win into a defense catches the projectile, including spells.
     Combat.rollProjectileDefense=defense
-    for _,skill in ipairs({Skills.arrow,Skills.fireball}) do
+    for _,skill in ipairs({Skills.arrow,Skills.javelin_throw,opposedArea}) do
         local a,b,behind=unit("block-a",100,200),unit("block-b",300,200,"enemy"),unit("block-behind",340,200,"enemy")
         a.stats.precision=8 -- Attacker 3 versus base defender 2: only the shield prevents the hit.
         b.equipment.offHand="wooden_shield";b.itemDurability.wooden_shield=1

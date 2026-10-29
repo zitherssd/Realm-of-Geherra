@@ -1,7 +1,7 @@
 -- systems/battle/battle_unit_system.lua
 -- Small per-unit helpers shared across the battle systems and battle_state.
 
-local Statuses = require("src.data.statuses")
+local Conditions = require("src.systems.actors.conditions")
 
 local BattleUnitSystem = {}
 
@@ -11,18 +11,7 @@ function BattleUnitSystem.canAct(unit)
         return false
     end
 
-    if unit.statusEffects then
-        for effectId, effectData in pairs(unit.statusEffects) do
-            if type(effectData) == "table" and effectData.remaining and effectData.remaining > 0 then
-                local config = Statuses[effectId]
-                if config and config.canAct == false then
-                    return false
-                end
-            end
-        end
-    end
-
-    return true
+    return Conditions.permits(unit, "attack") or Conditions.permits(unit, "move") or Conditions.permits(unit, "cast")
 end
 
 -- Sync visual position immediately to world position (teleport)

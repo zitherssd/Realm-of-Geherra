@@ -1,3 +1,5 @@
+local Conditions = require("src.systems.actors.conditions")
+local EffectiveStats = require("src.systems.actors.effective_stats")
 -- systems/battle/combat_system.lua
 -- Handle combat mechanics, damage, and attack resolution
 
@@ -26,17 +28,15 @@ end
 -- Returns: isHit, margin, shieldDefense
 function CombatSystem.rollAttack(attacker, defender, skill)
     local MATH = require("src.utils.math")
-    local attStats = attacker.stats or {}
-    local defStats = defender.stats or {}
 
-    local attack = Injury.stat(attacker, "attack", attStats.attack or 10)
-    local defense = Injury.stat(defender, "defense", defStats.defense or 0)
+    local attack = EffectiveStats.get(attacker, "attack", 10)
+    local defense = EffectiveStats.get(defender, "defense")
     local shieldDefense = CombatSystem._getShieldDefense(defender)
 
     -- Attack side: two exploding d8s
     local attackRoll = attack + MATH.rollExploding(8) + MATH.rollExploding(8)
     -- Defense side: defense stat plus shield bonus, two exploding d8s
-    local defenseRoll = defense + shieldDefense + MATH.rollExploding(8) + MATH.rollExploding(8)
+    local defenseRoll = defense + MATH.rollExploding(8) + MATH.rollExploding(8)
     local margin = attackRoll - defenseRoll
 
     return margin > 0, margin, shieldDefense
@@ -44,10 +44,10 @@ end
 
 function CombatSystem.rollProjectileDefense(attacker, defender)
     local MATH = require("src.utils.math")
-    local precision = (attacker.stats or {}).precision or 10
+    local precision = EffectiveStats.get(attacker, "precision", 10)
     local shield = CombatSystem._getShieldDefense(defender)
     local attack = precision / 8 + MATH.rollExploding(8) + MATH.rollExploding(8)
-    local defense = MATH.rollExploding(8) + MATH.rollExploding(8) + 2 * shield
+    local defense = MATH.rollExploding(8) + MATH.rollExploding(8) + 2 * shield + 2
     return attack > defense, attack - defense, shield
 end
 
@@ -62,16 +62,11 @@ function CombatSystem.calculateDamage(attacker, defender, skill)
     local damageType = skill.damageType or "blunt"
 
     -- Strength contributes half its value to damage
-    local strength = attacker.stats.strength or 0
+    local strength = EffectiveStats.get(attacker, "strength")
     local strengthContribution = math.floor(strength / 2)
 
     -- Get total protection (from battle unit and equipment)
-    local totalProtection = 0
-    if defender.protections and defender.protections[damageType] then
-        totalProtection = defender.protections[damageType]
-    else
-        totalProtection = CombatSystem.getTotalProtection(defender, damageType)
-    end
+    local totalProtection = EffectiveStats.protection(defender, damageType)
 
     -- Calculate raw damage with two exploding d6s: one for attack variance, one for AC mitigation
     local rollToAttack = MATH.rollExploding(6)  -- Attacker's chance to wound
@@ -84,30 +79,7 @@ end
 
 -- Calculate total protection for a damage type (innate + equipment)
 function CombatSystem.getTotalProtection(defender, damageType)
-    if not defender then return 0 end
-    
-    local damageType = damageType or "blunt"
-    local totalProtection = 0
-    
-    -- Add innate protections
-    if defender.innateProtections and defender.innateProtections[damageType] then
-        totalProtection = totalProtection + defender.innateProtections[damageType]
-    end
-    
-    -- Add equipment protections
-    if defender.equipment then
-        local Items = require("src.data.items")
-        for slot, itemId in pairs(defender.equipment) do
-            if itemId then
-                local item = Items[itemId]
-                if item and item.protections and item.protections[damageType] then
-                    totalProtection = totalProtection + item.protections[damageType]
-                end
-            end
-        end
-    end
-    
-    return totalProtection
+    return defender and EffectiveStats.protection(defender, damageType or "blunt") or 0
 end
 
 -- Effective skill = base skill overridden by the equipped weapon's skillModifiers.
@@ -172,7 +144,7 @@ end
 -- Private function for battle context
 function CombatSystem._applyBattleDamage(unit, damage, isStatusDamage)
     -- BattleUnit uses .hp, not .stats.health
-    if unit.escaped then return false end
+    if unit.escaped and not isStatusDamage then return false end
     local previousHp = unit.hp
     local morale = require("src.game.battle.morale")
     local powers = unit.battleContext and damage > 0 and morale.powers(unit.battleContext)
@@ -217,6 +189,7 @@ function CombatSystem.applyBlockDurabilityLoss(defender)
 end
 
 function CombatSystem.resolveAttack(attacker, defender, skill)
+    if skill.healing then return CombatSystem.resolveAreaEffect(attacker, defender, skill) end
     local isHit, margin, shieldDefense = CombatSystem.rollAttack(attacker, defender, skill)
 
     if isHit then
@@ -231,6 +204,7 @@ function CombatSystem.resolveAttack(attacker, defender, skill)
             defender.visualEffects.flashIntensity = 0.8
         end
 
+        if skill.type == "melee" and not skill.aoe and not skill.projectile then Conditions.apply(defender, "harassed") end
         return {hit = true, damage = damage, defeated = defeated}
     end
 
@@ -247,13 +221,27 @@ function CombatSystem.resolveAttack(attacker, defender, skill)
         defender.visualEffects.shakeTime = 0.5
     end
 
+    if skill.type == "melee" and not skill.aoe and not skill.projectile then Conditions.apply(defender, "harassed") end
+    return {hit = false, damage = 0, defeated = false, action = action}
+end
+
+-- Physical contact can be defended without delivering a projectile's area payload.
+function CombatSystem.resolveProjectileContact(attacker, defender, skill)
+    local mode = skill and skill.projectile and skill.projectile.defenseMode or "opposed"
+    assert(mode == "none" or mode == "opposed", "Unknown projectile defense mode: "..tostring(mode))
+    if mode == "none" then return {hit = true} end
+    local hit, margin, shield = CombatSystem.rollProjectileDefense(attacker, defender)
+    if hit then return {hit = true} end
+
+    local action = CombatSystem._determineMissAction(shield > 0, margin + 2 * shield > 0)
+    if action == "block" then CombatSystem.applyBlockDurabilityLoss(defender) end
+    if defender.visualEffects then defender.visualEffects.shakeTime = 0.5 end
     return {hit = false, damage = 0, defeated = false, action = action}
 end
 
 function CombatSystem.resolveProjectileAttack(attacker, defender, skill)
-    local hit, margin, shield = CombatSystem.rollProjectileDefense(attacker, defender)
-
-    if hit then
+    local result = CombatSystem.resolveProjectileContact(attacker, defender, skill)
+    if result.hit then
         local damage = CombatSystem.calculateDamage(attacker, defender, skill)
         local defeated = CombatSystem._applyBattleDamage(defender, damage)
 
@@ -267,13 +255,28 @@ function CombatSystem.resolveProjectileAttack(attacker, defender, skill)
         return {hit = true, damage = damage, defeated = defeated}
     end
 
-    local action = CombatSystem._determineMissAction(shield > 0, margin + 2 * shield > 0)
-    if action == "block" then CombatSystem.applyBlockDurabilityLoss(defender) end
-    if defender.visualEffects then
-        defender.visualEffects.shakeTime = 0.5
-    end
+    return result
+end
 
-    return {hit = false, damage = 0, defeated = false, action = action}
+-- Area contact is guaranteed; protection, injuries and morale use normal damage.
+function CombatSystem.resolveAreaEffect(attacker, defender, skill)
+    local damage, defeated = 0, false
+    if skill.baseDamage then
+        damage = CombatSystem.calculateDamage(attacker, defender, skill)
+        defeated = CombatSystem._applyBattleDamage(defender, damage)
+        if defender.visualEffects then
+            defender.visualEffects.flashTime = 0.3
+            defender.visualEffects.flashDuration = 0.3
+            defender.visualEffects.flashColor = {0.5, 0, 0}
+            defender.visualEffects.flashIntensity = 0.8
+        end
+    end
+    local healed = 0
+    if skill.healing and not defeated then
+        healed = math.max(0, math.min(skill.healing, defender.maxHp-defender.hp))
+        defender.hp = defender.hp+healed
+    end
+    return {hit = true, damage = damage, healed = healed, defeated = defeated}
 end
 
 return CombatSystem

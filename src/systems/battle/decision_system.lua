@@ -1,3 +1,4 @@
+local Conditions = require("src.systems.actors.conditions")
 local Projectile = require("src.game.battle.projectiles")
 -- systems/battle/decision_system.lua
 -- Determines intents for AI and processes Player commands
@@ -18,7 +19,9 @@ function DecisionSystem:update(context)
         if BattleUnitSystem.canAct(unit) and unit.intent == nil then
             
             if unit.fleeing then
-                unit.intent = {type="MOVE", target={x=unit.escapeEdge, y=unit.y}, avoidObstacles=true}
+                if Conditions.permits(unit, "move") then
+                    unit.intent = {type="MOVE", target={x=unit.escapeEdge, y=unit.y}, avoidObstacles=true}
+                end
             elseif unit.id == context.data.selectedUnitId then
                 -- Player Logic: Check for command
                 if playerCommand and playerCommand.unitId == unit.id then
@@ -41,6 +44,7 @@ function DecisionSystem:update(context)
 end
 
 function DecisionSystem._processAI(unit, context)
+    if not Conditions.permits(unit, "attack") and not Conditions.permits(unit, "move") and not Conditions.permits(unit, "cast") then return end
     local Squads = require("src.game.battle.squads")
     local position = Squads.position(unit)
     local wasRegrouping = unit.regrouping
@@ -89,7 +93,7 @@ function DecisionSystem._processAI(unit, context)
             end
         end
     end
-    if unit.regrouping then
+    if unit.regrouping and Conditions.permits(unit, "move") then
         local previousGoal = unit.moveTarget
         local blocked = wasRegrouping and previousGoal and previousGoal.x==position.x and previousGoal.y==position.y
             and (unit.velocityX or 0)^2+(unit.velocityY or 0)^2 < 2^2
@@ -106,7 +110,7 @@ function DecisionSystem._processAI(unit, context)
         local skill = CombatSystem.getEffectiveSkill(unit, best)
         unit.intent = {type="SKILL", skillId=best, targetUnitId=target.id,
             target=skill.targeted and {x=target.x,y=target.y} or nil}
-    elseif not position and target and (not rangedRange or distance > rangedRange^2) then
+    elseif Conditions.permits(unit, "move") and not position and target and (not rangedRange or distance > rangedRange^2) then
         unit.intent = {type="MOVE", target={x=target.x,y=target.y}, avoidObstacles=true}
     end
 end

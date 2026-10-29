@@ -1,3 +1,4 @@
+local EffectiveStats = require("src.systems.actors.effective_stats")
 local Projectile = {
     lateralError = 30, depthError = 30, referenceDistance = 300,
     referencePrecision = 10, launchHeight = 0.90, aimHeight = 0.80,
@@ -15,7 +16,7 @@ function Projectile.aim(unit, x, y, rng)
     local distance = math.sqrt(dx*dx+dy*dy)
     local nx, ny = 1, 0
     if distance > 0 then nx, ny = dx/distance, dy/distance end
-    local scale = Projectile.referencePrecision / math.max(1, (unit.stats or {}).precision or 10)
+    local scale = Projectile.referencePrecision / math.max(1, EffectiveStats.get(unit, "precision", 10))
         * distance / Projectile.referenceDistance
     local lateral = (rng()*2-1) * Projectile.lateralError * scale
     local depth = (rng()*2-1) * Projectile.depthError * scale

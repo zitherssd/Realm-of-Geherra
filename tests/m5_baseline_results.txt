@@ -1,0 +1,458 @@
+ability_range_preview_scenario: PASS
+ability_range_preview_scenario passed
+
+
+battlefield_interaction_scenario: PASS
+battlefield_interaction_scenario passed
+
+
+battlefield_remains_scenario: PASS
+[WorldEncounter] nonraid-remains-map:encounter:1 started: nonraid-winner-party vs nonraid-defeated-party
+[WorldEncounter] nonraid-remains-map:encounter:1 completed: outcome=victory winner=nonraid-winner-party casualties=1 duration=1.000 world-hours ticks=41
+battlefield_remains_scenario passed
+
+
+battle_knowledge_scenario: PASS
+[WorldEncounter] battle-knowledge:encounter:1 started: Forest Bandits vs Wandering Trader
+[WorldEncounter] battle-knowledge:encounter:1 completed: outcome=victory winner=party_1 casualties=2 duration=0.000 world-hours ticks=0
+[WorldEncounter] knowledge-timeout:encounter:1 started: A vs B
+[WorldEncounter] knowledge-timeout:encounter:1 completed: outcome=timeout winner=none casualties=1 duration=0.000 world-hours ticks=0
+[WorldEncounter] knowledge-draw:encounter:1 started: A vs B
+[WorldEncounter] knowledge-draw:encounter:1 completed: outcome=draw winner=none casualties=4 duration=0.000 world-hours ticks=0
+battle_knowledge_scenario passed
+
+
+battle_movement_scenario: PASS
+battle_movement_scenario passed
+
+
+battle_simulation_scenario: PASS
+BattleState: Battle started against party ID: 'interactive-enemy'
+BattleState: Battle started against party ID: 'defeat-enemy'
+BattleState: Battle started against party ID: 'draw-enemy'
+battle_simulation_scenario passed
+
+
+campaign_architecture_milestone_1_scenario: PASS
+campaign_architecture_milestone_1_scenario passed
+
+
+campaign_battle_resolution_scenario: PASS
+BattleState: Battle started against party ID: 'b'
+[WorldEncounter] resolution-map:encounter:1 started: a vs b
+[WorldEncounter] resolution-map:encounter:1 completed: outcome=victory winner=a casualties=3 duration=0.000 world-hours ticks=0
+BattleState: Battle started against party ID: 'b'
+[WorldEncounter] resolution-map:encounter:1 started: a vs b
+[WorldEncounter] resolution-map:encounter:1 completed: outcome=victory winner=b casualties=3 duration=0.000 world-hours ticks=0
+BattleState: Battle started against party ID: 'b'
+[WorldEncounter] resolution-map:encounter:1 started: a vs b
+[WorldEncounter] resolution-map:encounter:1 completed: outcome=draw winner=none casualties=4 duration=0.000 world-hours ticks=0
+[WorldEncounter] resolution-map:encounter:1 started: a vs b
+[WorldEncounter] resolution-map:encounter:1 completed: outcome=timeout winner=none casualties=2 duration=0.000 world-hours ticks=0
+BattleState: Battle started against party ID: 'b'
+campaign_battle_resolution_scenario passed
+
+
+campaign_battle_result_scenario: PASS
+campaign_battle_result_scenario passed
+
+
+campaign_identity_milestone_2_scenario: PASS
+campaign_identity_milestone_2_scenario passed
+
+
+campaign_runtime_scenario: FAIL
+campaign_runtime_scenario.lua:92: assertion failed!
+stack traceback:
+	[C]: in function 'assert'
+	campaign_runtime_scenario.lua:92: in function <campaign_runtime_scenario.lua:29>
+	[C]: in function 'xpcall'
+	campaign_runtime_scenario.lua:29: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+stack traceback:
+	[C]: in function 'error'
+	campaign_runtime_scenario.lua:204: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+
+caravan_scenario: PASS
+caravan_scenario passed
+
+
+combat_power_scenario: PASS
+Shared combat power and threat snapshots PASS
+combat_power_scenario passed
+
+
+combat_regression_scenario: FAIL
+combat_regression_scenario.lua:57: A javelin used main-hand damage
+stack traceback:
+	[C]: in function 'assert'
+	combat_regression_scenario.lua:57: in function 'testSkillDamageAndModifiers'
+	combat_regression_scenario.lua:185: in function <combat_regression_scenario.lua:178>
+	[C]: in function 'xpcall'
+	combat_regression_scenario.lua:178: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+stack traceback:
+	[C]: in function 'error'
+	combat_regression_scenario.lua:193: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+
+data_definitions_scenario: PASS
+data_definitions_scenario passed
+
+
+debug_campaign_scenario: PASS
+Debug Campaign [normal]: A = A1 Plains Village [location_1]; B = A2 Forest Town [location_2]
+Bel-Naram [debug_bel_naram]: A1 Plains Village; HP 100/100; gold 2000
+Ashur [debug_ashur]: A1 Plains Village; HP 100/100; gold 50
+Ninsun [debug_ninsun]: A1 Plains Village; HP 100/100; gold 100
+Enlil [debug_enlil]: A2 Forest Town; HP 100/100; gold 50
+Ur-Salim [debug_ur_salim]: party debug_travelers at 296.0, 264.0; HP 30/100; gold 100
+Debug Campaign [no_leader]: A = A1 Plains Village [location_1]; B = A2 Forest Town [location_2]
+Bel-Naram [debug_bel_naram]: A1 Plains Village; HP 100/100; gold 2000
+Ashur [debug_ashur]: A2 Forest Town; HP 100/100; gold 50
+Ninsun [debug_ninsun]: A1 Plains Village; HP 100/100; gold 100
+Enlil [debug_enlil]: A2 Forest Town; HP 100/100; gold 50
+Ur-Salim [debug_ur_salim]: party debug_travelers at 296.0, 264.0; HP 30/100; gold 100
+Debug Campaign [healing]: A = A1 Plains Village [location_1]; B = A2 Forest Town [location_2]
+Bel-Naram [debug_bel_naram]: A1 Plains Village; HP 100/100; gold 2000
+Ashur [debug_ashur]: A1 Plains Village; HP 100/100; gold 50
+Ninsun [debug_ninsun]: A1 Plains Village; HP 100/100; gold 100
+Enlil [debug_enlil]: A2 Forest Town; HP 100/100; gold 50
+Ur-Salim [debug_ur_salim]: party debug_travelers at 296.0, 264.0; HP 30/100; gold 100
+Debug Campaign [bandit_risk]: A = A1 Plains Village [location_1]; B = A2 Forest Town [location_2]
+Bel-Naram [debug_bel_naram]: A1 Plains Village; HP 100/100; gold 2000
+Ashur [debug_ashur]: A1 Plains Village; HP 100/100; gold 50
+Ninsun [debug_ninsun]: A1 Plains Village; HP 100/100; gold 100
+Enlil [debug_enlil]: A2 Forest Town; HP 100/100; gold 50
+Ur-Salim [debug_ur_salim]: party debug_travelers at 296.0, 264.0; HP 30/100; gold 100
+Zakur [debug_zakur]: party debug_bandits at 520.0, 264.0; HP 100/100; gold 75
+Debug Campaign [normal]: A = A1 Plains Village [location_1]; B = A2 Forest Town [location_2]
+Bel-Naram [debug_bel_naram]: A1 Plains Village; HP 100/100; gold 2000
+Ashur [debug_ashur]: A1 Plains Village; HP 100/100; gold 50
+Ninsun [debug_ninsun]: A1 Plains Village; HP 100/100; gold 100
+Enlil [debug_enlil]: A2 Forest Town; HP 100/100; gold 50
+Ur-Salim [debug_ur_salim]: party debug_travelers at 296.0, 264.0; HP 30/100; gold 100
+debug_campaign_scenario passed
+
+
+debug_mode_scenario: PASS
+debug_mode_scenario passed
+
+
+dynamic_importance_scenario: PASS
+dynamic_importance_scenario passed
+
+
+faction_identity_scenario: PASS
+faction_identity_scenario passed
+
+
+friendly_sliding_scenario: PASS
+Friendly sliding, crowded line, idle player, swept collisions and path budget PASS
+friendly_sliding_scenario passed
+
+
+headless_battle_scenario: PASS
+Sample EncounterResult: parties=strong-a/weak-b winner=strong-a outcome=victory ticks=28 defeated=true finalHp=9985
+Headless benchmark small (1 vs 1, 200 ticks, 25 runs): 0.840ms/run
+Headless benchmark moderate (5 vs 5, 200 ticks, 15 runs): 7.667ms/run
+headless_battle_scenario passed
+
+
+injury_scenario: PASS
+BattleState: Battle started against party ID: 'interactive-victim'
+[WorldEncounter] injury-encounter:encounter:1 started: world-injury-a vs world-injury-b
+[WorldEncounter] injury-encounter:encounter:1 completed: outcome=victory winner=world-injury-a casualties=1 duration=0.000 world-hours ticks=0
+injury_scenario passed
+
+
+injury_treatment_scenario: PASS
+BattleState: Battle started against party ID: 'party_2'
+[WorldEncounter] treatment:encounter:1 started: Treatment party vs Enemy
+[WorldEncounter] treatment:encounter:1 completed: outcome=timeout winner=none casualties=0 duration=10.000 world-hours ticks=0
+injury_treatment_scenario passed
+
+
+inline_party_scenario: PASS
+inline_party_scenario passed
+
+
+investigation_scenario: PASS
+[WorldEncounter] investigation-fixture:encounter:1 started: Battle survivors vs Merchant's caravan
+QuestSystem: onPartyKilled event received for party_1
+[WorldEncounter] investigation-fixture:encounter:1 completed: outcome=victory winner=party_3 casualties=1 duration=0.000 world-hours ticks=0
+[WorldEncounter] investigation-fixture:encounter:1 started: Battle survivors vs Merchant's caravan
+QuestSystem: onPartyKilled event received for party_1
+[WorldEncounter] investigation-fixture:encounter:1 completed: outcome=victory winner=party_3 casualties=1 duration=0.000 world-hours ticks=0
+[WorldEncounter] investigation-fixture:encounter:1 started: Battle survivors vs Merchant's caravan
+QuestSystem: onPartyKilled event received for party_1
+[WorldEncounter] investigation-fixture:encounter:1 completed: outcome=victory winner=party_3 casualties=1 duration=0.000 world-hours ticks=0
+[WorldEncounter] investigation-fixture:encounter:1 started: Battle survivors vs Merchant's caravan
+QuestSystem: onPartyKilled event received for party_1
+[WorldEncounter] investigation-fixture:encounter:1 completed: outcome=victory winner=party_3 casualties=1 duration=0.000 world-hours ticks=0
+[WorldEncounter] investigation-fixture:encounter:1 started: Battle survivors vs Merchant's caravan
+QuestSystem: onPartyKilled event received for party_1
+[WorldEncounter] investigation-fixture:encounter:1 completed: outcome=victory winner=party_3 casualties=1 duration=0.000 world-hours ticks=0
+[WorldEncounter] investigation-fixture:encounter:1 started: Battle survivors vs Merchant's caravan
+QuestSystem: onPartyKilled event received for party_1
+[WorldEncounter] investigation-fixture:encounter:1 completed: outcome=victory winner=party_3 casualties=1 duration=0.000 world-hours ticks=0
+[WorldEncounter] investigation-fixture:encounter:1 started: Battle survivors vs Merchant's caravan
+QuestSystem: onPartyKilled event received for party_1
+[WorldEncounter] investigation-fixture:encounter:1 completed: outcome=victory winner=party_3 casualties=1 duration=0.000 world-hours ticks=0
+investigation_scenario passed
+
+
+knowledge_scenario: PASS
+knowledge_scenario passed
+
+
+knowledge_search_scenario: PASS
+knowledge_search_scenario passed
+
+
+location_types_scenario: PASS
+location_types_scenario passed
+
+
+loot_resolver_scenario: PASS
+loot_resolver_scenario passed
+
+
+m2_refinement_scenario: PASS
+M2 capacity, transfers, world deployment and local avoidance PASS
+m2_refinement_scenario passed
+
+
+morale_scenario: FAIL
+BattleState: Battle started against party ID: 'Route B'
+morale_scenario.lua:413: winner's fleeing soldiers delayed victory
+stack traceback:
+	[C]: in function 'assert'
+	morale_scenario.lua:413: in function 'victoryWithFleeingSurvivors'
+	morale_scenario.lua:472: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+
+npc_goals_scenario: PASS
+[WorldEncounter] goals-map:encounter:1 started: wealth-raider vs wealth-caravan
+[WorldEncounter] goals-map:encounter:1 completed: outcome=victory winner=wealth-raider casualties=1 duration=0.500 world-hours ticks=80
+npc_goals_scenario passed
+
+
+on_me_regroup_scenario: PASS
+On Me melee disengagement, blocked fallback, reformation and hysteresis PASS
+on_me_regroup_scenario passed
+
+
+party_speed_scenario: FAIL
+party_speed_scenario.lua:9: assertion failed!
+stack traceback:
+	[C]: in function 'assert'
+	party_speed_scenario.lua:9: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+
+personality_return_home_scenario: FAIL
+personality_return_home_scenario.lua:26: 5.3333333333333 ~= 12
+stack traceback:
+	[C]: in function 'assert'
+	personality_return_home_scenario.lua:26: in function 'near'
+	personality_return_home_scenario.lua:101: in function 'accumulation'
+	personality_return_home_scenario.lua:341: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+
+population_scenario: PASS
+population_scenario passed
+
+
+projectile_presentation_scenario: PASS
+Projectile presentation, original actor anchors/scales and interpolation PASS
+projectile_presentation_scenario passed
+
+
+projectile_scenario: FAIL
+projectile_scenario.lua:288: archer has missing Precision
+stack traceback:
+	[C]: in function 'assert'
+	projectile_scenario.lua:288: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+
+raid_encounter_scenario: PASS
+[WorldEncounter] raid-contact-map:encounter:1 started: contact-raider vs contact-caravan
+[WorldEncounter] raid-contact-map:encounter:1 completed: outcome=victory winner=contact-raider casualties=1 duration=0.160 world-hours ticks=22
+[WorldEncounter] raid-cooldown-map:encounter:1 started: cooldown-raider vs cooldown-caravan
+[WorldEncounter] raid-cooldown-map:encounter:1 completed: outcome=timeout winner=none casualties=0 duration=0.000 world-hours ticks=0
+raid_encounter_scenario passed
+
+
+raid_visibility_scenario: PASS
+raid_visibility_scenario passed
+
+
+recovery_scenario: FAIL
+recovery_scenario.lua:165: ordinary goal did not resume
+stack traceback:
+	[C]: in function 'assert'
+	recovery_scenario.lua:165: in function 'interruptionAndResume'
+	recovery_scenario.lua:342: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+
+retinue_scenario: PASS
+retinue_scenario passed
+
+
+roam_activity_scenario: PASS
+roam_activity_scenario passed
+
+
+services_scenario: PASS
+services_scenario passed
+
+
+squads_scenario: PASS
+Squad persistence, deployment, formation, AI and commands PASS
+squads_scenario passed
+
+
+travel_activity_scenario: PASS
+travel_activity_scenario passed
+
+
+travel_knowledge_scenario: PASS
+travel_knowledge_scenario passed
+
+
+unified_inventory_scenario: PASS
+unified_inventory_scenario passed
+
+
+world_activity_scenario: PASS
+world_activity_scenario passed
+
+
+world_encounter_scenario: FAIL
+[WorldEncounter] clock-map:encounter:1 started: clock-a vs clock-b
+world_encounter_scenario.lua:48: clock did not return elapsed game hours
+stack traceback:
+	[C]: in function 'assert'
+	world_encounter_scenario.lua:48: in function 'assertNear'
+	world_encounter_scenario.lua:79: in function 'testClockDeltaPauseAndAcceleration'
+	world_encounter_scenario.lua:348: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+
+world_events_scenario: PASS
+[WorldEncounter] events-victory:encounter:1 started: Patrol vs Caravan
+[WorldEncounter] events-victory:encounter:1 completed: outcome=victory winner=party_1 casualties=2 duration=2.500 world-hours ticks=0
+[WorldEncounter] events-draw:encounter:1 started: Patrol vs Caravan
+[WorldEncounter] events-draw:encounter:1 completed: outcome=draw winner=none casualties=4 duration=2.500 world-hours ticks=0
+[WorldEncounter] events-timeout:encounter:1 started: Patrol vs Caravan
+[WorldEncounter] events-timeout:encounter:1 completed: outcome=timeout winner=none casualties=1 duration=2.500 world-hours ticks=2
+[WorldEncounter] no-remains:encounter:1 started: A vs B
+[WorldEncounter] no-remains:encounter:1 completed: outcome=timeout winner=none casualties=0 duration=0.000 world-hours ticks=0
+world_events_scenario passed
+
+
+world_time_sync_scenario: FAIL
+[WorldEncounter] world-time-sync-map:encounter:1 started: time-encounter-a vs time-encounter-b
+world_time_sync_scenario.lua:201: world-hour to world-second conversion is incorrect
+stack traceback:
+	[C]: in function 'assert'
+	world_time_sync_scenario.lua:201: in function <world_time_sync_scenario.lua:44>
+	[C]: in function 'xpcall'
+	world_time_sync_scenario.lua:239: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+stack traceback:
+	[C]: in function 'error'
+	world_time_sync_scenario.lua:243: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
