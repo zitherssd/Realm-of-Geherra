@@ -189,9 +189,9 @@ end
 
 function Squads.position(unit)
     local squad = unit.squad
-    if not squad or squad.order ~= "hold" then return nil end
+    if unit.fleeing or unit.escaped or not squad or squad.order ~= "hold" then return nil end
     local living = {}
-    for _, member in ipairs(squad.members) do if member.hp > 0 then living[#living+1] = member end end
+    for _, member in ipairs(squad.members) do if member.hp > 0 and not member.fleeing and not member.escaped then living[#living+1] = member end end
     if not squad.assignments or squad.count ~= #living then
         local slots = Squads.slots(living, squad.config.formation)
         squad.assignments, squad.count = {}, #living

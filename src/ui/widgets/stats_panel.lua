@@ -105,6 +105,7 @@ function StatsPanel:draw(actor)
         "HP: " .. tostring(roundedCurrentHealth) .. "/" .. tostring(roundedMaxHealth),
         "ATK: " .. tostring(stats.attack or 0),
         "DEF: " .. tostring(stats.defense or 0),
+        "PRECISION: " .. tostring(stats.precision or 10),
         "SPEED: " .. tostring(stats.speed or 0),
         "B. SPEED: " .. tostring(stats.battle_speed or 0),
         "SIGHT: " .. tostring(Injury.stat(actor, "sight", actor.sight or 0))

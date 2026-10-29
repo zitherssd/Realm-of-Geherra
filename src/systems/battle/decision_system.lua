@@ -1,3 +1,4 @@
+local Projectile = require("src.game.battle.projectiles")
 -- systems/battle/decision_system.lua
 -- Determines intents for AI and processes Player commands
 -- Executed once per battle tick (20Hz) by a BattleSimulation instance.
@@ -16,7 +17,9 @@ function DecisionSystem:update(context)
     for _, unit in ipairs(units) do
         if BattleUnitSystem.canAct(unit) and unit.intent == nil then
             
-            if unit.id == context.data.selectedUnitId then
+            if unit.fleeing then
+                unit.intent = {type="MOVE", target={x=unit.escapeEdge, y=unit.y}, avoidObstacles=true}
+            elseif unit.id == context.data.selectedUnitId then
                 -- Player Logic: Check for command
                 if playerCommand and playerCommand.unitId == unit.id then
                     unit.intent = {
@@ -50,6 +53,7 @@ function DecisionSystem._processAI(unit, context)
     if not unit.regrouping then unit.regroupAttack = nil end
     local target, distance = context.findNearestHostile(unit)
     local rangedRange, best, priority = nil, nil, -math.huge
+    local bestTarget, bestRisk, bestDistance
     -- Cooldown affects readiness, never whether ranged supplies remain viable.
     for id in pairs(unit.skills or {}) do
         local skill = CombatSystem.getEffectiveSkill(unit, id)
@@ -67,10 +71,20 @@ function DecisionSystem._processAI(unit, context)
                 (not skill.maxCharges or (unit.charges[id] or 0) > 0) and
                 (unit.cooldowns[id] or 0) <= 0 then
                 local ranged = skill.type == "ranged" or skill.projectile or (skill.range or 0) > 2
-                local range = RangeUtils.effectiveSkillRange(unit, target, skill)
                 local score = (ranged and 1000 or 0) + (skill.baseDamage or 0)
-                if distance <= range^2 and (not rangedRange or ranged) and score > priority then
-                    best, priority = id, score
+                for _, candidate in ipairs(context.data.unitList) do
+                    if candidate.team ~= unit.team and candidate.hp > 0 and not candidate.escaped then
+                        local d = (candidate.x-unit.x)^2+(candidate.y-unit.y)^2
+                        local range = RangeUtils.effectiveSkillRange(unit, candidate, skill)
+                        local risk = 0
+                        -- A nil risk vetoes launch obstruction, but melee exposure only ranks targets.
+                        if skill.projectile then risk = Projectile.friendlyRisk(unit,candidate,skill,context) end
+                        if risk and d <= range^2 and (not rangedRange or ranged) and
+                            (score > priority or (score == priority and
+                                (risk < bestRisk or (risk == bestRisk and d < bestDistance)))) then
+                            best, priority, bestTarget, bestRisk, bestDistance = id, score, candidate, risk, d
+                        end
+                    end
                 end
             end
         end
@@ -88,6 +102,7 @@ function DecisionSystem._processAI(unit, context)
         unit.regroupAttack = true
     end
     if best then
+        target = bestTarget
         local skill = CombatSystem.getEffectiveSkill(unit, best)
         unit.intent = {type="SKILL", skillId=best, targetUnitId=target.id,
             target=skill.targeted and {x=target.x,y=target.y} or nil}

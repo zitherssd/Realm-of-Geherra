@@ -24,6 +24,8 @@ local function unitAssemblage(e, troopType, id)
 
     e.stats = {
         health = 100,
+        morale = 10,
+        precision = 10,
         attack = 10,
         defense = 10,
         speed = 10,        -- World map speed

@@ -58,6 +58,17 @@ local function validateAndResolve(result, context)
     if result.partyAId == result.partyBId then
         error("Encounter parties must have different IDs", 3)
     end
+    if result.routedPartyIds ~= nil then
+        assert(type(result.routedPartyIds) == "table", "Routed party IDs must be a list")
+        local seen, count = {}, 0
+        for key, id in pairs(result.routedPartyIds) do
+            assert(type(key) == "number" and key % 1 == 0 and key >= 1 and
+                (id == result.partyAId or id == result.partyBId) and not seen[id],
+                "Invalid or duplicate routed party ID")
+            seen[id], count = true, count + 1
+        end
+        assert(count == #result.routedPartyIds, "Routed party IDs must be contiguous")
+    end
     if result.outcome ~= "victory" and result.outcome ~= "draw" and result.outcome ~= "timeout" then
         error("Encounter outcome must be victory, draw, or timeout", 3)
     end
@@ -83,6 +94,7 @@ local function validateAndResolve(result, context)
     end
     local actorsById = {}
     local livingByPartyId = {[partyA.id] = 0, [partyB.id] = 0}
+    local survivingByParty = {[partyA.id] = 0, [partyB.id] = 0}
     for _, party in ipairs({partyA, partyB}) do
         for _, actor in ipairs(party.actors) do
             if type(actor) ~= "table" then
@@ -106,6 +118,20 @@ local function validateAndResolve(result, context)
             end
             if actorResult.defeated ~= (actorResult.finalHp <= 0) then
                 error("EncounterResult has inconsistent defeated status for actor " .. tostring(actor.id), 3)
+            end
+            if actorResult.escaped ~= nil and type(actorResult.escaped) ~= "boolean" then
+                error("EncounterResult escaped must be boolean", 3)
+            end
+            if actorResult.escaped and actorResult.defeated then
+                error("Defeated actors cannot escape", 3)
+            end
+            if actorResult.state ~= nil then
+                local state = actorResult.state
+                if (state ~= "active" and state ~= "fleeing" and state ~= "escaped" and state ~= "defeated") or
+                    ((state == "defeated") ~= actorResult.defeated) or
+                    ((state == "escaped") ~= (actorResult.escaped == true)) then
+                    error("EncounterResult has inconsistent unit state", 3)
+                end
             end
             if actorResult.maxHp ~= nil and
                 (type(actorResult.maxHp) ~= "number" or actorResult.maxHp ~= actorResult.maxHp or
@@ -137,6 +163,9 @@ local function validateAndResolve(result, context)
             actorsById[actor.id] = {actor = actor, party = party, result = actorResult}
             if actorResult.injuries ~= nil then Injury.validate(actor, actorResult.injuries) end
             if actorResult.finalHp > 0 then
+                survivingByParty[party.id] = survivingByParty[party.id] + 1
+            end
+            if actorResult.finalHp > 0 and not actorResult.escaped then
                 livingByPartyId[party.id] = livingByPartyId[party.id] + 1
             end
         end
@@ -165,7 +194,7 @@ local function validateAndResolve(result, context)
         if livingByPartyId[partyA.id] ~= 0 or livingByPartyId[partyB.id] ~= 0 then
             error("Draw result must leave no surviving actors", 3)
         end
-    elseif livingByPartyId[partyA.id] == 0 or livingByPartyId[partyB.id] == 0 then
+    elseif survivingByParty[partyA.id] == 0 or survivingByParty[partyB.id] == 0 then
         error("Timeout result must leave survivors in both parties", 3)
     end
 

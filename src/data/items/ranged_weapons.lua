@@ -1,6 +1,23 @@
 -- Ranged Weapons item definitions.
 
 return {
+    ["bow"] = {
+        id = "bow",
+        name = "Bow",
+        type = "weapon",
+        description = "A simple wooden bow for shooting arrows",
+        weight = 1.0,
+        value = 60,
+        slot = "rangedWeapon",
+        grantsSkill = "arrow",
+        durability = 20,
+        maxDurability = 20,
+        skillModifiers = {
+            damageType = "piercing",
+            baseDamage = 8,
+        },
+    },
+
     ["fire_wand"] = {
         id = "fire_wand",
         name = "Fire Wand",
@@ -54,7 +71,7 @@ return {
         maxDurability = 8,
         skillModifiers = {
             damageType = "piercing",
-            baseDamage = 15,
+            baseDamage = 13,
         },
     },
 
@@ -71,7 +88,7 @@ return {
         maxDurability = 1,
         skillModifiers = {
             damageType = "piercing",
-            baseDamage = 15,
+            baseDamage = 13,
         },
     },
 
@@ -88,7 +105,7 @@ return {
         maxDurability = 20,
         skillModifiers = {
             damageType = "blunt",
-            baseDamage = 9,
+            baseDamage = 6,
         },
     },
 }

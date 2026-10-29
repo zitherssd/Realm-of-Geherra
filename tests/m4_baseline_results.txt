@@ -1,0 +1,149 @@
+FAIL party_speed_scenario
+...cts/Realm-of-Geherra/tests/unit/party_speed_scenario.lua:9: assertion failed!
+stack traceback:
+	[C]: in function 'assert'
+	...cts/Realm-of-Geherra/tests/unit/party_speed_scenario.lua:9: in function 'run'
+	main.lua:3: in function <main.lua:3>
+	[C]: in function 'xpcall'
+	main.lua:3: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+FAIL combat_regression_scenario
+...alm-of-Geherra/tests/unit/combat_regression_scenario.lua:72: The spear did not hit beyond the base attack reach
+stack traceback:
+	[C]: in function 'assert'
+	...alm-of-Geherra/tests/unit/combat_regression_scenario.lua:72: in function 'testSkillDamageAndModifiers'
+	...alm-of-Geherra/tests/unit/combat_regression_scenario.lua:185: in function <...alm-of-Geherra/tests/unit/combat_regression_scenario.lua:178>
+	[C]: in function 'xpcall'
+	...alm-of-Geherra/tests/unit/combat_regression_scenario.lua:178: in function 'run'
+	main.lua:3: in function <main.lua:3>
+	[C]: in function 'xpcall'
+	main.lua:3: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+stack traceback:
+	[C]: in function 'error'
+	...alm-of-Geherra/tests/unit/combat_regression_scenario.lua:193: in function 'run'
+	main.lua:3: in function <main.lua:3>
+	[C]: in function 'xpcall'
+	main.lua:3: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+PASS injury_scenario
+BattleState: Battle started against party ID: 'interactive-victim'
+[WorldEncounter] injury-encounter:encounter:1 started: world-injury-a vs world-injury-b
+[WorldEncounter] injury-encounter:encounter:1 completed: outcome=victory winner=world-injury-a casualties=1 duration=0.000 world-hours ticks=0
+
+FAIL personality_return_home_scenario
+...-Geherra/tests/unit/personality_return_home_scenario.lua:26: 5.3333333333333 ~= 12
+stack traceback:
+	[C]: in function 'assert'
+	...-Geherra/tests/unit/personality_return_home_scenario.lua:26: in function 'near'
+	...-Geherra/tests/unit/personality_return_home_scenario.lua:101: in function 'accumulation'
+	...-Geherra/tests/unit/personality_return_home_scenario.lua:341: in function 'run'
+	main.lua:3: in function <main.lua:3>
+	[C]: in function 'xpcall'
+	main.lua:3: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+FAIL recovery_scenario
+...ojects/Realm-of-Geherra/tests/unit/recovery_scenario.lua:165: ordinary goal did not resume
+stack traceback:
+	[C]: in function 'assert'
+	...ojects/Realm-of-Geherra/tests/unit/recovery_scenario.lua:165: in function 'interruptionAndResume'
+	...ojects/Realm-of-Geherra/tests/unit/recovery_scenario.lua:342: in function 'run'
+	main.lua:3: in function <main.lua:3>
+	[C]: in function 'xpcall'
+	main.lua:3: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+FAIL world_encounter_scenario
+[WorldEncounter] clock-map:encounter:1 started: clock-a vs clock-b
+...Realm-of-Geherra/tests/unit/world_encounter_scenario.lua:48: clock did not return elapsed game hours
+stack traceback:
+	[C]: in function 'assert'
+	...Realm-of-Geherra/tests/unit/world_encounter_scenario.lua:48: in function 'assertNear'
+	...Realm-of-Geherra/tests/unit/world_encounter_scenario.lua:79: in function 'testClockDeltaPauseAndAcceleration'
+	...Realm-of-Geherra/tests/unit/world_encounter_scenario.lua:348: in function 'run'
+	main.lua:3: in function <main.lua:3>
+	[C]: in function 'xpcall'
+	main.lua:3: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+FAIL world_time_sync_scenario
+[WorldEncounter] world-time-sync-map:encounter:1 started: time-encounter-a vs time-encounter-b
+...Realm-of-Geherra/tests/unit/world_time_sync_scenario.lua:201: world-hour to world-second conversion is incorrect
+stack traceback:
+	[C]: in function 'assert'
+	...Realm-of-Geherra/tests/unit/world_time_sync_scenario.lua:201: in function <...Realm-of-Geherra/tests/unit/world_time_sync_scenario.lua:44>
+	[C]: in function 'xpcall'
+	...Realm-of-Geherra/tests/unit/world_time_sync_scenario.lua:239: in function 'run'
+	main.lua:3: in function <main.lua:3>
+	[C]: in function 'xpcall'
+	main.lua:3: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+stack traceback:
+	[C]: in function 'error'
+	...Realm-of-Geherra/tests/unit/world_time_sync_scenario.lua:243: in function 'run'
+	main.lua:3: in function <main.lua:3>
+	[C]: in function 'xpcall'
+	main.lua:3: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+FAIL campaign_runtime_scenario
+...ealm-of-Geherra/tests/unit/campaign_runtime_scenario.lua:92: assertion failed!
+stack traceback:
+	[C]: in function 'assert'
+	...ealm-of-Geherra/tests/unit/campaign_runtime_scenario.lua:92: in function <...ealm-of-Geherra/tests/unit/campaign_runtime_scenario.lua:29>
+	[C]: in function 'xpcall'
+	...ealm-of-Geherra/tests/unit/campaign_runtime_scenario.lua:29: in function 'run'
+	main.lua:3: in function <main.lua:3>
+	[C]: in function 'xpcall'
+	main.lua:3: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+stack traceback:
+	[C]: in function 'error'
+	...ealm-of-Geherra/tests/unit/campaign_runtime_scenario.lua:204: in function 'run'
+	main.lua:3: in function <main.lua:3>
+	[C]: in function 'xpcall'
+	main.lua:3: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>

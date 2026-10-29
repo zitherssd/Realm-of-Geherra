@@ -104,6 +104,14 @@ function Encounter:advance(tickCount)
     end
 
     if self.simulation.context.data.tick >= self.maxTicks then
+        -- A rout near the combat limit still gets the same escape window as interactive combat.
+        if self.simulation.resolving then
+            for _ = 1, require("src.game.battle.morale").escapeTicks do
+                self.simulation:tick()
+                outcome, winnerPartyId = self.simulation:getOutcome()
+                if outcome then return completeEncounter(self, outcome, winnerPartyId) end
+            end
+        end
         return completeEncounter(self, "timeout", nil)
     end
 
@@ -135,7 +143,7 @@ function HeadlessBattleRunner.start(partyA, partyB, options)
         partyA = partyA,
         partyB = partyB,
         maxTicks = maxTicks,
-        simulation = BattleSimulation.new(partyA, partyB, false),
+        simulation = BattleSimulation.new(partyA, partyB, false, options),
         state = "active",
         result = nil
     }, Encounter)

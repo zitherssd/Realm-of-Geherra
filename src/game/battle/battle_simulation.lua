@@ -9,6 +9,7 @@ local ExecutionSystem = require("src.systems.battle.execution_system")
 
 local InventorySystem = require("src.systems.items.inventory_system")
 
+local Morale = require("src.game.battle.morale")
 local BattleSimulation = {}
 
 local WORLD_BOUNDS = {
@@ -31,12 +32,24 @@ local function addPartyUnits(simulation, party, team, isControlled)
     leader = leader or byId[party.actors[1] and party.actors[1].id]
     if not leader then return end
     leader.x, leader.y = team == "player" and 500 or 760, 273
+    local members = {}
+    for _, actor in ipairs(party.actors) do
+        local unit = byId[actor.id]
+        unit.escapeEdge = team == "player" and 0 or WORLD_BOUNDS.width
+        members[#members+1] = unit
+    end
+    simulation.context.data.battleParties[team] = {members=members, leader=leader, routed=false}
     if isControlled then
-        simulation.context.data.selectedUnitId = leader.id
-        simulation.context.data.playerUnit = leader
+        local player = leader
+        for _, member in ipairs(members) do
+            if member.moraleExempt then player = member; break end
+        end
+        player.moraleExempt = true
+        simulation.context.data.selectedUnitId = player.id
+        simulation.context.data.playerUnit = player
         for _, id in ipairs({"on_me", "charge"}) do
-            leader.skills[id] = {level = 1}
-            table.insert(leader.skillList, id)
+            player.skills[id] = {level = 1}
+            table.insert(player.skillList, id)
         end
     end
     for i, layout in ipairs(layouts) do
@@ -56,7 +69,7 @@ local function addPartyUnits(simulation, party, team, isControlled)
     for _, unit in pairs(byId) do BattleUnitSystem.snapToWorld(unit) end
 end
 
-function BattleSimulation.new(partyA, partyB, controlPartyA)
+function BattleSimulation.new(partyA, partyB, controlPartyA, options)
     local simulation = setmetatable({
         partyA = partyA,
         partyB = partyB,
@@ -66,6 +79,8 @@ function BattleSimulation.new(partyA, partyB, controlPartyA)
 
     simulation.world:addSystems(DecisionSystem, ExecutionSystem)
 
+    simulation.context.data.projectileRng = options and options.projectileRng
+    simulation.context.data.moraleRng = options and options.moraleRng
     simulation.context.data.squads = {}
     addPartyUnits(simulation, partyA, "player", controlPartyA == true)
     addPartyUnits(simulation, partyB, "enemy", false)
@@ -77,12 +92,14 @@ function BattleSimulation:tick()
     self.context.data.tick = self.context.data.tick + 1
     self.world:emit("update", self.context)
     self.context.removeDeadUnits()
+    Morale.process(self.context)
+    Morale.updateEscapes(self.context)
 end
 
 local function getLivingCounts(context)
     local livingByTeam = {player = 0, enemy = 0}
     for _, unit in ipairs(context.data.unitList) do
-        if unit.hp > 0 then
+        if unit.hp > 0 and not unit.fleeing and not unit.escaped then
             livingByTeam[unit.team] = (livingByTeam[unit.team] or 0) + 1
         end
     end
@@ -92,6 +109,10 @@ end
 function BattleSimulation:getOutcome()
     local context, partyA, partyB = self.context, self.partyA, self.partyB
     local partyAAlive, partyBAlive = getLivingCounts(context)
+    self.resolving = partyAAlive == 0 or partyBAlive == 0
+    for _, unit in ipairs(context.data.unitList) do
+        if unit.hp > 0 and unit.fleeing and not unit.escaped then return nil, nil end
+    end
     if partyAAlive == 0 and partyBAlive == 0 then
         return "draw", nil
     elseif partyAAlive == 0 then
@@ -110,6 +131,7 @@ local function collectBattleUnits(context)
     for _, unit in ipairs(context.data.casualties) do
         unitsByActorId[unit.id] = unit
     end
+    for _, unit in ipairs(context.data.escaped) do unitsByActorId[unit.id] = unit end
     return unitsByActorId
 end
 
@@ -125,6 +147,10 @@ local function addActorResults(result, party, unitsByActorId)
             maxHp = battleUnit and battleUnit.maxHp or maxHp,
             statusEffects = InventorySystem.deepClone(battleUnit and battleUnit.statusEffects or actor.statusEffects or {}),
             defeated = finalHp <= 0,
+            escaped = battleUnit and battleUnit.escaped or false,
+            state = finalHp <= 0 and "defeated" or
+                (battleUnit and battleUnit.escaped and "escaped") or
+                (battleUnit and battleUnit.fleeing and "fleeing") or "active",
             injuries = InventorySystem.deepClone(battleUnit and battleUnit.injuries or actor.injuries or {}),
             equipment = InventorySystem.deepClone(battleUnit and battleUnit.equipment or actor.equipment or {}),
             itemDurability = InventorySystem.deepClone(battleUnit and battleUnit.itemDurability or actor.itemDurability or {})
@@ -140,9 +166,15 @@ function BattleSimulation:buildResult(outcome, winnerPartyId)
         outcome = outcome,
         winnerPartyId = winnerPartyId,
         loserPartyId = nil,
+        routedPartyIds = {},
         actors = {},
         ticks = self.context.data.tick
     }
+
+    for _, side in ipairs({{team="player", id=partyA.id}, {team="enemy", id=partyB.id}}) do
+        local party = self.context.data.battleParties[side.team]
+        if party and party.routed then result.routedPartyIds[#result.routedPartyIds+1] = side.id end
+    end
 
     if winnerPartyId == partyA.id then
         result.loserPartyId = partyB.id

@@ -141,7 +141,8 @@ local function testEliminatedPartyResourcesAndNonRaidEncounter()
     local world = EcsWorld.init()
     local map = Map.new("nonraid-remains-map")
     local winnerActor = makeActor(world, "nonraid-winner", {
-        stats = {health = 500, attack = 500, defense = 100, battle_speed = 120},
+        -- A lethal first hit keeps this an elimination/corpse fixture under M3 morale.
+        stats = {health = 500, attack = 500, defense = 100, strength = 100, battle_speed = 120},
         hp = 500,
         maxHp = 500
     })

@@ -1,3 +1,4 @@
+local Projectile = require("src.game.battle.projectiles")
 -- systems/battle/execution_system.lua
 -- Resolves intents, updates positions, and applies damage in world space.
 
@@ -5,6 +6,7 @@ local Concord = require("src.libs.concord")
 local Statuses = require("src.data.statuses")
 local RangeUtils = require("src.systems.battle.range_utils")
 local CombatSystem = require("src.systems.battle.combat_system")
+local Morale = require("src.game.battle.morale")
 local Injury = require("src.systems.actors.injury_system")
 
 local ExecutionSystem = Concord.system({pool = {"battleUnit"}})
@@ -93,7 +95,7 @@ end
 
 local function canOccupy(unit, context, ignore)
     for _, other in ipairs(context.data.unitList) do
-        if other ~= unit and other ~= ignore and other.hp > 0 then
+        if other ~= unit and other ~= ignore and other.hp > 0 and not other.escaped then
             local dx, dy = unit.x - other.x, unit.y - other.y
             local reach = contactDistance(unit, other)
             if dx * dx + dy * dy < reach * reach - MIN_DIST_EPSILON then return false, other end
@@ -116,7 +118,7 @@ local function clearPosition(unit, context, x, y)
     local r = unit.collisionRadius or 0
     if x < r or y < r or x > width-r or y > height-r then return false end
     for _, other in ipairs(context.data.unitList) do
-        if other ~= unit and other.hp > 0 and
+        if other ~= unit and other.hp > 0 and not other.escaped and
             (x-other.x)^2+(y-other.y)^2 < contactDistance(unit,other)^2-MIN_DIST_EPSILON then return false end
     end
     return true
@@ -125,7 +127,7 @@ end
 local function clearStep(unit, context, x, y)
     if not clearPosition(unit,context,x,y) then return false end
     for _, other in ipairs(context.data.unitList) do
-        if other ~= unit and other.hp > 0 and blocksSegment(unit,other,x,y) then return false end
+        if other ~= unit and other.hp > 0 and not other.escaped and blocksSegment(unit,other,x,y) then return false end
     end
     return true
 end
@@ -161,7 +163,7 @@ local function moveWithCollisions(unit, nx, ny, distance, context)
         clampUnitToBounds(unit, context)
         local changes = {}
         for _, other in ipairs(context.data.unitList) do
-            if other ~= unit and other.hp > 0 then
+            if other ~= unit and other.hp > 0 and not other.escaped then
                 local dx, dy = other.x - unit.x, other.y - unit.y
                 local reach = contactDistance(unit, other)
                 if dx * dx + dy * dy < reach * reach - MIN_DIST_EPSILON then
@@ -234,18 +236,18 @@ local function bypassDirection(unit, context, bypass, distance, targetX, targetY
     return bestX,bestY
 end
 
-function ExecutionSystem._resolveAoeAtPoint(attackerUnit, skillData, targetX, targetY, context)
+function ExecutionSystem._resolveAoeAtPoint(attackerUnit, skillData, targetX, targetY, context, excluded, projectileImpact)
     local aoeRadius = math.max(24, ((skillData.aoe or 1) * WORLD_RANGE_SCALE * 0.8))
-    local aoeRadiusSq = aoeRadius * aoeRadius
 
     for _, targetUnit in ipairs(context.data.unitList) do
-        if targetUnit.team ~= attackerUnit.team and targetUnit.hp > 0 then
+        if (projectileImpact or targetUnit.team ~= attackerUnit.team) and targetUnit ~= excluded and targetUnit.hp > 0 and not targetUnit.escaped then
             local dx = targetUnit.x - targetX
             local dy = targetUnit.y - targetY
             local distSq = dx * dx + dy * dy
             local reach = aoeRadius + (targetUnit.collisionRadius or 0)
             if distSq <= (reach * reach) then
-                local result = CombatSystem.resolveAttack(attackerUnit, targetUnit, skillData)
+                local resolve = projectileImpact and CombatSystem.resolveProjectileAttack or CombatSystem.resolveAttack
+                local result = resolve(attackerUnit, targetUnit, skillData)
                 ExecutionSystem.applyAttackResult(result, targetUnit, context, skillData)
             end
         end
@@ -280,6 +282,7 @@ function ExecutionSystem:update(context)
                             local dotDamage = math.max(0, math.floor(effectData.damagePerTick or 0))
                             if dotDamage > 0 and unit.hp > 0 then
                                 CombatSystem._applyBattleDamage(unit, dotDamage, true)
+                                Morale.process(context)
                                 if context.addFloatingText then
                                     context.addFloatingText(unit.visualX, unit.visualY, tostring(dotDamage), {1, 0.45, 0.15, 1})
                                 end
@@ -296,7 +299,7 @@ function ExecutionSystem:update(context)
         end
 
         if unit.currentCast then
-            if unit.hp <= 0 then
+            if unit.hp <= 0 or unit.fleeing or unit.escaped then
                 unit.currentCast = nil
             else
                 unit.currentCast.remaining = unit.currentCast.remaining - 1
@@ -310,7 +313,7 @@ function ExecutionSystem:update(context)
     -- 2. Resolve intents.
     for _, unit in ipairs(units) do
         if unit.intent then
-            if unit.hp > 0 then
+            if unit.hp > 0 and not unit.escaped then
                 local intent = unit.intent
 
                 if intent.type == "MOVE" then
@@ -360,7 +363,7 @@ function ExecutionSystem._executeMove(unit, intent, context)
 
     local startX, startY = unit.x, unit.y
     local bypass = unit.bypass
-    if bypass and (bypass.blocker.hp <= 0 or not blocksSegment(unit,bypass.blocker,targetX,targetY)) then
+    if bypass and (bypass.blocker.hp <= 0 or bypass.blocker.escaped or not blocksSegment(unit,bypass.blocker,targetX,targetY)) then
         unit.bypass,bypass,unit.stuckAttempts = nil,nil,0
     end
     local blocker,traveled = nil,0
@@ -404,7 +407,7 @@ function ExecutionSystem._executeMove(unit, intent, context)
         unit.facing = 1
     end
 
-    if unit.squad and unit.squad.order == "hold" then unit.facing = -unit.squad.direction end
+    if not unit.fleeing and unit.squad and unit.squad.order == "hold" then unit.facing = -unit.squad.direction end
     clampUnitToBounds(unit, context)
 
     local battleSpeed = Injury.stat(unit, "battle_speed", unit.stats.battle_speed or 10)
@@ -418,7 +421,7 @@ function ExecutionSystem._initiateSkill(unit, intent, context)
     local skillId = intent.skillId
     local skillData = CombatSystem.getEffectiveSkill(unit, skillId)
 
-    if not skillData or not unit.skills[skillId] or (unit.cooldowns[skillId] or 0) > 0 or
+    if unit.fleeing or unit.escaped or not skillData or not unit.skills[skillId] or (unit.cooldowns[skillId] or 0) > 0 or
         unit.globalCooldown > 0 or unit.currentCast or
         (skillData.maxCharges and (unit.charges[skillId] or 0) <= 0) then return end
 
@@ -439,7 +442,7 @@ function ExecutionSystem._initiateSkill(unit, intent, context)
         end
     end
 
-    if unit.squad and unit.squad.order == "hold" then unit.facing = -unit.squad.direction end
+    if not unit.fleeing and unit.squad and unit.squad.order == "hold" then unit.facing = -unit.squad.direction end
 
     if skillData then
         local windup = skillData.windup or 0
@@ -478,7 +481,7 @@ end
 
 function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, targetPoint, context)
     local skillData = CombatSystem.getEffectiveSkill(unit, skillId)
-    if not skillData then return end
+    if not skillData or unit.fleeing or unit.escaped or unit.hp <= 0 then return end
 
     if skillData.type == "command" then
         if (unit.cooldowns[skillId] or 0) > 0 then return end
@@ -495,7 +498,7 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
         if targetPoint and targetPoint.x and targetPoint.y then
             castTargetX = targetPoint.x
             castTargetY = targetPoint.y
-        elseif targetUnit and targetUnit.hp > 0 then
+        elseif targetUnit and targetUnit.hp > 0 and not targetUnit.escaped then
             castTargetX = targetUnit.x
             castTargetY = targetUnit.y
         end
@@ -520,7 +523,7 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
     else
         local isValid = false
 
-        if targetUnit and targetUnit.hp > 0 then
+        if targetUnit and targetUnit.hp > 0 and not targetUnit.escaped then
             local dx = targetUnit.x - unit.x
             local dy = targetUnit.y - unit.y
             local distSq = dx * dx + dy * dy
@@ -554,25 +557,8 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
         end
 
         if skillData.projectile then
-            local proj = {
-                x = unit.x,
-                y = unit.y,
-                visualX = unit.x,
-                visualY = unit.y,
-                startX = unit.x,
-                startY = unit.y,
-                targetX = castTargetX,
-                targetY = castTargetY,
-                targetUnitId = targetUnit and targetUnit.id or targetUnitId,
-                attackerUnit = unit,
-                skillId = skillId,
-                skillData = skillData,
-                style = skillData.projectile.style,
-                speed = skillData.projectile.speed or 10,
-                sprite = skillData.projectile.sprite,
-                arc = skillData.projectile.arc or 0,
-                progress = 0
-            }
+            local proj = Projectile.launch(unit, skillData, castTargetX, castTargetY,
+                targetUnit, context.data.projectileRng)
 
             if isFireballProjectile(skillData) then
                 proj.trailParticles = {}
@@ -601,6 +587,7 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
 end
 
 function ExecutionSystem.applyAttackResult(result, target, context, skillData)
+    Morale.process(context)
     if result.hit then
         applyOnHitStatuses(target, skillData)
 
@@ -621,13 +608,10 @@ function ExecutionSystem._updateProjectiles(context)
 
     for i = #projectiles, 1, -1 do
         local proj = projectiles[i]
-        local tx, ty = proj.targetX, proj.targetY
+        local reason, collidedUnit = Projectile.advance(proj, context)
+        local tx, ty = proj.x, proj.y
 
-        local dx = tx - proj.x
-        local dy = ty - proj.y
-        local dist = math.sqrt(dx * dx + dy * dy)
-
-        if dist <= proj.speed then
+        if reason then
             local skillData = proj.skillData
 
             if skillData and skillData.projectile and skillData.projectile.style == "fireball" and context.addVfx then
@@ -657,49 +641,18 @@ function ExecutionSystem._updateProjectiles(context)
                 })
             end
 
-            if skillData and skillData.type == "aoe" and skillData.targeted == true then
-                ExecutionSystem._resolveAoeAtPoint(proj.attackerUnit, skillData, tx, ty, context)
-            else
-                local selectedTarget = nil
-                if proj.targetUnitId and context.data.units then
-                    local intendedTarget = context.data.units[proj.targetUnitId]
-                    if intendedTarget and intendedTarget.hp > 0 and intendedTarget.team ~= proj.attackerUnit.team then
-                        selectedTarget = intendedTarget
-                    end
-                end
-
-                if not selectedTarget then
-                    local bestDistSq = nil
-                    local impactRadius = 26
-
-                    for _, targetUnit in ipairs(context.data.unitList) do
-                        if targetUnit.team ~= proj.attackerUnit.team and targetUnit.hp > 0 then
-                            local udx = targetUnit.x - tx
-                            local udy = targetUnit.y - ty
-                            local d2 = udx * udx + udy * udy
-                            local reach = impactRadius + (targetUnit.collisionRadius or 0)
-                            if d2 <= (reach * reach) and (not bestDistSq or d2 < bestDistSq) then
-                                bestDistSq = d2
-                                selectedTarget = targetUnit
-                            end
-                        end
-                    end
-                end
-
-                if selectedTarget then
-                    local impactSkill = proj.skillData
-                    local result = CombatSystem.resolveProjectileAttack(proj.attackerUnit, selectedTarget, impactSkill)
-                    ExecutionSystem.applyAttackResult(result, selectedTarget, context, impactSkill)
-                end
+            local result
+            if collidedUnit then
+                result = CombatSystem.resolveProjectileAttack(proj.attackerUnit, collidedUnit, skillData)
+                ExecutionSystem.applyAttackResult(result, collidedUnit, context, skillData)
+            end
+            if skillData and skillData.type == "aoe" and skillData.targeted and
+                (reason == "ground" or (result and result.hit)) then
+                ExecutionSystem._resolveAoeAtPoint(proj.attackerUnit, skillData, tx, ty, context, collidedUnit, true)
             end
 
             table.remove(projectiles, i)
         else
-            local moveX = (dx / dist) * proj.speed
-            local moveY = (dy / dist) * proj.speed
-            proj.x = proj.x + moveX
-            proj.y = proj.y + moveY
-
             local skillData = proj.skillData
             if skillData and skillData.projectile and skillData.projectile.style == "fireball" and proj.trailParticles then
                 proj.trailSpawnTimer = (proj.trailSpawnTimer or 0) + 1
@@ -708,7 +661,7 @@ function ExecutionSystem._updateProjectiles(context)
                     table.insert(proj.trailParticles, {
                         kind = "ember",
                         x = proj.x + (math.random() - 0.5) * 6,
-                        y = proj.y + (math.random() - 0.5) * 6,
+                        y = proj.y - proj.z + (math.random() - 0.5) * 6,
                         vx = (math.random() - 0.5) * 10,
                         vy = -20 - math.random() * 35,
                         life = 0.24 + math.random() * 0.16,
@@ -718,7 +671,7 @@ function ExecutionSystem._updateProjectiles(context)
                     table.insert(proj.trailParticles, {
                         kind = "smoke",
                         x = proj.x + (math.random() - 0.5) * 8,
-                        y = proj.y + (math.random() - 0.5) * 8,
+                        y = proj.y - proj.z + (math.random() - 0.5) * 8,
                         vx = (math.random() - 0.5) * 7,
                         vy = -10 - math.random() * 12,
                         life = 0.35 + math.random() * 0.3,
@@ -728,10 +681,6 @@ function ExecutionSystem._updateProjectiles(context)
                 end
             end
 
-            local totalDist = math.sqrt((tx - proj.startX) ^ 2 + (ty - proj.startY) ^ 2)
-            if totalDist > 0 then
-                proj.progress = 1.0 - (dist / totalDist)
-            end
         end
     end
 end

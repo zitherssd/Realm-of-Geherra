@@ -237,18 +237,19 @@ local function damageAndPersistence()
         assert(#target.injuries == 0)
     end)
     -- The resolver rolls only once, after mitigation, for either attack path.
-    local oldAttack, oldDamage = Combat.rollAttack, Combat.calculateDamage
+    local oldAttack, oldDamage, oldProjectile = Combat.rollAttack, Combat.calculateDamage, Combat.rollProjectileDefense
     Combat.rollAttack = function() return true end
+    Combat.rollProjectileDefense = function() return true end
     Combat.calculateDamage = function() return 75 end
     local ok, err = pcall(function()
         for _, resolve in ipairs({Combat.resolveAttack, Combat.resolveProjectileAttack}) do
             local target = actor()
-            local random, count = sequence(resolve == Combat.resolveAttack and {0, 0, 0, 0} or {1, 0, 0, 0, 0})
+            local random, count = sequence({0, 0, 0, 0})
             withRandom(random, function() assert(resolve({}, target, {}).damage == 75) end)
-            assert(count() == (resolve == Combat.resolveAttack and 4 or 5) and #target.injuries == 1)
+            assert(count() == 4 and #target.injuries == 1)
         end
     end)
-    Combat.rollAttack, Combat.calculateDamage = oldAttack, oldDamage
+    Combat.rollAttack, Combat.calculateDamage, Combat.rollProjectileDefense = oldAttack, oldDamage, oldProjectile
     assert(ok, err)
     -- A later fatal blow still removes an already injured actor.
     runner = Runner.start(a, b, {maxTicks = 0})

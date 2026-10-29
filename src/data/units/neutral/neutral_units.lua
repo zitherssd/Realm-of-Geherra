@@ -2,6 +2,48 @@
 -- Neutral and shared troop definitions
 
 return {
+    ["archer"] = {
+        id = "archer",
+        name = "Archer",
+        type = "archer",
+        injuryProfile = "humanoid",
+        sprite = "src/assets/sprites/units/archer.png",
+        stats = {
+            health = 22,
+            attack = 10,
+            defense = 10,
+            precision = 10,
+            strength = 10,
+            speed = 10,
+            battle_speed = 10,
+        },
+        size = 3,
+        equipment = {
+            rangedWeapon = "bow",
+        },
+    },
+
+    ["slinger"] = {
+        id = "slinger",
+        name = "Slinger",
+        type = "slinger",
+        injuryProfile = "humanoid",
+        sprite = "src/assets/sprites/units/slinger.png",
+        stats = {
+            health = 22,
+            attack = 10,
+            defense = 10,
+            precision = 10,
+            strength = 10,
+            speed = 10,
+            battle_speed = 10,
+        },
+        size = 3,
+        equipment = {
+            rangedWeapon = "sling",
+        },
+    },
+
     ["bandit"] = {
         id = "bandit",
         name = "Bandit",

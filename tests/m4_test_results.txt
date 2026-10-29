@@ -1,0 +1,232 @@
+FAIL party_speed_scenario
+party_speed_scenario.lua:9: assertion failed!
+stack traceback:
+	[C]: in function 'assert'
+	party_speed_scenario.lua:9: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+PASS data_definitions_scenario
+
+PASS faction_identity_scenario
+
+FAIL combat_regression_scenario
+combat_regression_scenario.lua:72: The spear did not hit beyond the base attack reach
+stack traceback:
+	[C]: in function 'assert'
+	combat_regression_scenario.lua:72: in function 'testSkillDamageAndModifiers'
+	combat_regression_scenario.lua:185: in function <combat_regression_scenario.lua:178>
+	[C]: in function 'xpcall'
+	combat_regression_scenario.lua:178: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+stack traceback:
+	[C]: in function 'error'
+	combat_regression_scenario.lua:193: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+PASS projectile_scenario
+
+PASS unified_inventory_scenario
+
+PASS injury_scenario
+
+PASS injury_treatment_scenario
+
+PASS location_types_scenario
+
+PASS population_scenario
+
+PASS retinue_scenario
+
+PASS inline_party_scenario
+
+PASS debug_campaign_scenario
+
+PASS caravan_scenario
+
+PASS services_scenario
+
+PASS knowledge_scenario
+
+PASS travel_knowledge_scenario
+
+PASS battle_knowledge_scenario
+
+PASS world_events_scenario
+
+PASS world_activity_scenario
+
+PASS npc_goals_scenario
+
+PASS dynamic_importance_scenario
+
+FAIL personality_return_home_scenario
+personality_return_home_scenario.lua:26: 5.3333333333333 ~= 12
+stack traceback:
+	[C]: in function 'assert'
+	personality_return_home_scenario.lua:26: in function 'near'
+	personality_return_home_scenario.lua:101: in function 'accumulation'
+	personality_return_home_scenario.lua:341: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+FAIL recovery_scenario
+recovery_scenario.lua:165: ordinary goal did not resume
+stack traceback:
+	[C]: in function 'assert'
+	recovery_scenario.lua:165: in function 'interruptionAndResume'
+	recovery_scenario.lua:342: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+PASS raid_visibility_scenario
+
+PASS battle_movement_scenario
+
+PASS friendly_sliding_scenario
+
+PASS squads_scenario
+
+PASS on_me_regroup_scenario
+
+PASS m2_refinement_scenario
+
+PASS morale_scenario
+
+PASS combat_power_scenario
+
+PASS battle_simulation_scenario
+
+PASS headless_battle_scenario
+
+PASS campaign_battle_result_scenario
+
+PASS campaign_battle_resolution_scenario
+
+FAIL world_encounter_scenario
+[WorldEncounter] clock-map:encounter:1 started: clock-a vs clock-b
+world_encounter_scenario.lua:48: clock did not return elapsed game hours
+stack traceback:
+	[C]: in function 'assert'
+	world_encounter_scenario.lua:48: in function 'assertNear'
+	world_encounter_scenario.lua:79: in function 'testClockDeltaPauseAndAcceleration'
+	world_encounter_scenario.lua:348: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+PASS raid_encounter_scenario
+
+FAIL world_time_sync_scenario
+[WorldEncounter] world-time-sync-map:encounter:1 started: time-encounter-a vs time-encounter-b
+world_time_sync_scenario.lua:201: world-hour to world-second conversion is incorrect
+stack traceback:
+	[C]: in function 'assert'
+	world_time_sync_scenario.lua:201: in function <world_time_sync_scenario.lua:44>
+	[C]: in function 'xpcall'
+	world_time_sync_scenario.lua:239: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+stack traceback:
+	[C]: in function 'error'
+	world_time_sync_scenario.lua:243: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+FAIL campaign_runtime_scenario
+campaign_runtime_scenario.lua:92: assertion failed!
+stack traceback:
+	[C]: in function 'assert'
+	campaign_runtime_scenario.lua:92: in function <campaign_runtime_scenario.lua:29>
+	[C]: in function 'xpcall'
+	campaign_runtime_scenario.lua:29: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+stack traceback:
+	[C]: in function 'error'
+	campaign_runtime_scenario.lua:204: in function 'run'
+	main.lua:27: in function <main.lua:24>
+	[C]: in function 'xpcall'
+	main.lua:24: in function 'load'
+	[love "callbacks.lua"]:136: in function <[love "callbacks.lua"]:135>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:368: in function <[love "boot.lua"]:355>
+	[C]: in function 'xpcall'
+	[love "boot.lua"]:377: in function <[love "boot.lua"]:344>
+
+PASS loot_resolver_scenario
+
+PASS battlefield_remains_scenario
+
+PASS battlefield_interaction_scenario
+
+PASS campaign_architecture_milestone_1_scenario
+
+PASS campaign_identity_milestone_2_scenario
+
+PASS travel_activity_scenario
+
+PASS debug_mode_scenario
+
+PASS ability_range_preview_scenario
+
+PASS roam_activity_scenario
+
+PASS knowledge_search_scenario
+
+PASS investigation_scenario

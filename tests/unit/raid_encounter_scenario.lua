@@ -28,6 +28,7 @@ local function createParty(world, map, id, actorPrefix, config)
         actor.stats.health = config.health
         actor.stats.attack = config.attack
         actor.stats.defense = config.defense or 0
+        actor.stats.strength = config.strength or 0
         actor.stats.battle_speed = 120
         actor.sight = config.sight or actor.sight
         actor.profile = config.profile or actor.profile
@@ -71,6 +72,7 @@ local function runContactToCompletion(world)
         health = 500,
         attack = 500,
         defense = 100,
+        strength = 500, -- The loot/corpse fixture requires lethal hits rather than a rout.
         skills = {javelin_throw = {learned = true}}
     })
     raider.wanderTarget = {x = 100, y = 500}

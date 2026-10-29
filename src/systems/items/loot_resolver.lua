@@ -106,6 +106,7 @@ local function resolveOutcome(partyA, partyB, battleResult)
 
     local actorsById = {}
     local livingByParty = {[partyA.id] = 0, [partyB.id] = 0}
+    local survivingByParty = {[partyA.id] = 0, [partyB.id] = 0}
     for _, party in ipairs({partyA, partyB}) do
         for _, actor in ipairs(party.actors) do
             if actorsById[actor.id] then
@@ -121,8 +122,15 @@ local function resolveOutcome(partyA, partyB, battleResult)
                 actorResult.defeated ~= (hp <= 0) then
                 error("Battle result has invalid final HP for actor " .. tostring(actor.id), 3)
             end
+            if (actorResult.escaped ~= nil and type(actorResult.escaped) ~= "boolean") or
+                (actorResult.escaped and actorResult.defeated) then
+                error("Battle result has invalid escaped status", 3)
+            end
             actorsById[actor.id] = {actor = actor, party = party, result = actorResult}
-            if hp > 0 then
+            if actorResult.finalHp > 0 then
+                survivingByParty[party.id] = survivingByParty[party.id] + 1
+            end
+            if hp > 0 and not actorResult.escaped then
                 livingByParty[party.id] = livingByParty[party.id] + 1
             end
         end
@@ -154,12 +162,12 @@ local function resolveOutcome(partyA, partyB, battleResult)
             if livingByParty[partyA.id] ~= 0 or livingByParty[partyB.id] ~= 0 then
                 error("Draw result must leave no surviving actors", 3)
             end
-        elseif livingByParty[partyA.id] == 0 or livingByParty[partyB.id] == 0 then
+        elseif survivingByParty[partyA.id] == 0 or survivingByParty[partyB.id] == 0 then
             error("Timeout result must leave survivors in both parties", 3)
         end
     end
 
-    return actorsById, winnerPartyId, loserPartyId, livingByParty
+    return actorsById, winnerPartyId, loserPartyId, survivingByParty
 end
 
 local function resolveRandom(randomSource)

@@ -270,8 +270,10 @@ function BattleState.checkBattleEnd()
         BattleState.onComplete = nil
         callback({outcome = outcome, winnerPartyId = winnerPartyId})
     end
-    if victory then
-        rewards.victory = true
+    local player = simulation.context.data.playerUnit
+    if victory or (player and player.hp > 0) then
+        rewards.victory = victory
+        if not victory then rewards.loot, rewards.gold, rewards.favor = {}, 0, 0 end
         StateManager.swap("battle_end", rewards)
     else
         StateManager.swap("menu")
@@ -288,6 +290,7 @@ function BattleState.draw()
     love.graphics.clear(0.1, 0.1, 0.1)
 
     RenderSystem.draw(BattleContext)
+    RenderSystem.drawMoraleDebug(BattleContext)
 
     love.graphics.setColor(1, 1, 1)
     love.graphics.print("Battle Tick: " .. tostring(BattleContext.data.tick), 10, 10)

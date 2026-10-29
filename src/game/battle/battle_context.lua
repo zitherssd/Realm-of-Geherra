@@ -31,7 +31,7 @@ function BattleContext.new(bounds)
         floatingTexts = {},
         projectiles = {},
         vfx = {},
-        casualties = {}
+        casualties = {}, escaped = {}, moraleQueue = {}, battleParties = {}
     }
 
     function context.addUnit(battleUnit)
@@ -40,6 +40,7 @@ function BattleContext.new(bounds)
         local bounds = context.data.bounds
         battleUnit.x = math.max(r, math.min(bounds.width - r, battleUnit.x))
         battleUnit.y = math.max(r, math.min(bounds.height - r, battleUnit.y))
+        battleUnit.battleContext = context
         context.data.units[battleUnit.id] = battleUnit
         table.insert(context.data.unitList, battleUnit)
     end
@@ -50,6 +51,7 @@ function BattleContext.new(bounds)
         for i = #units, 1, -1 do
             local unit = units[i]
             if unit.hp <= 0 then
+                require("src.game.battle.morale").defeat(context, unit)
                 table.insert(context.data.casualties, unit)
                 context.data.units[unit.id] = nil
                 table.remove(units, i)
@@ -85,7 +87,7 @@ function BattleContext.new(bounds)
         local maxRangeSq = maxRange and (maxRange * maxRange) or math.huge
 
         for _, other in ipairs(context.data.unitList) do
-            if other.team ~= unit.team and other.hp > 0 then
+            if other.team ~= unit.team and other.hp > 0 and not other.escaped then
                 local dx = unit.x - other.x
                 local dy = unit.y - other.y
                 local distSq = dx * dx + dy * dy

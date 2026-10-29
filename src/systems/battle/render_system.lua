@@ -141,7 +141,7 @@ function RenderSystem.update(dt, context)
         local PROJ_LERP = 15.0
         for _, proj in ipairs(projectiles) do
             local dx = proj.x - proj.visualX
-            local dy = proj.y - proj.visualY
+            local dy = proj.y - (proj.z or 0) - proj.visualY
             proj.visualX = proj.visualX + dx * PROJ_LERP * dt
             proj.visualY = proj.visualY + dy * PROJ_LERP * dt
 
@@ -239,6 +239,50 @@ function RenderSystem.update(dt, context)
     end
 end
 
+function RenderSystem.drawMoraleDebug(context)
+    if not DebugMode.enabled then return end
+    local Morale = require("src.game.battle.morale")
+    local powers = Morale.powers(context)
+    local font = love.graphics.getFont()
+    local lineHeight = font:getHeight() + 2
+    local width, height = 340, lineHeight * 7 + 16
+    local x, y = love.graphics.getWidth() - width - 10, love.graphics.getHeight() - height - 10
+    love.graphics.push("all")
+    love.graphics.setColor(0, 0, 0, 0.8)
+    love.graphics.rectangle("fill", x, y, width, height)
+    for index, side in ipairs({{team="player", label="Player"}, {team="enemy", label="Enemy"}}) do
+        local party = context.data.battleParties and context.data.battleParties[side.team]
+        local members = party and party.members or {}
+        local average, eligible = Morale.average(members)
+        local fighting, fleeing, escaped = 0, 0, 0
+        for _, unit in ipairs(members) do
+            if unit.escaped then escaped = escaped + 1
+            elseif unit.hp > 0 then
+                if unit.fleeing then fleeing = fleeing + 1 else fighting = fighting + 1 end
+            end
+        end
+        local rowY = y + 8 + (index - 1) * 3 * lineHeight
+        local value = eligible > 0 and string.format("%.1f", average) or "N/A"
+        love.graphics.setColor(side.team == "player" and 0.5 or 1, 0.8, side.team == "player" and 1 or 0.5, 1)
+        love.graphics.print(string.format("%s | Morale %s | Power %.1f%s",
+            side.label, value, powers[side.team] or 0, party and party.routed and " | ROUTED" or ""),
+            x + 10, rowY)
+        love.graphics.setColor(1, 1, 1, 1)
+        local threat = Morale.threat(powers, side.team)
+        local multiplier = threat == math.huge and "infinite" or string.format("%.2fx", threat)
+        love.graphics.print(string.format("Fight %d  Flee %d  Esc %d | Threat %s",
+            fighting, fleeing, escaped, multiplier), x + 10, rowY + lineHeight)
+    end
+    local scaleWidth = 100 * (context.data.camera and context.data.camera.zoom or 1)
+    local scaleX, scaleY = x + 10, y + 8 + 6 * lineHeight
+    love.graphics.setLineWidth(2)
+    love.graphics.line(scaleX, scaleY, scaleX + scaleWidth, scaleY)
+    love.graphics.line(scaleX, scaleY - 4, scaleX, scaleY + 4)
+    love.graphics.line(scaleX + scaleWidth, scaleY - 4, scaleX + scaleWidth, scaleY + 4)
+    love.graphics.print("100 units", scaleX + scaleWidth + 8, scaleY - font:getHeight() / 2)
+    love.graphics.pop()
+end
+
 function RenderSystem.draw(context)
     local camera = context.data.camera
 
@@ -307,8 +351,8 @@ function RenderSystem.draw(context)
 
             if unit.visualEffects and unit.visualEffects.shakeTime > 0 then
                 local magnitude = 3 * (unit.visualEffects.shakeTime * 4)
-                drawX = drawX + (math.random() - 0.5) * magnitude
-                drawY = drawY + (math.random() - 0.5) * magnitude
+                drawX = drawX + (love.math.random() - 0.5) * magnitude
+                drawY = drawY + (love.math.random() - 0.5) * magnitude
             end
 
             if unit.visualEffects and unit.visualEffects.lungeTime > 0 then
@@ -474,31 +518,18 @@ function RenderSystem.draw(context)
                 love.graphics.setColor(0.7, 0.85, 1, 0.4)
                 love.graphics.circle("line", proj.visualX, proj.visualY, 18)
                 love.graphics.setBlendMode("alpha")
+            elseif proj.style == "arrow" then
+                local dz = ((proj.endZ-proj.startZ)+4*proj.arc*(1-2*proj.progress))/proj.distance
+                love.graphics.setColor(0.7, 0.6, 0.4, 1)
+                love.graphics.line(proj.visualX-proj.nx*10, proj.visualY-(proj.ny-dz)*10,
+                    proj.visualX, proj.visualY)
             elseif proj.style == "sling_stone" then
                 love.graphics.setColor(0.38, 0.34, 0.28, 1)
                 love.graphics.circle("fill", proj.visualX, proj.visualY, 3)
             elseif sprite then
-                local tx, ty = proj.targetX, proj.targetY
-
-                local visualProgress = proj.progress or 0
-                local totalDist = math.sqrt((tx - proj.startX) ^ 2 + (ty - proj.startY) ^ 2)
-                if totalDist > 0 then
-                    local currentDist = math.sqrt((tx - proj.visualX) ^ 2 + (ty - proj.visualY) ^ 2)
-                    visualProgress = 1.0 - (currentDist / totalDist)
-                end
-
-                local arcOffset = 0
-                if proj.arc and proj.arc > 0 then
-                    arcOffset = -4 * proj.arc * visualProgress * (1 - visualProgress)
-                end
-
-                local dx = tx - proj.startX
-                local dy_linear = ty - proj.startY
-                local dy_arc = 0
-                if proj.arc and proj.arc > 0 then
-                    dy_arc = -4 * proj.arc * (1 - 2 * visualProgress)
-                end
-
+                local dx = proj.nx * proj.distance
+                local dy_linear = proj.ny * proj.distance
+                local dy_arc = -(proj.endZ-proj.startZ)-4*proj.arc*(1-2*proj.progress)
                 local target_angle = math.atan2(dy_linear + dy_arc, dx)
 
                 local horizontal_angle = 0
@@ -515,7 +546,7 @@ function RenderSystem.draw(context)
                 end
 
                 local drawX = proj.visualX
-                local drawY = proj.visualY + arcOffset
+                local drawY = proj.visualY
 
                 local w, h = sprite:getDimensions()
                 love.graphics.setColor(1, 1, 1, 1)

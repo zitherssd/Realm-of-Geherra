@@ -7,7 +7,7 @@ local BattleUnitSystem = {}
 
 -- Can this unit act this tick? (alive, off GCD, not silenced by a status)
 function BattleUnitSystem.canAct(unit)
-    if unit.hp <= 0 or unit.globalCooldown > 0 then
+    if unit.hp <= 0 or unit.escaped or unit.globalCooldown > 0 then
         return false
     end
 

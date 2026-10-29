@@ -48,6 +48,7 @@ function CampaignBattleResolution.resolve(result, context)
         time = time, encounterId = encounter.id,
         mapId = context.map and context.map.id, x = encounter.x, y = encounter.y,
         outcome = result.outcome, winnerPartyId = result.winnerPartyId,
+        loserPartyId = result.loserPartyId, routedPartyIds = result.routedPartyIds or {},
         defeatedPartyIds = result.loserPartyId and {result.loserPartyId} or {},
         participants = {}, subjectIds = {}, ticks = result.ticks
     }
@@ -55,17 +56,24 @@ function CampaignBattleResolution.resolve(result, context)
     local rewards = {playerCasualties = {}, enemyCasualties = {}, loot = {}, gold = 0, favor = 0}
     for index, party in ipairs(parties) do
         local participant = {partyId = party.id, name = party.name or tostring(party.id),
-            actorIds = {}, casualties = 0}
+            actorIds = {}, casualties = 0, casualtyActorIds = {}, escapedActorIds = {}, routed = false}
+        for _, id in ipairs(result.routedPartyIds or {}) do
+            if id == party.id then participant.routed = true end
+        end
         eventData.subjectIds[#eventData.subjectIds + 1] = party.id
         for _, actor in ipairs(party.actors) do
             participant.actorIds[#participant.actorIds + 1] = actor.id
             eventData.subjectIds[#eventData.subjectIds + 1] = actor.id
             if result.actors[actor.id].defeated then
                 participant.casualties = participant.casualties + 1
+                participant.casualtyActorIds[#participant.casualtyActorIds+1] = actor.id
                 local names = index == 1 and rewards.playerCasualties or rewards.enemyCasualties
                 names[#names + 1] = actor.name or "Unknown Unit"
             else
                 survivors[actor.id] = true
+                if result.actors[actor.id].escaped then
+                    participant.escapedActorIds[#participant.escapedActorIds+1] = actor.id
+                end
             end
         end
         eventData.participants[#eventData.participants + 1] = participant
@@ -101,6 +109,12 @@ function CampaignBattleResolution.resolve(result, context)
     end
 
     eventData.eliminatedPartyIds = applied.eliminatedPartyIds
+    for _, participant in ipairs(eventData.participants) do
+        participant.destroyed = false
+        for _, id in ipairs(applied.eliminatedPartyIds) do
+            if id == participant.partyId then participant.destroyed = true end
+        end
+    end
     eventData.battlefieldId = lootPlan and lootPlan.remainsSite and lootPlan.remainsSite.id
     if eventData.battlefieldId then
         eventData.subjectIds[#eventData.subjectIds + 1] = eventData.battlefieldId
@@ -109,6 +123,14 @@ function CampaignBattleResolution.resolve(result, context)
     local event = WorldEvents.record(world, "battle_ended", eventData, "battle_ended:" .. encounter.id)
     BattleKnowledge.learnParticipants(world, event, survivors)
     if lootPlan and lootPlan.remainsSite then lootPlan.remainsSite.history.eventId = event.id end
+    if context.map then
+        local encounters = require("src.systems.campaign.world_encounter_system")
+        local cooldowns = context.map.partyEncounterCooldowns or {}
+        context.map.partyEncounterCooldowns = cooldowns
+        for _, party in ipairs(parties) do
+            cooldowns[party.id] = math.max(cooldowns[party.id] or 0, encounters.reengagementCooldownHours)
+        end
+    end
     encounter.result = result
     encounter.lootResult = lootResult
     encounter.outcome = result.outcome

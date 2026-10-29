@@ -35,6 +35,16 @@ local function testStarterBattleAndDiscovery()
     local map = Map.new("battle-knowledge")
     Initializer._createStarterParties(map) -- Exercise the real Forest Bandits classification.
     local bandits, merchantParty = map:getParties()[1], map:getParties()[2]
+    local rangedCounts = {archer = 0, slinger = 0}
+    for _, actor in ipairs(bandits.actors) do
+        assert(actor.__world == world and World.findActorById(actor.id, world) == actor,
+            "Starter bandit actor was not registered in the campaign world")
+        if rangedCounts[actor.troopType] then
+            rangedCounts[actor.troopType] = rangedCounts[actor.troopType] + 1
+        end
+    end
+    assert(rangedCounts.archer == 6 and rangedCounts.slinger == 6,
+        "Starter bandits lost their ranged test units")
     local leader, soldier, merchant = bandits.actors[1], bandits.actors[2], merchantParty.actors[1]
     assert(bandits.name == "Forest Bandits" and leader.troopType == "bandit" and leader.memory)
     assert(not soldier.memory, "Starter troops unexpectedly have personal memory")

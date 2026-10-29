@@ -76,6 +76,9 @@ local function battleUnitAssemblage(e, actor, worldX, worldY, team)
     }
 
     -- Action State
+    e.battleMorale = require("src.game.battle.morale").initial
+    e.fleeing, e.escaped = false, false
+    e.moraleExempt = actor.player ~= nil and actor.player ~= false
     e.intent = nil       -- { type="MOVE", target={x,y} } or { type="SKILL", id="slash", target=unitId }
     e.cooldowns = {}     -- Map of skill_id -> time_remaining (seconds)
     e.charges = {}       -- Map of skill_id -> remaining_uses
@@ -104,6 +107,9 @@ local function battleUnitAssemblage(e, actor, worldX, worldY, team)
     if actor.stats then
         for k, v in pairs(actor.stats) do e.stats[k] = v end
     end
+
+    e.stats.precision = e.stats.precision or 10
+    e.stats.morale = e.stats.morale or 10
 
     -- 2. Copy Learned Skills
     if actor.skills then

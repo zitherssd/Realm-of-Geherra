@@ -93,6 +93,12 @@ local skills = {
         },
     },
 
+    arrow = {
+        id="arrow", name="Arrow", type="ranged", damageType="piercing", baseDamage=10,
+        range=14, windup=20, cooldown=30,
+        projectile={style="arrow", speed=40, arc=25, radius=1},
+    },
+
     ["javelin_throw"] = {
         id = "javelin_throw",
         name = "Javelin Throw",
@@ -100,7 +106,7 @@ local skills = {
         description = "Throw a javelin (Limited uses)",
         damageType = "piercing",
         baseDamage = 15,
-        range = 8.5,
+        range = 7.5,
         windup = 20,
         cooldown = 30,
         maxCharges = 2,
@@ -119,7 +125,7 @@ local skills = {
         description = "Throw one javelin with limited battle supply",
         damageType = "piercing",
         baseDamage = 15,
-        range = 8.5,
+        range = 7.5,
         windup = 20,
         cooldown = 30,
         maxCharges = 1,
@@ -137,13 +143,13 @@ local skills = {
         description = "Hurl a stone with a sling",
         damageType = "blunt",
         baseDamage = 9,
-        range = 7.0,
+        range = 12.0,
         windup = 20,
         cooldown = 30,
         projectile = {
             style = "sling_stone",
             speed = 36,
-            arc = 25,
+            arc = 40,
         },
     },
 

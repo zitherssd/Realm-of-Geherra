@@ -3,11 +3,6 @@
 
 local CombatSystem = {}
 local Injury = require("src.systems.actors.injury_system")
-local DEFAULT_TARGET_SIZE_BASELINE = 3
-local DEFAULT_PROJECTILE_HIT_CHANCE = 70
-local PROJECTILE_SIZE_ABOVE_BASE_BONUS = 5
-local PROJECTILE_SIZE_BELOW_BASE_MALUS = 15
-
 -- Defense contributed by the equipped shield (offHand armor slot).
 function CombatSystem._getShieldDefense(defender)
     if not defender or not defender.equipment or not defender.equipment.offHand then
@@ -16,7 +11,8 @@ function CombatSystem._getShieldDefense(defender)
 
     local Items = require("src.data.items")
     local item = Items[defender.equipment.offHand]
-    if item and item.type == "armor" and item.stats and item.stats.defense then
+    if item and item.type == "armor" and item.slot == "offHand" and item.stats and item.stats.defense
+        and (not defender.itemDurability or (defender.itemDurability[defender.equipment.offHand] or item.maxDurability or 1) > 0) then
         return item.stats.defense
     end
 
@@ -46,24 +42,13 @@ function CombatSystem.rollAttack(attacker, defender, skill)
     return margin > 0, margin, shieldDefense
 end
 
-function CombatSystem.rollProjectileHitChance(defender)
-    local targetSize = DEFAULT_TARGET_SIZE_BASELINE
-    if defender then
-        if defender.size then
-            targetSize = defender.size
-        elseif defender.actor and defender.actor.size then
-            targetSize = defender.actor.size
-        end
-    end
-
-    local hitChance = DEFAULT_PROJECTILE_HIT_CHANCE
-    if targetSize > DEFAULT_TARGET_SIZE_BASELINE then
-        hitChance = hitChance + ((targetSize - DEFAULT_TARGET_SIZE_BASELINE) * PROJECTILE_SIZE_ABOVE_BASE_BONUS)
-    elseif targetSize < DEFAULT_TARGET_SIZE_BASELINE then
-        hitChance = hitChance - ((DEFAULT_TARGET_SIZE_BASELINE - targetSize) * PROJECTILE_SIZE_BELOW_BASE_MALUS)
-    end
-
-    return math.max(5, math.min(hitChance, 95))
+function CombatSystem.rollProjectileDefense(attacker, defender)
+    local MATH = require("src.utils.math")
+    local precision = (attacker.stats or {}).precision or 10
+    local shield = CombatSystem._getShieldDefense(defender)
+    local attack = precision / 8 + MATH.rollExploding(8) + MATH.rollExploding(8)
+    local defense = MATH.rollExploding(8) + MATH.rollExploding(8) + 2 * shield
+    return attack > defense, attack - defense, shield
 end
 
 -- Damage formula: effective skill baseDamage + strength/2 + rollExploding(6) - totalProtection - rollExploding(6)
@@ -187,10 +172,16 @@ end
 -- Private function for battle context
 function CombatSystem._applyBattleDamage(unit, damage, isStatusDamage)
     -- BattleUnit uses .hp, not .stats.health
+    if unit.escaped then return false end
     local previousHp = unit.hp
+    local morale = require("src.game.battle.morale")
+    local powers = unit.battleContext and damage > 0 and morale.powers(unit.battleContext)
     unit.hp = math.max(0, unit.hp - damage)
     -- Status ticks are not individual damaging hits.
     if not isStatusDamage then Injury.fromDamage(unit, previousHp - unit.hp) end
+    if unit.battleContext then
+        morale.damage(unit.battleContext, unit, previousHp - unit.hp, powers)
+    end
     return unit.hp <= 0
 end
 
@@ -260,10 +251,9 @@ function CombatSystem.resolveAttack(attacker, defender, skill)
 end
 
 function CombatSystem.resolveProjectileAttack(attacker, defender, skill)
-    local hitChance = CombatSystem.rollProjectileHitChance(defender)
-    local roll = math.random(100)
+    local hit, _, shield = CombatSystem.rollProjectileDefense(attacker, defender)
 
-    if roll <= hitChance then
+    if hit then
         local damage = CombatSystem.calculateDamage(attacker, defender, skill)
         local defeated = CombatSystem._applyBattleDamage(defender, damage)
 
@@ -277,13 +267,13 @@ function CombatSystem.resolveProjectileAttack(attacker, defender, skill)
         return {hit = true, damage = damage, defeated = defeated}
     end
 
-    -- Projectile misses are evades: the size-based hit roll never involves the
-    -- shield's defense, so the shield can't be the deciding factor.
+    local action = shield > 0 and "block" or "evade"
+    if action == "block" then CombatSystem.applyBlockDurabilityLoss(defender) end
     if defender.visualEffects then
         defender.visualEffects.shakeTime = 0.5
     end
 
-    return {hit = false, damage = 0, defeated = false, action = "evade"}
+    return {hit = false, damage = 0, defeated = false, action = action}
 end
 
 return CombatSystem

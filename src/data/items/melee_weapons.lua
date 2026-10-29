@@ -91,7 +91,7 @@ return {
         maxDurability = 22,
         skillModifiers = {
             damageType = "piercing",
-            baseDamage = 8,
+            baseDamage = 7,
             range = 0.3,
         },
     },
@@ -112,7 +112,7 @@ return {
         maxDurability = 10,
         skillModifiers = {
             damageType = "piercing",
-            baseDamage = 7,
+            baseDamage = 6,
             range = 0.2,
         },
         requires = {
@@ -138,7 +138,7 @@ return {
         maxDurability = 10,
         skillModifiers = {
             damageType = "poison",
-            baseDamage = 9,
+            baseDamage = 8,
             onHitStatuses = {
                 "poison",
             },
@@ -202,7 +202,7 @@ return {
         maxDurability = 20,
         skillModifiers = {
             damageType = "slashing",
-            baseDamage = 7,
+            baseDamage = 8,
         },
     },
 
