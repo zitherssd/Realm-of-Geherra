@@ -383,6 +383,49 @@ local function decisionsAndReset()
     second:destroy();sim:destroy()
 end
 
+local function victoryWithFleeingSurvivors()
+    for _, winnerTeam in ipairs({"player","enemy"}) do
+        for _, defeated in ipairs({true,false}) do
+            local sim,u=fixture()
+            local context=sim.context
+            local winnerParty=winnerTeam=="player" and sim.partyA or sim.partyB
+            local loserTeam=winnerTeam=="player" and "enemy" or "player"
+            local survivor=u[winnerTeam=="player" and "a2" or "b2"]
+            survivor.hp=37
+            Morale.flee(context,survivor)
+            Morale.process(context)
+            for _,unit in ipairs(context.data.unitList) do
+                if unit.team==loserTeam then
+                    if defeated then unit.hp=0 else Morale.flee(context,unit) end
+                end
+            end
+            if not defeated then
+                assert(not sim:getOutcome(),"victory skipped enemies still fleeing on the battlefield")
+                for _,unit in ipairs(context.data.unitList) do
+                    if unit.team==loserTeam then
+                        unit.x=unit.escapeEdge==0 and unit.collisionRadius or
+                            context.data.bounds.width-unit.collisionRadius
+                    end
+                end
+                Morale.updateEscapes(context)
+            end
+            local outcome,winner=sim:getOutcome()
+            assert(outcome=="victory" and winner==winnerParty.id and context.data.tick==0,
+                "winner's fleeing soldiers delayed victory")
+            local result=sim:buildResult(outcome,winner)
+            local actorResult=result.actors[survivor.id]
+            assert(actorResult.state=="fleeing" and actorResult.finalHp==37 and not actorResult.defeated)
+            Applier.apply(result,{parties={sim.partyA,sim.partyB},encounter={state="completed"}})
+            local retained=false
+            for _,actor in ipairs(winnerParty.actors) do
+                if actor.id==survivor.id then retained=actor.hp==37 end
+            end
+            assert(retained,"winner's fleeing survivor was lost during campaign application")
+            sim:destroy()
+        end
+    end
+end
+
 local function debugOverlay()
     local Render = require("src.systems.battle.render_system")
     local Mode = require("src.debug.mode")
@@ -426,6 +469,6 @@ local function debugOverlay()
 end
 
 return {run=function()
-    damageAndEvents();probabilitiesAndCascades();flightAndPlayer();parityAndMovement();triggersAndWitnesses();campaignRoutes();decisionsAndReset();debugOverlay()
+    damageAndEvents();probabilitiesAndCascades();flightAndPlayer();parityAndMovement();triggersAndWitnesses();campaignRoutes();decisionsAndReset();victoryWithFleeingSurvivors();debugOverlay()
     print("M3 morale, cascades, player escape, survivors and simulation parity PASS")
 end}

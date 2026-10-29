@@ -16,6 +16,7 @@ return {
             strength = 10,
             speed = 10,
             battle_speed = 10,
+            precision = 15,
         },
         size = 3,
         equipment = {
@@ -37,6 +38,7 @@ return {
             strength = 10,
             speed = 10,
             battle_speed = 10,
+            precision = 2,
         },
         size = 3,
         equipment = {

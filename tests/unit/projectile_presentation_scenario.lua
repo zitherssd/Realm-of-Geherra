@@ -78,10 +78,35 @@ function Scenario.run()
         love.graphics.setCanvas();love.graphics.pop()
         local output=os.getenv("GEHERRA_RENDER_PREVIEW")
         if output then local f=assert(io.open(output,"wb"));f:write(canvas:newImageData():encode("png"):getString());f:close() end
+        -- Shared depth sorting uses interpolated ground Y, not projectile altitude/screen Y.
+        local back,front=c.data.unitList[1],c.data.unitList[2]
+        local backY,frontY=back.visualY,front.visualY
+        local depthContext=Context.new();depthContext.data.camera=nil;depthContext.data.bounds=nil
+        depthContext.data.unitList={back,front};depthContext.data.projectiles={p}
+        back.visualY,front.visualY=200,240
+        p.visualX,p.visualY,p.presentationInitialized=150,50,true
+        local originalDraw,originalLine=love.graphics.draw,love.graphics.line
+        for _,case in ipairs({{180,"projectile,back,front"},{220,"back,projectile,front"},{260,"back,front,projectile"}}) do
+            p.visualDepthY=case[1]
+            local order={}
+            love.graphics.draw=function(image,x,...)
+                order[#order+1]=x==back.visualX and "back" or "front"
+                return originalDraw(image,x,...)
+            end
+            love.graphics.line=function(...)
+                order[#order+1]="projectile"
+                return originalLine(...)
+            end
+            local success,message=pcall(Render.draw,depthContext)
+            love.graphics.draw,love.graphics.line=originalDraw,originalLine
+            assert(success,message)
+            assert(table.concat(order,",")==case[2],"Projectile depth order: "..table.concat(order,","))
+        end
+        back.visualY,front.visualY=backY,frontY
         -- Original interpolation rates are retained for both actors and projectile screen positions.
         local u=c.data.unitList[1]
         u.visualX,u.visualY=u.x-20,u.y+10
-        p.presentationInitialized=true;p.visualX,p.visualY=50,150
+        p.presentationInitialized=true;p.visualX,p.visualY=50,150;p.visualDepthY=200
         local targetX,targetY=Render.projectProjectile(p)
         -- Render.update first interpolates units at 10/s; use that expected pose for projectile calibration.
         u.visualX,u.visualY=u.x-18,u.y+9
@@ -91,6 +116,7 @@ function Scenario.run()
         Render.update(0.01,c)
         near(u.visualX,u.x-18);near(u.visualY,u.y+9)
         near(p.visualX,50+(targetX-50)*0.15);near(p.visualY,150+(targetY-150)*0.15)
+        near(p.visualDepthY,200+(p.y-200)*0.15)
         near(p.x,px);near(p.y,py);near(p.z,pz)
         -- Endpoint mapping accounts for the target's interpolation displacement too.
         target.visualX,target.visualY=target.x-12,target.y+8

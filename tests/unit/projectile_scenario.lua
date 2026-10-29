@@ -170,7 +170,7 @@ local function defendedContinuation()
             assert(p.visualOnly and #c.data.projectiles==1 and b.hp==100,"Defense did not preserve a harmless visual")
             local contactX=p.x
             assert(#c.data.vfx==0,"Defense displayed a hit circle or explosion")
-            if shielded then assert(not b.equipment.offHand,"Defense did not break the one-durability shield") end
+            if shielded then assert(b.equipment.offHand=="wooden_shield" and b.itemDurability.wooden_shield==1,"Non-decisive shield consumed durability") end
             a.stats.precision=1000 -- A mistakenly live continuation would now damage the next unit.
             local random=math.random
             math.random=function() error("Visual-only continuation consumed combat RNG") end
@@ -184,6 +184,19 @@ local function defendedContinuation()
             assert(calls==1 and a.hp==100 and b.hp==100 and behind.hp==100,"Continuation caused further damage")
             assert(#c.data.vfx==0 and next(behind.statusEffects)==nil,"Harmless continuation produced impact effects or splash")
         end
+    end
+    -- A shield alone turning a win into a defense catches the projectile, including spells.
+    Combat.rollProjectileDefense=defense
+    for _,skill in ipairs({Skills.arrow,Skills.fireball}) do
+        local a,b,behind=unit("block-a",100,200),unit("block-b",300,200,"enemy"),unit("block-behind",340,200,"enemy")
+        a.stats.precision=8 -- Attacker 3 versus base defender 2: only the shield prevents the hit.
+        b.equipment.offHand="wooden_shield";b.itemDurability.wooden_shield=1
+        local c=context(a,b,behind)
+        local p=P.launch(a,skill,b.x,b.y,b,function() return 0.5 end);c.addProjectile(p)
+        for _=1,30 do Execution._updateProjectiles(c);if #c.data.projectiles==0 then break end end
+        assert(#c.data.projectiles==0 and not p.visualOnly,"Decisive shield block kept flying")
+        assert(not b.equipment.offHand and b.hp==100 and behind.hp==100,"Shield block damage/durability changed")
+        assert(#c.data.vfx==0,"Shield block displayed a hit circle or explosion")
     end
     local a,b=unit("hit-a",100,200),unit("hit-b",300,200,"enemy")
     a.stats.precision=1000
