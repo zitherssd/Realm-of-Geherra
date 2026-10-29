@@ -2,6 +2,9 @@
 -- Handles visual updates (lerping) and world-space drawing.
 
 local RenderSystem = {}
+local DebugMode = require("src.debug.mode")
+local CombatSystem = require("src.systems.battle.combat_system")
+local RangeUtils = require("src.systems.battle.range_utils")
 
 local SPRITE_FEET_OFFSET_DIAMETER_RATIO = 1 / 3
 local UNIT_HEALTH_BAR_WIDTH = 40
@@ -253,7 +256,7 @@ function RenderSystem.draw(context)
 
     local bounds = context.data.bounds
     local debug = context.data.debug or {}
-    local showCollisionCircles = require("src.debug.mode").enabled
+    local showCollisionCircles = DebugMode.enabled
         and debug.showCollisionCircles ~= false
     if bounds then
         love.graphics.setColor(0.16, 0.16, 0.16, 0.85)
@@ -261,6 +264,20 @@ function RenderSystem.draw(context)
         love.graphics.setColor(0.25, 0.25, 0.25, 1)
         love.graphics.setLineWidth(1)
         love.graphics.rectangle("line", 0, 0, bounds.width, bounds.height)
+    end
+
+    local player = context.data.playerUnit
+    if DebugMode.enabled and player and player.hp > 0 then
+        local skillId = player.skillList and player.skillList[context.data.selectedSkillIndex]
+        local skill = skillId and CombatSystem.getEffectiveSkill(player, skillId)
+        if skill and skill.range then
+            -- Target collision radii extend attack reach beyond this ring to their edges.
+            local range = RangeUtils.effectiveSkillRange(player, nil, skill)
+            love.graphics.setColor(0.2, 0.8, 1, 0.8)
+            love.graphics.setLineWidth(1.5)
+            love.graphics.circle("line", player.visualX, player.visualY, range)
+            love.graphics.setLineWidth(1)
+        end
     end
 
     local sortedUnits = {}

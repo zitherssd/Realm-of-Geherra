@@ -15,7 +15,7 @@ local skills = {
         windup = 30,
         cooldown = 10,
         cost = 0,
-        range = 0.3,
+        range = 0.2,
     },
 
     ["bite"] = {
@@ -28,7 +28,7 @@ local skills = {
         windup = 15,
         cooldown = 15,
         cost = 0,
-        range = 0.2,
+        range = 0.18,
     },
 
     ["dagger"] = {
@@ -41,7 +41,7 @@ local skills = {
         windup = 0,
         cooldown = 40,
         cost = 0,
-        range = 0.2,
+        range = 0.15,
     },
 
     ["fireball"] = {

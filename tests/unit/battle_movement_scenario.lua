@@ -75,15 +75,13 @@ function Scenario.run()
     local waiting = body("waiting",100,273,24)
     local obstruction = body("obstruction",157,273,33,"enemy")
     blocked.addUnit(waiting); blocked.addUnit(obstruction)
-    for count=1,2 do
-        attempt(waiting,blocked,400,273)
-        assert(waiting.x==100 and waiting.y==273 and not waiting.bypass,"temporary obstruction triggered bypass")
-        assert(waiting.stuckAttempts==count)
-        for _=1,20 do
-            local cooldown=waiting.globalCooldown
-            Execution._executeMove(waiting,{target={x=400,y=273},avoidObstacles=true},blocked)
-            assert(waiting.stuckAttempts==count and waiting.globalCooldown==cooldown,"cooldown counted as an attempt")
-        end
+    attempt(waiting,blocked,400,273)
+    assert(waiting.x==100 and waiting.y==273 and not waiting.bypass,"temporary obstruction triggered bypass")
+    assert(waiting.stuckAttempts==1)
+    for _=1,20 do
+        local cooldown=waiting.globalCooldown
+        Execution._executeMove(waiting,{target={x=400,y=273},avoidObstacles=true},blocked)
+        assert(waiting.stuckAttempts==1 and waiting.globalCooldown==cooldown,"cooldown counted as an attempt")
     end
     obstruction.y=400
     attempt(waiting,blocked,400,273)
@@ -94,8 +92,8 @@ function Scenario.run()
     attempt(waiting,blocked,401,273)
     assert(waiting.stuckAttempts==1 and not waiting.bypass,"goal change retained stuck attempts")
     attempt(waiting,blocked,401,273)
-    assert(waiting.stuckAttempts==2 and not waiting.bypass)
-    attempt(waiting,blocked,401,273)
+    assert(waiting.stuckAttempts==2 and waiting.bypass and waiting.y~=273,
+        "clear flank did not move on the second failed attempt")
     assert(waiting.bypass and waiting.bypass.blocker==obstruction,"sustained blockage did not activate bypass")
 
     -- Retargeting after a kill keeps the route around the same allied ogre.
@@ -119,21 +117,18 @@ function Scenario.run()
     end
     for _=1,10 do
         advance()
-        if follower.bypass and follower.bypass.side then break end
+        if follower.slideBlocker then break end
     end
-    local route = follower.bypass
-    assert(route and route.blocker==ogreBlocker)
-    local side,budget = route.side,route.remaining
+    assert(follower.slideBlocker==ogreBlocker)
+    local side = follower.slideSide
     oldTarget.hp = 0
     advance()
     assert(follower.moveTarget.x==newTarget.x,"AI did not switch targets after death")
-    assert(follower.bypass==route and route.side==side and route.remaining==budget-1,
-        "retargeting discarded the active route around the ogre")
+    assert(follower.slideBlocker==ogreBlocker and follower.slideSide==side,
+        "retargeting discarded the sliding direction around the ogre")
     newTarget.y = newTarget.y-2
-    budget = route.remaining
     advance()
-    assert(not follower.bypass or (follower.bypass==route and route.side==side and route.remaining==budget-1),
-        "moving target restarted bypass or replenished its budget")
+    assert(follower.slideSide==side,"moving target reversed friendly sliding")
     newTarget.x,newTarget.y = 100,400
     advance()
     assert(not follower.bypass,"clear route to new target did not resume direct movement")
@@ -146,9 +141,23 @@ function Scenario.run()
     for col=0,2 do
         for row=0,13 do packed.addUnit(body("ally"..col.."-"..row,160+col*36,21+row*36,18)) end
     end
-    for _=1,50 do attempt(secondRank,packed,400,273) end
-    assert(secondRank.x < 160 and secondRank.y==273,"second rank detoured around a packed allied frontline")
-    assert(not secondRank.bypass or secondRank.bypass.remaining==0,"packed-frontline detour never ended")
+    -- First two actions make direct progress up to the frontline.
+    attempt(secondRank,packed,400,273)
+    attempt(secondRank,packed,400,273)
+    for count=1,2 do
+        attempt(secondRank,packed,400,273)
+        assert(secondRank.stuckAttempts==count and not secondRank.bypass,
+            "crowded frontline received early flank bypass")
+    end
+    for _=1,50 do
+        attempt(secondRank,packed,400,273)
+        for _, ally in ipairs(packed.data.unitList) do
+            if ally ~= secondRank then
+                assert((secondRank.x-ally.x)^2+(secondRank.y-ally.y)^2 >= (28.8)^2-0.001,
+                    "friendly sliding overlapped a packed frontline")
+            end
+        end
+    end
 
     -- A close destination requires moving away from it before rounding the dragon.
     for _, laneY in ipairs({273,50,496,513}) do
@@ -182,7 +191,7 @@ function Scenario.run()
                 assert((walker.x-dragon.x)^2+(walker.y-dragon.y)^2 >= reach^2-0.001)
             end
         end
-        assert(movedAway,"ogre never accepted a necessary step away from target")
+        if dragon.team~=walker.team then assert(movedAway,"ogre never accepted a necessary step away from target") end
         assert((walker.x-320)^2+(walker.y-laneY)^2 < 1,"ogre remained stuck behind dragon")
         assert(not walker.bypass,"direct movement did not resume after bypass")
         assert(dragon.x==250 and dragon.y==laneY and dragon.hp==dragon.maxHp)
@@ -233,8 +242,13 @@ function Scenario.run()
     local support = body("support", 160, 230, 18)
     c.addUnit(support)
     for _ = 1, 100 do move(a, c, 400, 200) end
-    assert(a.x < b.x and b.x == 160 and b.y == 200 and support.y == 230,
-        "supported ally line propagated pushing")
+    for _, unit in ipairs({a,b,support}) do
+        assert(unit.hp==100)
+        for _, other in ipairs({a,b,support}) do
+            if unit~=other then assert((unit.x-other.x)^2+(unit.y-other.y)^2>=28.8^2-0.001,
+                "sliding through supported allies broke friendly collision separation") end
+        end
+    end
     c = Context.new()
     a = body("bounds", -100, 1000, 30)
     c.addUnit(a)

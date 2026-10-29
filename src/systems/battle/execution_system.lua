@@ -102,8 +102,58 @@ local function canOccupy(unit, context, ignore)
     return true
 end
 
+local function blocksSegment(unit, other, x, y)
+    local dx,dy = x-unit.x,y-unit.y
+    local lengthSq = dx*dx+dy*dy
+    local t = lengthSq > 0 and math.max(0,math.min(1,
+        ((other.x-unit.x)*dx+(other.y-unit.y)*dy)/lengthSq)) or 0
+    local ox,oy = unit.x+t*dx-other.x,unit.y+t*dy-other.y
+    return ox*ox+oy*oy < contactDistance(unit,other)^2-MIN_DIST_EPSILON
+end
+
+local function clearPosition(unit, context, x, y)
+    local width,height = getBounds(context)
+    local r = unit.collisionRadius or 0
+    if x < r or y < r or x > width-r or y > height-r then return false end
+    for _, other in ipairs(context.data.unitList) do
+        if other ~= unit and other.hp > 0 and
+            (x-other.x)^2+(y-other.y)^2 < contactDistance(unit,other)^2-MIN_DIST_EPSILON then return false end
+    end
+    return true
+end
+
+local function clearStep(unit, context, x, y)
+    if not clearPosition(unit,context,x,y) then return false end
+    for _, other in ipairs(context.data.unitList) do
+        if other ~= unit and other.hp > 0 and blocksSegment(unit,other,x,y) then return false end
+    end
+    return true
+end
+
+local function slideStep(unit, blocker, nx, ny, distance, context)
+    local rx,ry = unit.x-blocker.x,unit.y-blocker.y
+    local radius = math.sqrt(rx*rx+ry*ry)
+    if radius < MIN_DIST_EPSILON then return false end
+    rx,ry = rx/radius,ry/radius
+    local bestX,bestY,bestSide,bestScore
+    for _, side in ipairs({1,-1}) do
+        local tx,ty = -ry*side,rx*side
+        local x,y = unit.x+tx*distance,unit.y+ty*distance
+        if clearStep(unit,context,x,y) then
+            local score = tx*nx+ty*ny
+            if clearStep(unit,context,x+tx*distance,y+ty*distance) then score=score+0.1 end
+            if unit.slideBlocker==blocker and unit.slideSide==side then score=score+0.25 end
+            if not bestScore or score>bestScore then bestX,bestY,bestSide,bestScore=x,y,side,score end
+        end
+    end
+    if not bestX then return false end
+    unit.x,unit.y = bestX,bestY
+    unit.slideBlocker,unit.slideSide = blocker,bestSide
+    return true
+end
+
 local function moveWithCollisions(unit, nx, ny, distance, context)
-    local yielded = {}
+    local yielded, traveled = {}, 0
     local steps = math.ceil(distance / MOVEMENT.substep)
     for _ = 1, steps do
         local oldX, oldY = unit.x, unit.y
@@ -143,40 +193,17 @@ local function moveWithCollisions(unit, nx, ny, distance, context)
         if not clear then
             unit.x, unit.y = oldX, oldY
             for _, change in ipairs(changes) do change.unit.x, change.unit.y = change.x, change.y end
-            return blocker
+            changes = {}
+            if blocker.team ~= unit.team or not slideStep(unit,blocker,nx,ny,distance/steps,context) then
+                return blocker,traveled
+            end
         end
+        traveled = traveled+math.sqrt((unit.x-oldX)^2+(unit.y-oldY)^2)
         for _, change in ipairs(changes) do
             yielded[change.unit] = (yielded[change.unit] or 0) + change.shift
         end
     end
-end
-
-local function blocksSegment(unit, other, x, y)
-    local dx,dy = x-unit.x,y-unit.y
-    local lengthSq = dx*dx+dy*dy
-    local t = lengthSq > 0 and math.max(0,math.min(1,
-        ((other.x-unit.x)*dx+(other.y-unit.y)*dy)/lengthSq)) or 0
-    local ox,oy = unit.x+t*dx-other.x,unit.y+t*dy-other.y
-    return ox*ox+oy*oy < contactDistance(unit,other)^2-MIN_DIST_EPSILON
-end
-
-local function clearPosition(unit, context, x, y)
-    local width,height = getBounds(context)
-    local r = unit.collisionRadius or 0
-    if x < r or y < r or x > width-r or y > height-r then return false end
-    for _, other in ipairs(context.data.unitList) do
-        if other ~= unit and other.hp > 0 and
-            (x-other.x)^2+(y-other.y)^2 < contactDistance(unit,other)^2-MIN_DIST_EPSILON then return false end
-    end
-    return true
-end
-
-local function clearStep(unit, context, x, y)
-    if not clearPosition(unit,context,x,y) then return false end
-    for _, other in ipairs(context.data.unitList) do
-        if other ~= unit and other.hp > 0 and blocksSegment(unit,other,x,y) then return false end
-    end
-    return true
+    return nil,traveled
 end
 
 local function bypassDirection(unit, context, bypass, distance, targetX, targetY)
@@ -336,11 +363,10 @@ function ExecutionSystem._executeMove(unit, intent, context)
     if bypass and (bypass.blocker.hp <= 0 or not blocksSegment(unit,bypass.blocker,targetX,targetY)) then
         unit.bypass,bypass,unit.stuckAttempts = nil,nil,0
     end
-    local blocker
+    local blocker,traveled = nil,0
     if not intent.avoidObstacles or not bypass or bypass.remaining <= 0 then
-        blocker = moveWithCollisions(unit,nx,ny,moveDist,context)
+        blocker,traveled = moveWithCollisions(unit,nx,ny,moveDist,context)
     end
-    local traveled = math.sqrt((unit.x-startX)^2+(unit.y-startY)^2)
     if intent.avoidObstacles and (not bypass or bypass.remaining <= 0) then
         local remainingDistance = math.sqrt((targetX-unit.x)^2+(targetY-unit.y)^2)
         -- Count movement actions with less than one collision substep of progress, never cooldown ticks.
@@ -350,17 +376,22 @@ function ExecutionSystem._executeMove(unit, intent, context)
             unit.stuckAttempts = (unit.stuckAttempts or 0)+1
         end
     end
-    if intent.avoidObstacles and blocker and not bypass and unit.stuckAttempts >= 3 then
+    local bypassX,bypassY
+    if intent.avoidObstacles and blocker and not bypass and unit.stuckAttempts >= 2 then
         local reach = contactDistance(unit,blocker)
-        bypass = {blocker=blocker,
+        local candidate = {blocker=blocker,
             remaining=math.min(16,math.ceil(math.pi*reach/step)+4)}
-        unit.bypass = bypass
+        bypassX,bypassY = bypassDirection(unit,context,candidate,moveDist-traveled,targetX,targetY)
+        -- An open flank can move on the second failure; crowded units keep the three-attempt wait.
+        if bypassX or unit.stuckAttempts >= 3 then
+            bypass,unit.bypass = candidate,candidate
+        end
     end
     if intent.avoidObstacles and bypass and bypass.remaining > 0 then
         local remaining = moveDist-traveled
-        local bx,by = bypassDirection(unit,context,bypass,remaining,targetX,targetY)
+        if not bypassX then bypassX,bypassY = bypassDirection(unit,context,bypass,remaining,targetX,targetY) end
         bypass.remaining = bypass.remaining-1
-        if bx then moveWithCollisions(unit,bx,by,remaining,context) end
+        if bypassX then moveWithCollisions(unit,bypassX,bypassY,remaining,context) end
     end
     unit.velocityX = unit.x - startX
     unit.velocityY = unit.y - startY

@@ -92,7 +92,7 @@ return {
         skillModifiers = {
             damageType = "piercing",
             baseDamage = 8,
-            range = 0.6,
+            range = 0.3,
         },
     },
 

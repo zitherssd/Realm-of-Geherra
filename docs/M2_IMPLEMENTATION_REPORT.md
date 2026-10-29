@@ -11,7 +11,7 @@ M2 only. Existing unrelated working-tree edits are preserved; no M3 mechanics ad
 - One shared layout implementation serves the campaign editor and BattleSimulation. NPCs use the same generator mirrored across the battlefield. Invalid layouts are repacked; line formations that cannot fit after roster consolidation fall back to box. Preferences live on campaign parties and survive battles. Runtime squads remain plain battle-local records referencing Concord units.
 - Battles start immediately using saved deployment; the pre-battle phase and Enter confirmation are removed. Player groups default Hold, NPC groups Charge, including headless battles.
 - Existing M2 commands retain instant execution, 5-tick recovery and individual 60-tick cooldowns, with execution-boundary guards. Hold keeps X-only commander following and stable proximity slot reassignment; Charge drops formation objectives. Offensive ranged options remain preferred through cooldown until supplies are exhausted.
-- AI MOVE intents enable local avoidance for both Hold and Charge. The M1 solver reports the actual blocking unit after yielding/displacement fails. After three consecutive movement actions with less than one collision substep (2 world units) of progress toward the destination, a battle-local bypass records that blocker, one fixed side, and a Size-based action budget capped at 16. Goal changes, arrival, and meaningful direct progress reset the stuck count; cooldown calls do not count. Side selection checks flank clearance and swept step validity. Tangential steps with an outward component may temporarily move away from the goal. The unit resumes direct movement when its goal segment clears the blocker or the blocker dies. Target changes reset the stuck counter but preserve an active bypass when that same blocker remains in the new route. Exhausted attempts wait/retry direct movement rather than starting endless detours. Manual movement retains direct control.
+- AI MOVE intents enable local avoidance for both Hold and Charge. The M1 solver reports the actual blocking unit after yielding/displacement fails. After two consecutive movement actions with negligible destination progress, a clear flank and valid swept bypass step permit early activation. Crowded positions retain the three-failure delay. A battle-local bypass records the blocker, one fixed side, and a Size-based action budget capped at 16. Goal changes, arrival, and meaningful direct progress reset the stuck count; cooldown calls do not count. Side selection checks flank clearance and swept step validity. Tangential steps with an outward component may temporarily move away from the goal. The unit resumes direct movement when its goal segment clears the blocker or the blocker dies. Target changes reset the stuck counter but preserve an active bypass when that same blocker remains in the new route. Exhausted attempts wait/retry direct movement rather than starting endless detours. Manual movement retains direct control.
 - The 24-unit movement budget, battle_speed cooldown formula, injury adjustments, visual interpolation, allied yielding, enemy blocking and large-unit displacement are unchanged. No hit/damage formulas, projectile physics, morale, fleeing or later-milestone mechanics changed.
 
 ## Files changed for this refinement
@@ -97,3 +97,44 @@ Changed only the movement reset in `src/systems/battle/execution_system.lua`: ch
 Added a regression in `tests/unit/battle_movement_scenario.lua` using DecisionSystem: a soldier rounds an allied Size 5 ogre pinned at the lower boundary, its enemy target dies, and AI selects another enemy behind that ogre. The test verifies that the route object, side and decreasing budget survive retargeting; subsequent target movement cannot restart/replenish the bypass; relocating the target to a clear route resumes direct movement. This regression failed before the correction and passes afterward.
 
 PASS: movement, squads, M2 refinement, battle simulation, headless battle, combat regression, injury scenarios, and diff checks. No full campaign rerun or manual playtest for this correction. Changed files: execution_system.lua, battle_movement_scenario.lua and this report.
+
+## Earlier attempts on open flanks
+
+Following a 20v20 playtest, exposed units now enter bypass on the second consecutive failed movement action if the existing geometry probes confirm clear flank space and a collision-valid next step. Without that opening, the existing three-failure wait remains. A single temporary blockage still waits. At battle_speed 10 this advances the open-flank reaction by about one movement cooldown (12 ticks / 0.6 seconds); no movement or combat timers were shortened.
+
+This reuses bypassDirection and its flank/step checks. A successful early probe is reused for that action rather than adding another navigation layer. Side persistence, target-change continuity, bounded budgets, direct movement priority, collision behavior, and goal/cooldown counter rules remain intact.
+
+Changed files for this adjustment: execution_system.lua, battle_movement_scenario.lua, and this report. Tests verify second-failure open-flank activation, first-failure waiting, and no early activation for the crowded center. Previous dragon, target-death, displacement and movement timing cases remain.
+
+PASS: movement, squads, M2 refinement, battle simulation, headless, combat regression, injury, and diff checks. Manual 20v20 feel testing and the full campaign suite were not rerun; the two-versus-three attempt timing is provisional gameplay tuning.
+
+## Friendly collision sliding
+
+Added local tangential sliding inside the existing collision solver. Each movement substep first attempts the existing direct move, allied yielding/compression and passive Size displacement. If a friendly still blocks it, yielding changes for that failed substep are rolled back, and two tangent directions are evaluated against swept-circle collisions and battlefield bounds. Progress toward the movement direction, immediate free space and a remembered side choose the step. No friendly contact means no slide. Enemy blockers never receive automatic sliding.
+
+Sliding consumes the same substep budget inside the same action for manual and AI units. The solver now returns actual accumulated path distance; ExecutionSystem uses this when calculating any movement remainder for delayed bypass. This prevents a curved sliding path from being undercounted as endpoint displacement. Cooldown calculation, battle_speed, tick scheduling, interpolation and combat formulas are unchanged. The existing delayed bypass trigger and persistent bounded route remain unchanged.
+
+Files changed for this request:
+- `src/systems/battle/execution_system.lua`: reuses existing swept-segment probes in collision sliding, remembers slide side, reports actual distance traveled.
+- `tests/unit/friendly_sliding_scenario.lua` (new): per-action path budget, same manual/AI behavior, idle-player obstruction, collision-triggered single-ally sliding, crowded friendly line, enemy obstruction and mixed friendly/enemy segment safety.
+- `tests/unit/battle_movement_scenario.lua`: updates old stationary-friendly expectations to allow requested sliding while retaining separation, collision and cooldown checks. The target-death case now exercises sliding continuity around an allied ogre; the enemy dragon cases still cover bounded bypass.
+- `tests/unit/main.lua`: registers the new scenario.
+- This report.
+
+PASS: friendly_sliding_scenario, battle_movement_scenario, squads_scenario, m2_refinement_scenario, battle_simulation_scenario, headless_battle_scenario, combat_regression_scenario, injury_scenario, git diff --check. The path-budget regression observes each solver call's accumulated distance and sums direct/sliding/bypass movement within the action, rather than checking only endpoint displacement.
+
+Limitations: tightly interlocked or enemy-supported crowds can still stop units when neither tangent segment is valid. Sliding does not reserve destinations or globally route armies; movement remains sequential/local. Manual 20v20 gameplay feel and the full campaign suite were not checked for this refinement. Existing interpolation draws between action endpoints, so it does not show the tiny internal sliding substeps as a curved path.
+
+## On Me / Hold regrouping priority
+
+Root cause: DecisionSystem previously selected an available in-range attack before considering formation movement, so melee engagement could prevent reformation indefinitely.
+
+Displaced Hold units now prioritize ordinary MOVE intents toward the existing proximity-assigned formation slots. Regrouping begins beyond 24 world units and continues until within 12; the wider outer threshold prevents constant corrections after arrival. A failed regroup move (less than 2 units of endpoint displacement while attempting the unchanged slot) allows one available attack before another movement attempt. This avoids inactivity without abandoning regrouping. Commands reset transient regroup/fallback flags alongside intents and slot assignments. Charge uses its existing skill and pursuit logic.
+
+No movement solver, cooldown, skill windup, hit/damage, target immunity, opportunity attack or teleportation changes. Units begin regrouping when normal action readiness permits; ongoing casts and existing recovery are not canceled. Movement still uses friendly sliding and delayed bounded bypass. Enemies retain ordinary attacks against regrouping units.
+
+Changed files: `src/systems/battle/decision_system.lua`, `src/game/battle/squads.lua`, new `tests/unit/on_me_regroup_scenario.lua`, `tests/unit/main.lua`, and this report.
+
+PASS: on_me_regroup_scenario, squads_scenario, battle_movement_scenario, friendly_sliding_scenario, m2_refinement_scenario, battle_simulation_scenario, headless_battle_scenario, combat_regression_scenario, injury_scenario, git diff --check. New tests cover command-triggered movement despite melee range, actual 24-unit retreat and normal cooldown, enemy attack resolution against a retreating unit, attack fallback after an obstructed regroup step, retrying movement afterward, arrival/normal attacks, hysteresis and unchanged Charge attacks. Existing squad tests retain proximity-based interchangeable slot reformation.
+
+Manual crowded-battle regrouping and the full campaign suite were not rerun. Physically trapped units can fight and retry, but return is not guaranteed through an unbroken enemy line. The 24/12-unit tolerances are provisional gameplay calibration.

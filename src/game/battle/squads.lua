@@ -179,7 +179,9 @@ function Squads.command(context, team, order, squadId)
     for _, squad in ipairs(context.data.squads or {}) do
         if squad.team == team and (not squadId or squad.id == squadId) then
             squad.order, squad.assignments = order, nil
-            for _, member in ipairs(squad.members) do member.intent = nil end
+            for _, member in ipairs(squad.members) do
+                member.intent,member.regrouping,member.regroupAttack = nil,nil,nil
+            end
         end
     end
     return true

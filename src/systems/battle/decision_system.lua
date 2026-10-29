@@ -40,6 +40,14 @@ end
 function DecisionSystem._processAI(unit, context)
     local Squads = require("src.game.battle.squads")
     local position = Squads.position(unit)
+    local wasRegrouping = unit.regrouping
+    if position then
+        local offsetSq = (unit.x-position.x)^2+(unit.y-position.y)^2
+        unit.regrouping = offsetSq > 24^2 or (wasRegrouping and offsetSq > 12^2) or false
+    else
+        unit.regrouping = false
+    end
+    if not unit.regrouping then unit.regroupAttack = nil end
     local target, distance = context.findNearestHostile(unit)
     local rangedRange, best, priority = nil, nil, -math.huge
     -- Cooldown affects readiness, never whether ranged supplies remain viable.
@@ -67,15 +75,23 @@ function DecisionSystem._processAI(unit, context)
             end
         end
     end
+    if unit.regrouping then
+        local previousGoal = unit.moveTarget
+        local blocked = wasRegrouping and previousGoal and previousGoal.x==position.x and previousGoal.y==position.y
+            and (unit.velocityX or 0)^2+(unit.velocityY or 0)^2 < 2^2
+        -- A blocked regroup attempt may trade one attack, then must retry movement.
+        if not (blocked and best and not unit.regroupAttack) then
+            unit.intent = {type="MOVE", target=position, avoidObstacles=true}
+            unit.regroupAttack = nil
+            return
+        end
+        unit.regroupAttack = true
+    end
     if best then
         local skill = CombatSystem.getEffectiveSkill(unit, best)
         unit.intent = {type="SKILL", skillId=best, targetUnitId=target.id,
             target=skill.targeted and {x=target.x,y=target.y} or nil}
-    elseif position then
-        if (unit.x-position.x)^2 + (unit.y-position.y)^2 > 12^2 then
-            unit.intent = {type="MOVE", target=position, avoidObstacles=true}
-        end
-    elseif target and (not rangedRange or distance > rangedRange^2) then
+    elseif not position and target and (not rangedRange or distance > rangedRange^2) then
         unit.intent = {type="MOVE", target={x=target.x,y=target.y}, avoidObstacles=true}
     end
 end
