@@ -12,6 +12,7 @@ local UNIT_BASE_VISUAL_SCALE = 1.3
 local UNIT_VISUAL_SCALE_PER_SIZE = 0.08
 
 local imageCache = {}
+local projectileSpriteBounds = {}
 
 local flashShader = love.graphics.newShader[[
     extern vec3 flashColor;
@@ -104,6 +105,56 @@ local function getActorRenderScale(actor)
     return math.max(0.13, scale)
 end
 
+-- Match projectile Z to the existing sprite draw; never change the actor's anchor or scale.
+local function projectileFrame(unit)
+    local sprite = unit.actor and unit.actor.sprite
+    local bounds = sprite and projectileSpriteBounds[sprite]
+    if sprite and bounds == nil then
+        local ok, data = pcall(love.image.newImageData, sprite)
+        bounds = false
+        if ok then
+            local w, h = data:getDimensions()
+            local left, top, right, bottom = w, h, 0, 0
+            for y=0,h-1 do for x=0,w-1 do
+                local _,_,_,alpha = data:getPixel(x,y)
+                if alpha > 0 then
+                    left, top = math.min(left,x), math.min(top,y)
+                    right, bottom = math.max(right,x+1), math.max(bottom,y+1)
+                end
+            end end
+            if bottom > top then bounds = {w=w,h=h,left=left,top=top,right=right,bottom=bottom} end
+        end
+        projectileSpriteBounds[sprite] = bounds
+    end
+    local dx = (unit.visualX or unit.x)-unit.x
+    local dy = (unit.visualY or unit.y)-unit.y
+    if not bounds then return dx,dy,1 end
+    local scale = getActorRenderScale(unit.actor)
+    local height = require("src.game.battle.projectiles").height(unit)
+    return dx + ((bounds.left+bounds.right)/2-bounds.w/2)*scale*(unit.facing or 1),
+        dy + (unit.collisionRadius or 18)*2*SPRITE_FEET_OFFSET_DIAMETER_RATIO + (bounds.bottom-bounds.h)*scale,
+        (bounds.bottom-bounds.top)*scale/height
+end
+
+function RenderSystem.projectProjectile(proj, x, y, z, contactUnit, progress)
+    x,y,z = x or proj.x,y or proj.y,z or proj.z or 0
+    local dx,dy,scale = projectileFrame(contactUnit or proj.attackerUnit)
+    if not contactUnit then
+        -- shortcut: flight blends endpoint sprite frames; use a shared scene mapping if mixed-scale interception needs refinement.
+        local ex,ey,es = projectileFrame(proj.presentationTarget or proj.attackerUnit)
+        local t = math.max(0,math.min(1,progress or proj.progress or 0))
+        dx,dy,scale = dx+(ex-dx)*t,dy+(ey-dy)*t,scale+(es-scale)*t
+    end
+    return x+dx,y+dy-z*scale,scale
+end
+
+local function initializeProjectileProjection(proj)
+    if proj.presentationInitialized then return end
+    proj.visualX,proj.visualY = RenderSystem.projectProjectile(proj,
+        proj.startX,proj.startY,proj.startZ,nil,0)
+    proj.presentationInitialized = true
+end
+
 function RenderSystem.update(dt, context)
     local units = context.data.unitList
     local LERP_SPEED = 10.0
@@ -140,8 +191,10 @@ function RenderSystem.update(dt, context)
     if projectiles then
         local PROJ_LERP = 15.0
         for _, proj in ipairs(projectiles) do
-            local dx = proj.x - proj.visualX
-            local dy = proj.y - (proj.z or 0) - proj.visualY
+            initializeProjectileProjection(proj)
+            local projectedX,projectedY = RenderSystem.projectProjectile(proj)
+            local dx = projectedX - proj.visualX
+            local dy = projectedY - proj.visualY
             proj.visualX = proj.visualX + dx * PROJ_LERP * dt
             proj.visualY = proj.visualY + dy * PROJ_LERP * dt
 
@@ -462,6 +515,9 @@ function RenderSystem.draw(context)
     local projectiles = context.data.projectiles
     if projectiles then
         for _, proj in ipairs(projectiles) do
+            initializeProjectileProjection(proj)
+            local projectedX,projectedY,heightScale = RenderSystem.projectProjectile(proj)
+            local trailDX,trailDY = projectedX-proj.x,projectedY-(proj.y-(proj.z or 0))
             if proj.trailParticles and #proj.trailParticles > 0 then
                 for _, p in ipairs(proj.trailParticles) do
                     local lifeRatio = math.max(0, math.min(1, p.life / p.duration))
@@ -469,11 +525,11 @@ function RenderSystem.draw(context)
                     if p.kind == "smoke" then
                         love.graphics.setBlendMode("alpha")
                         love.graphics.setColor(0.2, 0.2, 0.2, 0.22 * lifeRatio)
-                        love.graphics.circle("fill", p.x, p.y, size)
+                        love.graphics.circle("fill", p.x+trailDX, p.y+trailDY, size)
                     else
                         love.graphics.setBlendMode("add")
                         love.graphics.setColor(1, 0.5 + 0.4 * lifeRatio, 0.15, 0.55 * lifeRatio)
-                        love.graphics.circle("fill", p.x, p.y, size)
+                        love.graphics.circle("fill", p.x+trailDX, p.y+trailDY, size)
                     end
                 end
                 love.graphics.setBlendMode("alpha")
@@ -519,7 +575,7 @@ function RenderSystem.draw(context)
                 love.graphics.circle("line", proj.visualX, proj.visualY, 18)
                 love.graphics.setBlendMode("alpha")
             elseif proj.style == "arrow" then
-                local dz = ((proj.endZ-proj.startZ)+4*proj.arc*(1-2*proj.progress))/proj.distance
+                local dz = ((proj.endZ-proj.startZ)+4*proj.arc*(1-2*proj.progress))/proj.distance*heightScale
                 love.graphics.setColor(0.7, 0.6, 0.4, 1)
                 love.graphics.line(proj.visualX-proj.nx*10, proj.visualY-(proj.ny-dz)*10,
                     proj.visualX, proj.visualY)
@@ -529,7 +585,7 @@ function RenderSystem.draw(context)
             elseif sprite then
                 local dx = proj.nx * proj.distance
                 local dy_linear = proj.ny * proj.distance
-                local dy_arc = -(proj.endZ-proj.startZ)-4*proj.arc*(1-2*proj.progress)
+                local dy_arc = (-(proj.endZ-proj.startZ)-4*proj.arc*(1-2*proj.progress))*heightScale
                 local target_angle = math.atan2(dy_linear + dy_arc, dx)
 
                 local horizontal_angle = 0
@@ -568,7 +624,16 @@ function RenderSystem.draw(context)
     local vfx = context.data.vfx
     if vfx then
         for _, effect in ipairs(vfx) do
-            if effect.type == "fire_explosion" then
+            local effectX,effectY = effect.x,effect.y
+            if effect.projectile then
+                effectX,effectY = RenderSystem.projectProjectile(effect.projectile,effect.x,effect.y,
+                    effect.z,effect.contactUnit)
+            end
+            local offsetX,offsetY = effectX-effect.x,effectY-effect.y
+            if effect.type == "projectile_contact" then
+                love.graphics.setColor(1,0.85,0.4,1-effect.time/effect.duration)
+                love.graphics.circle("line",effectX,effectY,3)
+            elseif effect.type == "fire_explosion" then
                 local t = math.max(0, math.min(1, effect.time / effect.duration))
                 local coreRadius = (effect.maxRadius or 44) * t
                 local ringRadius = (effect.ringRadius or 12) + (effect.maxRadius or 44) * t
@@ -576,16 +641,16 @@ function RenderSystem.draw(context)
 
                 love.graphics.setBlendMode("add")
                 love.graphics.setColor(1, 0.45, 0.1, 0.4 * fade)
-                love.graphics.circle("fill", effect.x, effect.y, coreRadius)
+                love.graphics.circle("fill", effectX, effectY, coreRadius)
 
                 love.graphics.setColor(1, 0.75, 0.2, 0.65 * fade)
                 love.graphics.setLineWidth(2)
-                love.graphics.circle("line", effect.x, effect.y, ringRadius)
+                love.graphics.circle("line", effectX, effectY, ringRadius)
 
                 if effect.sparks then
                     for _, spark in ipairs(effect.sparks) do
-                        local sx = spark.x or effect.x
-                        local sy = spark.y or effect.y
+                        local sx = (spark.x or effect.x)+offsetX
+                        local sy = (spark.y or effect.y)+offsetY
                         local sparkFade = math.max(0, math.min(1, spark.life / 0.36))
                         love.graphics.setColor(1, 0.85, 0.25, 0.9 * sparkFade)
                         love.graphics.circle("fill", sx, sy, (spark.size or 3) * sparkFade)
@@ -595,8 +660,8 @@ function RenderSystem.draw(context)
                 if effect.smoke then
                     love.graphics.setBlendMode("alpha")
                     for _, puff in ipairs(effect.smoke) do
-                        local px = puff.x or effect.x
-                        local py = puff.y or effect.y
+                        local px = (puff.x or effect.x)+offsetX
+                        local py = (puff.y or effect.y)+offsetY
                         local puffFade = math.max(0, math.min(1, puff.life / 0.7))
                         love.graphics.setColor(0.17, 0.17, 0.17, 0.22 * puffFade)
                         love.graphics.circle("fill", px, py, (puff.size or 10) * (1.2 - puffFade * 0.2))

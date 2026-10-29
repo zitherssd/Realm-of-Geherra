@@ -559,6 +559,7 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
         if skillData.projectile then
             local proj = Projectile.launch(unit, skillData, castTargetX, castTargetY,
                 targetUnit, context.data.projectileRng)
+            proj.presentationTarget = targetUnit
 
             if isFireballProjectile(skillData) then
                 proj.trailParticles = {}
@@ -619,6 +620,7 @@ function ExecutionSystem._updateProjectiles(context)
                     type = "fire_explosion",
                     x = tx,
                     y = ty,
+                    z = proj.z, projectile = proj, contactUnit = collidedUnit,
                     time = 0,
                     duration = 0.45,
                     maxRadius = 44,
@@ -641,6 +643,10 @@ function ExecutionSystem._updateProjectiles(context)
                 })
             end
 
+            if collidedUnit and context.addVfx then
+                context.addVfx({type="projectile_contact", x=tx, y=ty, z=proj.z,
+                    projectile=proj, contactUnit=collidedUnit, time=0, duration=0.12})
+            end
             local result
             if collidedUnit then
                 result = CombatSystem.resolveProjectileAttack(proj.attackerUnit, collidedUnit, skillData)
