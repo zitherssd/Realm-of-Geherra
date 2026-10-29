@@ -577,7 +577,7 @@ function ExecutionSystem._executeSkillEffect(unit, skillId, targetUnitId, target
             unit.charges[skillId] = (unit.charges[skillId] or 0) - 1
         end
 
-        unit.globalCooldown = cdTicks
+        unit.globalCooldown = skillData.recovery or cdTicks
     end
 end
 

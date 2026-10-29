@@ -9,7 +9,8 @@ return {
         damageType = "slashing",
         baseDamage = 3,
         windup = 30,
-        cooldown = 10,
+        recovery = 5,
+        cooldown = 30,
         cost = 0,
         range = 0.2,
     },
@@ -27,6 +28,7 @@ return {
         range = 0.18,
     },
 
+    -- This can be accomplished purely via skill modifiers
     ["dagger"] = {
         id = "dagger",
         name = "Dagger",

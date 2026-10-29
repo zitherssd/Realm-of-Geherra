@@ -8,8 +8,9 @@ return {
         damageType = "piercing",
         baseDamage = 10,
         range = 14,
-        windup = 40,
-        cooldown = 10,
+        windup = 15,
+        recovery = 15,
+        cooldown = 50,
         projectile = { style = "arrow", speed = 40, arc = 25, radius = 1 },
     },
 
@@ -21,8 +22,9 @@ return {
         damageType = "piercing",
         baseDamage = 15,
         range = 7.5,
-        windup = 20,
-        cooldown = 30,
+        windup = 12,
+        recovery = 8,
+        cooldown = 100,
         maxCharges = 2,
         -- Only usable 2 times per battle
         projectile = {
@@ -40,8 +42,8 @@ return {
         damageType = "piercing",
         baseDamage = 15,
         range = 7.5,
-        windup = 20,
-        cooldown = 30,
+        windup = 12,
+        cooldown = 8,
         maxCharges = 1,
         projectile = {
             sprite = "src/assets/sprites/projectiles/spear.png",
@@ -59,7 +61,8 @@ return {
         baseDamage = 9,
         range = 12.0,
         windup = 30,
-        cooldown = 10,
+        recovery = 10,
+        cooldown = 25,
         projectile = {
             style = "sling_stone",
             speed = 36,

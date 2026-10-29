@@ -21,7 +21,7 @@ local MAX_FRAME_SKIP = 5
 local BattleContext
 
 local function isTargetedAoeSkill(skillData)
-    return skillData and skillData.aoe ~= nil
+    return skillData and skillData.aoe ~= nil and skillData.targeted
 end
 
 local function worldToScreen(context, worldX, worldY)
@@ -188,7 +188,8 @@ function BattleState.update(dt)
                             BattleContext.data.inputCooldown = 0.2
                         elseif isTargetedAoeSkill(skillData) then
                             local nearestEnemy = getNearestEnemyUnit(playerUnit)
-                            local defaultPoint = nearestEnemy and {x = nearestEnemy.x, y = nearestEnemy.y} or {x = playerUnit.x, y = playerUnit.y}
+                            local defaultPoint = skillData.aoe.eligibility == "allies" and {x = playerUnit.x, y = playerUnit.y}
+                                or (nearestEnemy and {x = nearestEnemy.x, y = nearestEnemy.y} or {x = playerUnit.x, y = playerUnit.y})
                             BattleContext.data.targetingMode = true
                             BattleContext.data.targetingSkillId = skillId
                             BattleContext.data.targetingPoint = defaultPoint
@@ -220,6 +221,8 @@ function BattleState.update(dt)
                                     type = "SKILL",
                                     skillId = skillId,
                                     targetUnitId = bestTarget.id,
+                                    target = skillData.aoe and skillData.aoe.eligibility == "allies"
+                                        and {x = playerUnit.x, y = playerUnit.y} or nil,
                                     unitId = playerUnit.id
                                 }
                                 BattleContext.data.inputCooldown = 0.2

@@ -350,7 +350,7 @@ return {
             attack = 14,
             defense = 8,
             speed = 10,
-            battle_speed = 10,
+            battle_speed = 8,
         },
         size = 5,
         equipment = {

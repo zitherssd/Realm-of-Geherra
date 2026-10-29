@@ -19,3 +19,8 @@ stylua --config-path src/data/stylua.toml --check src/data
 layout when authoring: the formatter retains short inline tables as inline tables.
 Do not change values, reorder ordered lists, or rewrite data constructors as part
 of formatting.
+
+Skill definitions are grouped in `skills/` by category or element. Each module
+returns a table keyed by skill ID, and `skills.lua` aggregates those modules
+while validating IDs and rejecting duplicates. Add new skill modules to the
+aggregate list when introducing a category.

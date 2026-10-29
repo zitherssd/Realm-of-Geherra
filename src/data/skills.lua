@@ -9,6 +9,7 @@ local categories = {
     require("src.data.skills.ice_spells"),
     require("src.data.skills.lightning_spells"),
     require("src.data.skills.healing_spells"),
+    require("src.data.skills.earth_spells"),
 }
 
 local skills = {}

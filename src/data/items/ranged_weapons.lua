@@ -26,7 +26,7 @@ return {
         weight = 1.2,
         value = 220,
         slot = "mainHand",
-        grantsSkill = "fireball",
+        grantsSkill = "mass_stoneskin",
         durability = 15,
         maxDurability = 15,
     },

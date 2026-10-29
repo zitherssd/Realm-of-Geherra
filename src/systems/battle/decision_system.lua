@@ -109,7 +109,8 @@ function DecisionSystem._processAI(unit, context)
         target = bestTarget
         local skill = CombatSystem.getEffectiveSkill(unit, best)
         unit.intent = {type="SKILL", skillId=best, targetUnitId=target.id,
-            target=skill.targeted and {x=target.x,y=target.y} or nil}
+            target=skill.aoe and skill.aoe.eligibility == "allies" and {x=unit.x,y=unit.y}
+                or (skill.targeted and {x=target.x,y=target.y} or nil)}
     elseif Conditions.permits(unit, "move") and not position and target and (not rangedRange or distance > rangedRange^2) then
         unit.intent = {type="MOVE", target={x=target.x,y=target.y}, avoidObstacles=true}
     end
